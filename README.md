@@ -150,5 +150,5 @@ curl -X POST http://127.0.0.1:8000/v1/agent/execute \
 
 ## 联系
 
-后端开发：李文彬 (23306041)
+后端开发：李文彬 
 有问题提 GitHub Issue。
