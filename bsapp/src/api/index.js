@@ -1,7 +1,10 @@
 import { currentLang } from '@/utils/i18n'
 
-// API 基础配置
-const BASE_URL = 'http://172.26.9.112:8000'
+// API 基础配置 —— 可通过 storage 或编译时变量覆盖
+function getBaseUrl() {
+  try { return uni.getStorageSync('api_base_url') || 'http://127.0.0.1:8000' }
+  catch (e) { return 'http://127.0.0.1:8000' }
+}
 
 const HEADERS = {
   'Content-Type': 'application/json'
@@ -357,7 +360,7 @@ function request(options) {
   return new Promise((resolve, reject) => {
     const token = uni.getStorageSync('auth_token') || ''
     uni.request({
-      url: BASE_URL + options.url,
+      url: getBaseUrl() + options.url,
       method: options.method || 'GET',
       data: options.data || {},
       header: {
@@ -472,13 +475,13 @@ export const ApiService = {
     return L(MOCK_RECIPE_DETAIL)
   },
 
-  // Agent对话
-  async agentExecute(input) {
+  // Agent对话（支持传入图片 URL）
+  async agentExecute(input, imageUrl = null) {
     try {
       const res = await request({
         url: '/v1/agent/execute',
         method: 'POST',
-        data: { input }
+        data: { input, image_url: imageUrl || undefined }
       })
       if (res.status === 'success') return res.data
     } catch (e) {
@@ -517,7 +520,7 @@ export const ApiService = {
     return L(MOCK_SHOPPING_LIST)
   },
 
-  // 登录
+  // 登录（后端只收 openid，返回 { token, user_id, name }）
   async login(openid) {
     try {
       const res = await request({

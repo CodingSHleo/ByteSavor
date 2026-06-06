@@ -119,11 +119,11 @@
         </view>
         <view v-if="agentResult" class="ai-result">
           <view v-if="agentResult.parsed_intent" class="ai-intent-row">
-            <text class="ai-intent-chip">⏱ {{ agentResult.parsed_intent.time }}min</text>
+            <text class="ai-intent-chip">⏱ {{ agentResult.parsed_intent.time_limit || agentResult.parsed_intent.time }}min</text>
             <text class="ai-intent-chip">🎯 {{ goalLabel(agentResult.parsed_intent.goal) }}</text>
-            <text v-for="item in agentResult.parsed_intent.core_items" :key="item" class="ai-intent-chip">{{ item }}</text>
+            <text v-for="item in (agentResult.parsed_intent.ingredients || agentResult.parsed_intent.core_items || [])" :key="item" class="ai-intent-chip">{{ item }}</text>
           </view>
-          <view v-if="agentResult.cot_reasoning" class="ai-cot">
+          <view v-if="agentResult.cot_reasoning && agentResult.cot_reasoning.length > 0" class="ai-cot">
             <view v-for="(step, idx) in agentResult.cot_reasoning.slice(0,3)" :key="idx" class="ai-cot-row">
               <text class="ai-cot-num">{{ idx+1 }}</text><text class="ai-cot-text">{{ step }}</text>
             </view>
@@ -184,7 +184,13 @@ const todayDate = computed(() => {
 
 watch(currentLang, () => { loadIngredients(); loadNutrition(); generateRecommendations() })
 
-async function loadIngredients() { ingredients.value = await ApiService.analyzeIngredient('') }
+async function loadIngredients() {
+  // 首页不传空 image_url 调 API，直接从本地缓存恢复或保持空
+  try {
+    const cached = uni.getStorageSync('last_ingredients')
+    if (cached) ingredients.value = JSON.parse(cached)
+  } catch (e) { /* ignore */ }
+}
 async function loadNutrition() { const d = await ApiService.getNutritionStatus(); nutritionScore.value = d.score || 65 }
 async function generateRecommendations() { isLoading.value = true; const n = ingredients.value.map(i => i.name); recipes.value = await ApiService.generateMealPlan(n); isLoading.value = false }
 async function onRefresh() { refreshing.value = true; await generateRecommendations(); refreshing.value = false }

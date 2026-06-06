@@ -27,11 +27,6 @@
       </button>
     </view>
 
-    <!-- H5 模式下用原生 input 拍照（uni.chooseMedia 在 H5 不兼容） -->
-    <!-- #ifdef H5 -->
-    <input type="file" ref="cameraInput" accept="image/*" capture="environment" style="display:none" @change="onCameraFile" />
-    <input type="file" ref="galleryInput" accept="image/*" style="display:none" @change="onGalleryFile" />
-    <!-- #endif -->
 
     <!-- 状态 -->
     <view v-if="recognitionStatus" class="ir-status">
@@ -99,11 +94,19 @@ function showImageOptions() {
   })
 }
 
+function triggerFileInput(capture) {
+  // 动态创建 file input（避免 #ifdef 编译问题）
+  const input = document.createElement('input')
+  input.type = 'file'
+  input.accept = 'image/*'
+  if (capture) input.setAttribute('capture', 'environment')
+  input.onchange = handleNativeFile
+  input.click()
+}
+
 function takePhoto() {
   // #ifdef H5
-  const el = uni.createSelectorQuery().select('#cameraInput')
-  // 直接用 ref 触发 H5 原生拍照
-  document.querySelector('input[type=file][capture]')?.click()
+  triggerFileInput(true)
   // #endif
   // #ifndef H5
   uni.chooseMedia({
@@ -124,9 +127,7 @@ function takePhoto() {
 
 function pickFromGallery() {
   // #ifdef H5
-  const inputs = document.querySelectorAll('input[type=file]')
-  const galleryInput = inputs[inputs.length - 1]
-  if (galleryInput) galleryInput.click()
+  triggerFileInput(false)
   // #endif
   // #ifndef H5
   uni.chooseMedia({
@@ -145,18 +146,14 @@ function pickFromGallery() {
   // #endif
 }
 
-// H5 原生 input 的文件处理
-function onCameraFile(e) { handleNativeFile(e) }
-function onGalleryFile(e) { handleNativeFile(e) }
-
 function handleNativeFile(e) {
-  const file = e.target.files?.[0] || e.detail?.files?.[0]
+  const file = e.target?.files?.[0] || e.detail?.files?.[0]
   if (!file) return
   const reader = new FileReader()
   reader.onload = (ev) => {
     selectedImage.value = ev.target.result
     recognizedIngredients.value = []
-    recognitionStatus.value = '正在上传图片...'
+    recognitionStatus.value = '正在识别食材...'
     analyzeImage()
   }
   reader.readAsDataURL(file)
@@ -187,7 +184,6 @@ async function analyzeImage() {
     recognitionStatus.value = `识别完成！检测到${ingredients.length}种食材`
     isLoading.value = false
 
-    // 视觉校验确认
     if (ingredients.length > 0) {
       showVisionVerify(ingredients[0])
     }
@@ -260,6 +256,8 @@ function confirmAndNavigate() {
     title: $t('scanCompleteTitle'),
     detail: t('scanCompleteDetail', { n: recognizedIngredients.value.length })
   })
+  // 保存到本地，首页可直接读取
+  uni.setStorageSync('last_ingredients', JSON.stringify(recognizedIngredients.value))
   const data = encodeURIComponent(JSON.stringify(recognizedIngredients.value))
   uni.navigateTo({ url: `/pages/health-dashboard/health-dashboard?ingredients=${data}` })
 }

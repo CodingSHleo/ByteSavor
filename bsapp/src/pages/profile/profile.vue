@@ -85,10 +85,12 @@ import { ref, computed, watch } from 'vue'
 import { onShow } from '@dcloudio/uni-app'
 import { ApiService } from '@/api/index'
 import { useSettingsStore } from '@/store/settings'
+import { useAuthStore } from '@/store/auth'
 import { t, currentLang } from '@/utils/i18n'
 
 const $t = key => t(key)
 const settingsStore = useSettingsStore()
+const authStore = useAuthStore()
 
 const profile = ref(null)
 const nutrition = ref(null)

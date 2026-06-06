@@ -16,18 +16,8 @@
           <text class="input-icon">👤</text>
           <input
             class="input-field"
-            v-model="username"
-            :placeholder="$t('usernameOrEmail')"
-            placeholder-class="ph"
-          />
-        </view>
-        <view class="input-row">
-          <text class="input-icon">🔒</text>
-          <input
-            class="input-field"
-            v-model="password"
-            type="password"
-            :placeholder="$t('password')"
+            v-model="openid"
+            placeholder="输入 demo 即可体验"
             placeholder-class="ph"
           />
         </view>
@@ -56,7 +46,7 @@
 
       <!-- 演示账号提示 -->
       <view class="demo-tip">
-        <text>💡 {{ $t('demoAccount') }}: demo / 123456</text>
+        <text>💡 输入 demo 即可登录，无需注册</text>
       </view>
     </view>
   </view>
@@ -71,14 +61,13 @@ import { t } from '@/utils/i18n'
 const $t = key => t(key)
 const authStore = useAuthStore()
 
-const username = ref('')
-const password = ref('')
+const openid = ref('demo')
 const isLoading = ref(false)
 const errorMessage = ref('')
 
 async function handleLogin() {
-  if (!username.value || !password.value) {
-    errorMessage.value = '请输入用户名和密码'
+  if (!openid.value.trim()) {
+    errorMessage.value = '请输入 OpenID'
     return
   }
 
@@ -86,23 +75,20 @@ async function handleLogin() {
   errorMessage.value = ''
 
   try {
-    const result = await ApiService.login(username.value, password.value)
+    const result = await ApiService.login(openid.value.trim())
 
     const token = result.token || ''
-    const userData = result.user || {}
+    // result 就是 res.data，直接包含 {token, user_id, name}
+    const userId = result.user_id || result.userId || 'u_001'
+    const username = result.name || openid.value
 
     if (token) {
-      const user = {
-        userId: userData.userId || 'u_001',
-        username: userData.username || username.value,
-        email: userData.email || '',
-        token: token
-      }
+      const user = { userId, username, email: '' }
 
       await authStore.setAuthData(user, token)
       uni.switchTab({ url: '/pages/home/home' })
     } else {
-      errorMessage.value = '登录失败，请检查用户名和密码'
+      errorMessage.value = '登录失败，请检查 OpenID'
     }
   } catch (e) {
     errorMessage.value = '登录出错: ' + (e.message || e)

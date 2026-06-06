@@ -170,7 +170,6 @@ onLoad(async (options) => {
 })
 
 watch(currentLang, () => { loadDetail() })
-})
 
 function setRating(n) {
   rating.value = n
