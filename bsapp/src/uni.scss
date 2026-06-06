@@ -1,0 +1,49 @@
+/* uni.scss - 全局主题变量 */
+$uni-color-primary: #06B6D4; // teal-ish primary
+$uni-color-primary-700: #0284C7;
+$uni-color-accent: #7C3AED; // purple accent
+$uni-color-success: #10B981;
+$uni-color-warning: #F59E0B;
+$uni-color-error: #EF4444;
+$uni-color-info: #3B82F6;
+
+$uni-bg-color: #FAFBFF;
+$uni-bg-color-white: #FFFFFF;
+
+$uni-text-color: #172554;
+$uni-text-color-grey: #6B7280;
+$uni-text-color-placeholder: #9CA3AF;
+
+$uni-border-radius-base: 18rpx;
+$uni-spacing-sm: 12rpx;
+$uni-spacing-md: 20rpx;
+$uni-spacing-lg: 28rpx;
+
+$uni-font-size-sm: 24rpx;
+$uni-font-size-base: 28rpx;
+$uni-font-size-lg: 32rpx;
+$uni-font-size-xl: 36rpx;
+
+// Gradients
+$gradient-primary: linear-gradient(135deg, #06B6D4 0%, #7C3AED 100%);
+$gradient-card: linear-gradient(180deg, rgba(255,255,255,0.6) 0%, rgba(255,255,255,0.3) 100%);
+
+// Shadows
+$card-shadow: 0 10rpx 30rpx rgba(12, 15, 40, 0.06);
+
+// Utility classes
+.bg-gradient-primary {
+	background: $gradient-primary;
+}
+
+.card-deep {
+	background: $uni-bg-color-white;
+	box-shadow: $card-shadow;
+	border-radius: $uni-border-radius-base;
+}
+
+.btn-gradient {
+	background: $gradient-primary;
+	color: #fff;
+	border-radius: 14rpx;
+}

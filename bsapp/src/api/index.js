@@ -1,0 +1,559 @@
+import { currentLang } from '@/utils/i18n'
+
+// API 基础配置
+const BASE_URL = 'http://172.26.9.112:8000'
+
+const HEADERS = {
+  'Content-Type': 'application/json'
+}
+
+// trace_id 生成
+function genTraceId() {
+  return 'trace_' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36)
+}
+
+// 智能本地化：根据当前语言返回对应字段
+function L(item) {
+  if (!item) return item
+  if (Array.isArray(item)) return item.map(L)
+  const lang = currentLang.value
+  const localized = { ...item }
+  // 优先使用当前语言版本，fallback 到中文
+  if (lang === 'en') {
+    if (item.nameEn !== undefined) localized.name = item.nameEn
+    if (item.titleEn !== undefined) localized.title = item.titleEn
+    if (item.stateEn !== undefined) localized.state = item.stateEn
+    if (item.featuresEn !== undefined) localized.features = item.featuresEn
+    if (item.difficultyEn !== undefined) localized.difficulty = item.difficultyEn
+    if (item.tipsEn !== undefined) localized.tips = item.tipsEn
+    if (item.serving_sizeEn !== undefined && item.portion_estimation) {
+      localized.portion_estimation = { ...item.portion_estimation, serving_size: item.portion_estimation.serving_sizeEn || item.portion_estimation.serving_size }
+    }
+    // 翻译 steps
+    if (item.stepsEn) localized.steps = item.stepsEn
+    // 翻译 ingredients 里的 name
+    if (item.ingredients) localized.ingredients = item.ingredients.map(i => ({ ...i, name: i.nameEn || i.name }))
+  }
+  return localized
+}
+
+// ==================== Mock数据 (后端未启动时使用) ====================
+
+export const MOCK_INGREDIENTS = [
+  {
+    name: '西兰花', nameEn: 'Broccoli',
+    confidence: 0.98,
+    freshness: 'high',
+    state: '新鲜', stateEn: 'Fresh',
+    features: '深绿色、花球紧实饱满、无黄斑、茎秆脆嫩、组织致密',
+    featuresEn: 'Dark green, tight florets, no yellow spots, crisp stem, dense tissue',
+    portion_estimation: { weight_g: 250, serving_size: '中等大小一棵', serving_sizeEn: '1 medium head' }
+  },
+  {
+    name: '牛肉', nameEn: 'Beef',
+    confidence: 0.95,
+    freshness: 'normal',
+    state: '冷藏', stateEn: 'Chilled',
+    features: '纹理清晰均匀、呈樱桃红色、适度大理石花纹、肌组织弹性良好',
+    featuresEn: 'Clear marbling, cherry-red color, moderate fat distribution, good elasticity',
+    portion_estimation: { weight_g: 300, serving_size: '一块', serving_sizeEn: '1 piece' }
+  },
+  {
+    name: '番茄', nameEn: 'Tomato',
+    confidence: 0.92,
+    freshness: 'high',
+    state: '新鲜', stateEn: 'Fresh',
+    features: '色泽鲜红均匀、果形圆润饱满、果蒂翠绿、触感微软有弹性',
+    featuresEn: 'Bright red, round and plump, green stem, slightly soft to touch',
+    portion_estimation: { weight_g: 180, serving_size: '两个中等番茄', serving_sizeEn: '2 medium tomatoes' }
+  }
+]
+
+export const MOCK_RECIPES = [
+  {
+    recipeId: 'r_101',
+    title: '香辣牛肉西兰花', titleEn: 'Spicy Beef & Broccoli',
+    matchScore: 0.93,
+    cookTime: 25,
+    difficulty: '简单', difficultyEn: 'Easy',
+    calories: 320,
+    imageEmoji: '🥩'
+  },
+  {
+    recipeId: 'r_102',
+    title: '西兰花炒鸡胸', titleEn: 'Broccoli & Chicken Stir-Fry',
+    matchScore: 0.88,
+    cookTime: 20,
+    difficulty: '简单', difficultyEn: 'Easy',
+    calories: 280,
+    imageEmoji: '🥦'
+  },
+  {
+    recipeId: 'r_103',
+    title: '番茄牛腩煲', titleEn: 'Tomato Beef Brisket Stew',
+    matchScore: 0.85,
+    cookTime: 60,
+    difficulty: '中等', difficultyEn: 'Medium',
+    calories: 420,
+    imageEmoji: '🍅'
+  },
+  {
+    recipeId: 'r_104',
+    title: '低脂沙拉碗', titleEn: 'Low-Fat Salad Bowl',
+    matchScore: 0.82,
+    cookTime: 15,
+    difficulty: '简单', difficultyEn: 'Easy',
+    calories: 180,
+    imageEmoji: '🥗'
+  }
+]
+
+export const MOCK_NUTRITION_STATUS = {
+  score: 65,
+  deficits: ['vitamin_c', 'fiber', 'iron']
+}
+
+export const MOCK_NUTRITION_GAP = {
+  protein: 'still_needed',
+  fiber: 'critical',
+  vitamin_c: 'critical',
+  iron: 'moderate'
+}
+
+export const MOCK_USER_PROFILE = {
+  userId: 'u_001',
+  username: 'demo_user',
+  name: 'demo_user',
+  goal: 'fat_loss',
+  preferences: ['spicy', 'high_protein'],
+  healthData: {
+    height: 175,
+    weight: 78,
+    targetWeight: 70,
+    dailyCalorieTarget: 2200,
+    dailyProteinTarget: 90,
+    dailyFiberTarget: 30
+  }
+}
+
+export const MOCK_RECIPE_DETAIL = {
+  recipeId: 'r_101',
+  title: '香辣牛肉西兰花', titleEn: 'Spicy Beef & Broccoli',
+  cookTime: 25,
+  difficulty: '简单', difficultyEn: 'Easy',
+  calories: 320,
+  imageEmoji: '🥩',
+  servingSize: '2人份',
+  ingredients: [
+    { name: '牛肉', nameEn: 'Beef', amount: '300g' },
+    { name: '西兰花', nameEn: 'Broccoli', amount: '200g' },
+    { name: '蒜蓉', nameEn: 'Minced Garlic', amount: '10g' },
+    { name: '干辣椒', nameEn: 'Dried Chili', amount: '适量' },
+    { name: '生抽', nameEn: 'Soy Sauce', amount: '15ml' },
+    { name: '料酒', nameEn: 'Cooking Wine', amount: '10ml' },
+    { name: '淀粉', nameEn: 'Cornstarch', amount: '5g' }
+  ],
+  nutrition: { protein: 35, fat: 15, carbs: 12, fiber: 4, vitamin_c: 89, iron: 3.5, calcium: 45 },
+  steps: [
+    '牛肉切薄片，加入料酒、生抽、淀粉腌制10分钟',
+    '西兰花掰成小朵，烧开水加盐焯烫1分钟捞出',
+    '热锅冷油，放入蒜蓉和干辣椒炒香',
+    '加入牛肉片快速翻炒至变色（约2分钟）',
+    '加入焯好的西兰花，大火翻炒均匀',
+    '调入生抽和少许盐，翻炒30秒即可出锅'
+  ],
+  stepsEn: [
+    'Slice beef thinly, marinate with cooking wine, soy sauce & cornstarch for 10 min',
+    'Break broccoli into florets, blanch in salted boiling water for 1 min',
+    'Heat oil in a wok, sauté garlic and dried chili until fragrant',
+    'Add beef slices, stir-fry quickly until color changes (~2 min)',
+    'Add blanched broccoli, stir-fry over high heat',
+    'Season with soy sauce and a pinch of salt, toss for 30s and serve'
+  ],
+  tips: '牛肉不要炒太久，变色即可保持嫩滑；西兰花焯水时加盐和几滴油能保持翠绿色泽。',
+  tipsEn: 'Do not overcook the beef — remove as soon as it changes color. Add salt and a few drops of oil when blanching broccoli to keep it bright green.'
+}
+
+export const MOCK_RECIPE_DETAILS = {
+  // 支持多菜谱详情查询
+  'r_101': MOCK_RECIPE_DETAIL,
+  'r_102': {
+    recipeId: 'r_102',
+    title: '西兰花炒鸡胸',
+    cookTime: 20,
+    difficulty: '简单',
+    calories: 280,
+    imageEmoji: '🥦',
+    servingSize: '2人份',
+    ingredients: [
+      { name: '鸡胸肉', amount: '250g' },
+      { name: '西兰花', amount: '200g' },
+      { name: '蒜片', amount: '10g' },
+      { name: '姜丝', amount: '5g' },
+      { name: '盐', amount: '适量' },
+      { name: '胡椒粉', amount: '少许' }
+    ],
+    nutrition: {
+      protein: 42,
+      fat: 8,
+      carbs: 10,
+      fiber: 3,
+      vitamin_c: 82,
+      iron: 2.1,
+      calcium: 35
+    },
+    steps: [
+      '鸡胸肉切丁，加盐和胡椒粉腌制5分钟',
+      '西兰花掰小朵，开水焯烫1分钟捞出',
+      '热锅少油，爆香姜丝蒜片',
+      '加入鸡胸肉丁，中火翻炒至表面变白',
+      '加入西兰花一起翻炒1分钟',
+      '加少许盐调味，翻炒均匀出锅'
+    ],
+    tips: '鸡胸肉不要切太大块，小丁更容易熟透且口感更好。'
+  },
+  'r_103': {
+    recipeId: 'r_103',
+    title: '番茄牛腩煲',
+    cookTime: 60,
+    difficulty: '中等',
+    calories: 420,
+    imageEmoji: '🍅',
+    servingSize: '3人份',
+    ingredients: [
+      { name: '牛腩', amount: '500g' },
+      { name: '番茄', amount: '3个' },
+      { name: '洋葱', amount: '半个' },
+      { name: '姜片', amount: '5片' },
+      { name: '八角', amount: '2个' },
+      { name: '番茄酱', amount: '30g' },
+      { name: '盐', amount: '适量' }
+    ],
+    nutrition: {
+      protein: 38,
+      fat: 22,
+      carbs: 15,
+      fiber: 5,
+      vitamin_c: 35,
+      iron: 4.8,
+      calcium: 55
+    },
+    steps: [
+      '牛腩切块，冷水下锅焯水去血沫，捞出洗净',
+      '番茄切十字花刀，热水烫去皮后切块',
+      '热锅加油，炒香洋葱和姜片',
+      '加入牛腩翻炒至表面微黄',
+      '加入番茄块和番茄酱，翻炒出汁',
+      '加足量热水，放入八角，大火烧开转小火炖40分钟',
+      '开盖收汁，加盐调味即可'
+    ],
+    tips: '番茄去皮后口感更好；炖的时间越长牛腩越软烂。'
+  },
+  'r_104': {
+    recipeId: 'r_104',
+    title: '低脂沙拉碗',
+    cookTime: 15,
+    difficulty: '简单',
+    calories: 180,
+    imageEmoji: '🥗',
+    servingSize: '1人份',
+    ingredients: [
+      { name: '生菜', amount: '100g' },
+      { name: '鸡胸肉(煮熟)', amount: '100g' },
+      { name: '圣女果', amount: '8颗' },
+      { name: '黄瓜', amount: '半根' },
+      { name: '玉米粒', amount: '50g' },
+      { name: '橄榄油', amount: '5ml' },
+      { name: '柠檬汁', amount: '10ml' }
+    ],
+    nutrition: {
+      protein: 28,
+      fat: 6,
+      carbs: 18,
+      fiber: 8,
+      vitamin_c: 45,
+      iron: 2.5,
+      calcium: 60
+    },
+    steps: [
+      '生菜洗净撕成小片，铺碗底',
+      '鸡胸肉煮熟后撕成丝',
+      '黄瓜切片，圣女果对半切',
+      '将所有食材放入碗中',
+      '淋上橄榄油和柠檬汁',
+      '撒少许黑胡椒和盐，拌匀即可'
+    ],
+    tips: '可以提前煮好鸡胸肉冷藏保存，吃的时候直接撕丝即可。柠檬汁能提鲜且减少油脂感。'
+  }
+}
+
+export const MOCK_AGENT_RESPONSE = {
+  parsed_intent: {
+    time: 30,
+    goal: 'fat_loss',
+    core_items: ['牛肉', '南瓜']
+  },
+  cot_reasoning: [
+    '识别关键词："30分钟""减脂""牛肉""南瓜"',
+    '匹配用户偏好：辣味、高蛋白、低脂',
+    '检索食谱库：南瓜炖牛肉匹配度最高',
+    '营养校验：南瓜可补充今日纤维缺口',
+    '确认方案：30分钟内可完成，热量320kcal符合减脂目标'
+  ],
+  recipes: [
+    { recipe_id: 'r_202', title: '南瓜炖牛肉', titleEn: 'Pumpkin Beef Stew', match_score: 0.96, cookTime: 30, difficulty: '简单', difficultyEn: 'Easy', calories: 310 }
+  ],
+  shopping_list: [
+    { name: '牛肉', amount: '300g' },
+    { name: '南瓜', amount: '200g' },
+    { name: '生姜', amount: '少许' },
+    { name: '蒜', amount: '3瓣' },
+    { name: '生抽', amount: '适量' }
+  ]
+}
+
+// 响应式获取探索菜谱（根据当前语言自动切换）
+export function getExploreRecipes() {
+  return L(EXPLORE_RECIPES_RAW)
+}
+const EXPLORE_RECIPES_RAW = [
+  { recipeId: 'r_101', title: '香辣牛肉西兰花', titleEn: 'Spicy Beef & Broccoli', cookTime: 25, difficulty: '简单', difficultyEn: 'Easy', calories: 320, imageEmoji: '🥩', category: 'high_protein' },
+  { recipeId: 'r_102', title: '西兰花炒鸡胸', titleEn: 'Broccoli & Chicken Breast', cookTime: 20, difficulty: '简单', difficultyEn: 'Easy', calories: 280, imageEmoji: '🥦', category: 'high_protein' },
+  { recipeId: 'r_103', title: '番茄牛腩煲', titleEn: 'Tomato Beef Brisket Stew', cookTime: 60, difficulty: '中等', difficultyEn: 'Medium', calories: 420, imageEmoji: '🍅', category: 'comfort' },
+  { recipeId: 'r_104', title: '低脂沙拉碗', titleEn: 'Low-Fat Salad Bowl', cookTime: 15, difficulty: '简单', difficultyEn: 'Easy', calories: 180, imageEmoji: '🥗', category: 'low_fat' },
+  { recipeId: 'r_201', title: '清蒸鲈鱼', titleEn: 'Steamed Sea Bass', cookTime: 25, difficulty: '简单', difficultyEn: 'Easy', calories: 200, imageEmoji: '🐟', category: 'seafood' },
+  { recipeId: 'r_202', title: '南瓜炖牛肉', titleEn: 'Pumpkin Beef Stew', cookTime: 30, difficulty: '简单', difficultyEn: 'Easy', calories: 310, imageEmoji: '🎃', category: 'comfort' },
+  { recipeId: 'r_203', title: '番茄炒蛋', titleEn: 'Tomato Scrambled Eggs', cookTime: 10, difficulty: '简单', difficultyEn: 'Easy', calories: 220, imageEmoji: '🍳', category: 'quick' },
+  { recipeId: 'r_204', title: '蒜蓉空心菜', titleEn: 'Garlic Water Spinach', cookTime: 10, difficulty: '简单', difficultyEn: 'Easy', calories: 120, imageEmoji: '🥬', category: 'vegetarian' },
+  { recipeId: 'r_301', title: '虾仁豆腐羹', titleEn: 'Shrimp Tofu Soup', cookTime: 20, difficulty: '中等', difficultyEn: 'Medium', calories: 250, imageEmoji: '🦐', category: 'seafood' },
+  { recipeId: 'r_302', title: '白灼菜心', titleEn: 'Blanched Choy Sum', cookTime: 8, difficulty: '简单', difficultyEn: 'Easy', calories: 90, imageEmoji: '🥬', category: 'vegetarian' },
+  { recipeId: 'r_303', title: '黑椒鸡胸肉', titleEn: 'Black Pepper Chicken Breast', cookTime: 15, difficulty: '简单', difficultyEn: 'Easy', calories: 260, imageEmoji: '🍗', category: 'high_protein' },
+  { recipeId: 'r_304', title: '紫菜蛋花汤', titleEn: 'Seaweed Egg Drop Soup', cookTime: 10, difficulty: '简单', difficultyEn: 'Easy', calories: 80, imageEmoji: '🍲', category: 'quick' }
+]
+
+export const MOCK_SHOPPING_LIST = [
+  { name: '牛肉', nameEn: 'Beef', amount: '300g' },
+  { name: '蒜蓉', nameEn: 'Minced Garlic', amount: '10g' },
+  { name: '西兰花', nameEn: 'Broccoli', amount: '200g' },
+  { name: '干辣椒', nameEn: 'Dried Chili', amount: '适量' },
+  { name: '生抽', nameEn: 'Soy Sauce', amount: '15ml' }
+]
+
+export const MOCK_VALID_USERNAME = 'demo'
+export const MOCK_VALID_PASSWORD = '123456'
+
+export const MOCK_LOGIN_RESPONSE = {
+  token: 'mock_jwt_token_12345',
+  user: {
+    userId: 'u_001',
+    username: 'demo_user',
+    email: 'demo@example.com'
+  }
+}
+
+// ==================== 请求封装 ====================
+
+function request(options) {
+  return new Promise((resolve, reject) => {
+    const token = uni.getStorageSync('auth_token') || ''
+    uni.request({
+      url: BASE_URL + options.url,
+      method: options.method || 'GET',
+      data: options.data || {},
+      header: {
+        ...HEADERS,
+        'Authorization': token ? `Bearer ${token}` : ''
+      },
+      timeout: 15000,
+      success: (res) => {
+        if (res.statusCode === 200 || res.statusCode === 201) {
+          resolve(res.data)
+        } else {
+          reject(new Error(`请求失败: ${res.statusCode}`))
+        }
+      },
+      fail: (err) => {
+        console.error('网络请求错误:', err)
+        reject(err)
+      }
+    })
+  })
+}
+
+// Mock 响应包装
+function mockResponse(data) {
+  return {
+    status: 'success',
+    data: data,
+    trace_id: genTraceId()
+  }
+}
+
+// ==================== API 方法 ====================
+
+export const ApiService = {
+  // 食材识别
+  async analyzeIngredient(imageUrl) {
+    try {
+      const res = await request({
+        url: '/v1/sense/analyze',
+        method: 'POST',
+        data: {
+          task_id: 'task_' + Date.now(),
+          image_url: imageUrl,
+          context: { scene: 'kitchen' }
+        }
+      })
+      if (res.status === 'success') {
+        return res.data.ingredients
+      }
+    } catch (e) {
+      console.error('API Error - analyzeIngredient:', e)
+    }
+    // fallback: 随机返回1-3个食材让UI更有动态感
+    const count = Math.floor(Math.random() * 3) + 1
+    return L(MOCK_INGREDIENTS.slice(0, count))
+  },
+
+  // 获取用户画像
+  async getUserProfile() {
+    try {
+      const res = await request({ url: '/v1/user/profile' })
+      if (res.status === 'success') return res.data
+    } catch (e) {
+      console.error('API Error - getUserProfile:', e)
+    }
+    return L(MOCK_USER_PROFILE)
+  },
+
+  // 获取营养状态
+  async getNutritionStatus() {
+    try {
+      const res = await request({ url: '/v1/nutrition/status' })
+      if (res.status === 'success') return res.data
+    } catch (e) {
+      console.error('API Error - getNutritionStatus:', e)
+    }
+    return L(MOCK_NUTRITION_STATUS)
+  },
+
+  // 生成餐食方案
+  async generateMealPlan(ingredients) {
+    try {
+      const res = await request({
+        url: '/v1/decision/meal-plan',
+        method: 'POST',
+        data: {
+          ingredients: ingredients,
+          constraints: { time_limit: 30, taste: 'any', goal: 'healthy' }
+        }
+      })
+      if (res.status === 'success') {
+        return res.data.recipes
+      }
+    } catch (e) {
+      console.error('API Error - generateMealPlan:', e)
+    }
+    // 根据食材数量返回1-4个菜谱
+    const n = Math.min(ingredients.length + 1, MOCK_RECIPES.length)
+    return L(MOCK_RECIPES.slice(0, n))
+  },
+
+  // 获取菜谱详情
+  async getRecipeDetail(recipeId) {
+    try {
+      const res = await request({ url: `/v1/recipes/${recipeId}` })
+      if (res.status === 'success') return res.data
+    } catch (e) {
+      console.error('API Error - getRecipeDetail:', e)
+    }
+    // 优先从详情字典查找
+    if (MOCK_RECIPE_DETAILS[recipeId]) return L(MOCK_RECIPE_DETAILS[recipeId])
+    return L(MOCK_RECIPE_DETAIL)
+  },
+
+  // Agent对话
+  async agentExecute(input) {
+    try {
+      const res = await request({
+        url: '/v1/agent/execute',
+        method: 'POST',
+        data: { input }
+      })
+      if (res.status === 'success') return res.data
+    } catch (e) {
+      console.error('API Error - agentExecute:', e)
+    }
+    return L(MOCK_AGENT_RESPONSE)
+  },
+
+  // 提交反馈
+  async submitFeedback(recipeId, rating) {
+    try {
+      await request({
+        url: '/v1/feedback/meal',
+        method: 'POST',
+        data: { recipe_id: recipeId, rating }
+      })
+      return { acknowledged: true, reward_points: rating === 5 ? 5 : 1 }
+    } catch (e) {
+      console.error('API Error - submitFeedback:', e)
+    }
+    return { acknowledged: true, reward_points: rating === 5 ? 5 : 1 }
+  },
+
+  // 合并购物清单
+  async mergeShoppingList(recipeIds) {
+    try {
+      const res = await request({
+        url: '/v1/task/merge-list',
+        method: 'POST',
+        data: { recipes: recipeIds }
+      })
+      if (res.status === 'success') return res.data.shopping_list
+    } catch (e) {
+      console.error('API Error - mergeShoppingList:', e)
+    }
+    return L(MOCK_SHOPPING_LIST)
+  },
+
+  // 登录
+  async login(openid) {
+    try {
+      const res = await request({
+        url: '/v1/auth/login',
+        method: 'POST',
+        data: { openid }
+      })
+      if (res.status === 'success') return res.data
+    } catch (e) {
+      console.error('API Error - login:', e)
+    }
+    // fallback: 后端不可用时返回mock
+    return { token: 'mock_token', user_id: 'u_001', name: 'demo' }
+  },
+
+  // 注册
+  async register(openid) {
+    try {
+      const res = await request({
+        url: '/v1/auth/register',
+        method: 'POST',
+        data: { openid }
+      })
+      if (res.status === 'success') return res.data
+    } catch (e) {
+      console.error('API Error - register:', e)
+    }
+    throw new Error('后端服务不可用，暂时无法注册')
+  },
+
+  // 登出
+  async logout() {
+    try {
+    } catch (e) {
+      console.error('API Error - logout:', e)
+    }
+    return true
+  }
+}
