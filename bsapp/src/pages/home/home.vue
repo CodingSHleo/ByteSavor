@@ -279,6 +279,8 @@ async function sendAgentMessage() {
   try {
     const r = await ApiService.agentExecute(m)
     agentResult.value = r
+    if (r.recipes && r.recipes.length) recipes.value = r.recipes
+    if (r.parsed_intent?.ingredients) ingredients.value = r.parsed_intent.ingredients.map(i => typeof i === 'string' ? { name: i } : i)
     agentMessage.value = ''
   } catch (e) {
     apiNotice.value = 'AI Agent 暂未连通，请稍后重试或检查后端服务。'
