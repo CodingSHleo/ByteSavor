@@ -44,14 +44,6 @@ async def generate_meal_plan(
     if not user:
         await cache.set(ck, result)
     return SuccessResponse(data=result)
-    # user_id 从 JWT 取，不从 body 取
-    user_prefs = []
-    goal = req.constraints.get("goal", "")
-    if user:
-        profile = await user_svc.get_profile(db, user["sub"])
-        if profile:
-            user_prefs = profile.get("preferences", [])
-            goal = goal or profile.get("goal", "")
 
     recipes = await match_recipes(db, req.ingredients, req.constraints, user_prefs)
     ids = [r["recipe_id"] for r in recipes]

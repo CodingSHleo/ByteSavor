@@ -1,7 +1,10 @@
 import json
 import hashlib
+import logging
 import redis.asyncio as aioredis
 from app.core.config import settings
+
+logger = logging.getLogger("cache")
 
 TTL = 600  # 10分钟
 
@@ -16,7 +19,8 @@ async def get(key: str) -> dict | None:
         val = await r.get(key)
         await r.close()
         return json.loads(val) if val else None
-    except Exception:
+    except Exception as e:
+        logger.debug("cache_get_failed key=%s error=%s", key, e)
         return None
 
 
@@ -25,8 +29,8 @@ async def set(key: str, data: dict, ttl: int = TTL):
         r = await _get_redis()
         await r.setex(key, ttl, json.dumps(data, ensure_ascii=False))
         await r.close()
-    except Exception:
-        pass
+    except Exception as e:
+        logger.debug("cache_set_failed key=%s error=%s", key, e)
 
 
 def make_key(*parts: str) -> str:

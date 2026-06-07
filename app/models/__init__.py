@@ -40,4 +40,3 @@ class Feedback(Base):
     recipe_id = Column(String(32), nullable=False)
     rating = Column(Integer, nullable=False)
     created_at = Column(DateTime, default=func.now())
-    created_at = Column(DateTime, default=func.now())

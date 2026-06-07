@@ -45,11 +45,12 @@ app.add_middleware(
 
 @app.exception_handler(Exception)
 async def global_exception_handler(_request: Request, exc: Exception):
+    from app.core.config import settings
     return JSONResponse(
         status_code=500,
         content={
             "status": "error",
-            "error": {"code": "INTERNAL_ERROR", "message": str(exc)},
+            "error": {"code": "INTERNAL_ERROR", "message": str(exc) if settings.debug else "服务器内部错误"},
             "trace_id": uuid.uuid4().hex,
         },
     )

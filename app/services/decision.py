@@ -132,7 +132,7 @@ def _fallback(recipes: list[Recipe], taste: str, goal: str) -> list[dict]:
 def _calc_ingredient(r: Recipe, user_ings: list[str]) -> tuple[float, list]:
     if not r.ingredients or not user_ings:
         return 0.3, []  # 无食材时给基准分
-    recipe_names = {i["name"] for i in r.ingredients}
+    recipe_names = {i["name"].lower() for i in r.ingredients}
     user_set = {u.lower() for u in user_ings}
     exact = recipe_names & user_set
     score = min(len(exact) / len(recipe_names), 1.0)

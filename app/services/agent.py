@@ -100,6 +100,7 @@ async def execute(
         "stages": [(s["stage"], s["status"], s["latency_ms"]) for s in stages],
     })
 
+    has_error = any(s["status"] == "error" for s in stages)
     return {
         "trace_id": trace_id,
         "stages": stages,
@@ -107,6 +108,7 @@ async def execute(
         "ingredients": [{"name": i, "from": "text" if i in intent["ingredients"] else "vlm"} for i in ingredients],
         "recipes": recipes,
         "shopping_list": shop_list,
+        "degraded": has_error,
     }
 
 
