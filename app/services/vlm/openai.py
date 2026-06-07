@@ -39,7 +39,7 @@ class OpenAICompatProvider(BaseVLMProvider):
                                 {"type": "text", "text": prompt},
                             ],
                         }],
-                        "max_tokens": 300,
+                        "max_tokens": 1200,
                     },
                 )
                 if resp.status_code != 200:
@@ -55,8 +55,12 @@ class OpenAICompatProvider(BaseVLMProvider):
 
 
 def _parse(data: dict) -> dict:
+    choice = data["choices"][0]
+    finish = choice.get("finish_reason", "unknown")
+    content = choice["message"]["content"].strip()
+    content_len = len(content)
+
     try:
-        content = data["choices"][0]["message"]["content"].strip()
         # 1. Markdown 代码块
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0]
@@ -67,13 +71,17 @@ def _parse(data: dict) -> dict:
             start = content.find("{")
             end = content.rfind("}") + 1
             content = content[start:end]
+
         parsed = json.loads(content)
-        # 校验
         if "ingredients" not in parsed:
             parsed["ingredients"] = []
         if "portion_estimation" not in parsed:
             parsed["portion_estimation"] = {"total_weight": 0}
+
+        if finish == "length":
+            logger.warning("vlm_truncated finish_reason=length content_len=%d", content_len)
         return parsed
     except Exception:
-        logger.info("vlm_parse_failed raw=%s", str(data.get("choices", [{}])[0].get("message", {}).get("content", ""))[:200])
+        logger.warning("vlm_parse_failed finish_reason=%s content_len=%d content_head=%s",
+                       finish, content_len, content[:150])
         return {"ingredients": [], "portion_estimation": {"total_weight": 0}}

@@ -4,6 +4,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+
+logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s %(message)s")
 from app.core.database import engine, Base, async_session
 from app.models.recipe import Recipe  # noqa: 注册 ORM
 from app.routers import sense, decision, task, agent, feedback, user, auth
