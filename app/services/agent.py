@@ -10,14 +10,22 @@ FOOD_NAMES = ["牛肉", "鸡肉", "猪肉", "鸡蛋", "番茄", "西红柿", "�
 
 
 async def _get_intent(user_input: str) -> dict:
-    """LLM 解析优先，不可用则正则降级"""
-    from app.services.llm import parse_intent
-    result = await parse_intent(user_input)
+    """三级降级: DeepSeek → Ollama本地 → 正则"""
+    # 1. DeepSeek
+    from app.services.llm_deepseek import parse_intent as ds_parse
+    result = await ds_parse(user_input)
     if result:
-        logger.info("intent_llm", extra={"input": user_input[:60], "intent": result})
+        logger.info("intent_deepseek", extra={"input": user_input[:60], "intent": result})
         return result
+    # 2. Ollama 本地
+    from app.services.llm import parse_intent as ollama_parse
+    result = await ollama_parse(user_input)
+    if result:
+        logger.info("intent_ollama", extra={"input": user_input[:60], "intent": result})
+        return result
+    # 3. 正则降级
     fallback = _parse_intent_regex(user_input)
-    logger.info("intent_regex_fallback", extra={"input": user_input[:60], "intent": fallback})
+    logger.info("intent_regex", extra={"input": user_input[:60], "intent": fallback})
     return fallback
 
 

@@ -1,8 +1,11 @@
 import base64
 import json
+import logging
 import httpx
 from app.core.config import settings
 from app.services.vlm.base import BaseVLMProvider
+
+logger = logging.getLogger("vlm")
 
 
 class OpenAICompatProvider(BaseVLMProvider):
@@ -38,9 +41,13 @@ class OpenAICompatProvider(BaseVLMProvider):
                     },
                 )
                 if resp.status_code != 200:
+                    logger.warning("vlm_http_error status=%s body=%s", resp.status_code, resp.text[:200])
                     return None
-                return _parse(resp.json())
-        except Exception:
+                result = _parse(resp.json())
+                logger.info("vlm_result ingredients=%s", len(result.get("ingredients", [])))
+                return result
+        except Exception as e:
+            logger.warning("vlm_exception %s", e)
             return None
 
 

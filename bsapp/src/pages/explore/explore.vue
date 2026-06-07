@@ -1,12 +1,15 @@
 <template>
   <view class="explore-page">
-    <!-- 搜索 -->
+    <view class="page-head">
+      <text class="page-title">探索菜谱</text>
+      <text class="page-sub">按目标、时间和营养偏好找到下一餐</text>
+    </view>
+
     <view class="search-bar">
       <image class="search-icon" src="/static/icons/icon_search.svg" />
       <input class="search-input" v-model="searchText" :placeholder="$t('searchPlaceholder')" placeholder-class="ph" />
     </view>
 
-    <!-- 分类标签 -->
     <scroll-view scroll-x class="cat-scroll" :show-scrollbar="false">
       <view v-for="c in categories" :key="c.key" class="cat-tag" :class="{ active: activeCategory === c.key }" @tap="activeCategory = c.key">
         <image class="cat-icon" :src="`/static/icons/${c.icon}.svg`" />
@@ -14,11 +17,10 @@
       </view>
     </scroll-view>
 
-    <!-- 单列菜谱 Feed -->
     <view class="feed-list">
       <view v-for="item in filteredRecipes" :key="item.recipeId" class="feed-card" @tap="goDetail(item)">
-        <view class="feed-emoji">
-          <image class="feed-emoji-img" :src="item.imageUrl || '/static/icons/icon_plate.svg'" />
+        <view class="feed-visual" :class="item.category">
+          <text>{{ item.imageEmoji || '食' }}</text>
         </view>
         <view class="feed-body">
           <view class="feed-top">
@@ -71,64 +73,42 @@ const filteredRecipes = computed(() => {
   return list
 })
 
-function tagBg(cat) { const m = { high_protein: '#EEF1FE', low_fat: '#E9F9EE', quick: '#FFF5E6', vegetarian: '#E9F9EE', seafood: '#EDF9FE', comfort: '#F6EEFC' }; return m[cat] || '#F2F3F7' }
-function tagFg(cat) { const m = { high_protein: '#4F6EF7', low_fat: '#34C759', quick: '#4F6EF7', vegetarian: '#34C759', seafood: '#5AC8FA', comfort: '#6C5CE7' }; return m[cat] || '#6A6E7B' }
+function tagBg(cat) { const m = { high_protein: 'var(--red-bg)', low_fat: 'var(--green-bg)', quick: 'var(--amber-bg)', vegetarian: 'var(--green-bg)', seafood: 'var(--blue-bg)', comfort: 'var(--purple-bg)' }; return m[cat] || 'var(--border-light)' }
+function tagFg(cat) { const m = { high_protein: 'var(--tomato)', low_fat: 'var(--teal)', quick: '#9A651B', vegetarian: 'var(--teal)', seafood: 'var(--blue)', comfort: 'var(--berry)' }; return m[cat] || 'var(--text-secondary)' }
 function catLabel(cat) { const m = { high_protein: $t('highProtein'), low_fat: $t('lowFat'), quick: $t('quickMeals'), vegetarian: $t('vegetarian'), seafood: $t('seafood'), comfort: $t('comfortFood') }; return m[cat] || cat }
 function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${item.recipeId}&title=${encodeURIComponent(item.title)}` }) }
 </script>
 
 <style scoped>
-.explore-page { min-height: 100vh; background: var(--bg); padding: 16rpx 24rpx; overflow-x: hidden; }
-
-/* 搜索 */
-.search-bar {
-  display: flex; align-items: center; background: #fff; border-radius: var(--radius-full);
-  padding: 0 18rpx; height: 68rpx; margin-bottom: 14rpx; box-shadow: var(--shadow-sm);
-}
- .search-icon { width: 36rpx; height: 36rpx; margin-right: 8rpx; }
+.explore-page { min-height: 100vh; background: var(--bg); padding: 28rpx; overflow-x: hidden; }
+.page-head { margin-bottom: 22rpx; }
+.page-title { display: block; font-size: 42rpx; font-weight: 900; color: var(--text); }
+.page-sub { display: block; margin-top: 8rpx; font-size: 24rpx; color: var(--text-secondary); }
+.search-bar { display: flex; align-items: center; background: #fff; border-radius: var(--radius-full); padding: 0 20rpx; height: 76rpx; margin-bottom: 16rpx; box-shadow: var(--shadow-sm); }
+.search-icon { width: 36rpx; height: 36rpx; margin-right: 10rpx; }
 .search-input { flex: 1; font-size: 26rpx; color: var(--text); height: 100%; }
 .ph { color: var(--text-placeholder); }
-
-/* 分类 */
-.cat-scroll { white-space: nowrap; margin-bottom: 16rpx; }
-.cat-tag {
-  display: inline-flex; align-items: center; gap: 6rpx;
-  padding: 12rpx 22rpx; border-radius: var(--radius-full);
-  font-size: 24rpx; font-weight: 500; margin-right: 10rpx;
-  background: #fff; color: var(--text-secondary);
-  box-shadow: var(--shadow-sm);
-  transition: all var(--fast) ease;
-}
-.cat-icon { font-size: 24rpx; transition: transform var(--fast) ease; }
-.cat-tag.active {
-  background: var(--blue); color: #fff; font-weight: 600;
-  box-shadow: 0 2px 12px rgba(79,110,247,0.25);
-  transform: scale(1.05);
-}
-.cat-tag.active .cat-icon { transform: scale(1.15); }
-
-/* 单列 Feed */
-.feed-list { display: flex; flex-direction: column; gap: 12rpx; }
-.feed-card {
-  display: flex; align-items: center; background: #fff; border-radius: var(--radius);
-  padding: 20rpx 24rpx; box-shadow: var(--shadow-sm);
-}
-.feed-emoji {
-  width: 80rpx; height: 80rpx; background: var(--bg); border-radius: var(--radius);
-  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-}
- .feed-emoji-img { width: 64rpx; height: 64rpx; border-radius: 10rpx; object-fit: cover; }
- .cat-icon { width: 28rpx; height: 28rpx; margin-right: 6rpx; }
- .meta-item { display: flex; align-items: center; gap: 6rpx; color: var(--text-muted); font-size: 22rpx; }
- .meta-icon { width: 22rpx; height: 22rpx; }
- .empty-icon { width: 72rpx; height: 72rpx; margin-bottom: 16rpx; }
-.feed-body { flex: 1; margin-left: 18rpx; display: flex; flex-direction: column; gap: 10rpx; }
+.cat-scroll { white-space: nowrap; margin-bottom: 20rpx; }
+.cat-tag { display: inline-flex; align-items: center; gap: 8rpx; padding: 13rpx 22rpx; border-radius: var(--radius-full); font-size: 24rpx; font-weight: 800; margin-right: 12rpx; background: #fff; color: var(--text-secondary); box-shadow: var(--shadow-sm); transition: all var(--fast) ease; }
+.cat-tag.active { background: var(--ink-green); color: #fff; transform: translateY(-2rpx); }
+.cat-icon { width: 28rpx; height: 28rpx; }
+.cat-tag.active .cat-icon { filter: brightness(0) invert(1); }
+.feed-list { display: flex; flex-direction: column; gap: 14rpx; }
+.feed-card { display: flex; align-items: center; background: #fff; border-radius: var(--radius); padding: 18rpx; box-shadow: var(--shadow-sm); }
+.feed-visual { width: 90rpx; height: 90rpx; border-radius: 26rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 38rpx; background: var(--green-bg); }
+.feed-visual.high_protein { background: var(--red-bg); }
+.feed-visual.low_fat, .feed-visual.vegetarian { background: var(--green-bg); }
+.feed-visual.quick { background: var(--amber-bg); }
+.feed-visual.seafood { background: var(--blue-bg); }
+.feed-visual.comfort { background: var(--purple-bg); }
+.feed-body { flex: 1; margin-left: 18rpx; display: flex; flex-direction: column; gap: 10rpx; min-width: 0; }
 .feed-top { display: flex; align-items: center; gap: 10rpx; }
-.feed-title { font-size: 28rpx; font-weight: 700; color: var(--text); flex: 1; }
-.feed-cat { font-size: 18rpx; padding: 3rpx 12rpx; border-radius: var(--radius-full); font-weight: 500; white-space: nowrap; }
-.feed-meta { display: flex; gap: 16rpx; font-size: 22rpx; color: var(--text-muted); }
-.feed-arrow { font-size: 32rpx; color: var(--text-muted); margin-left: 4rpx; }
-
-.empty { display: flex; flex-direction: column; align-items: center; padding-top: 100rpx; color: var(--text-muted); }
-.empty-icon { font-size: 72rpx; margin-bottom: 16rpx; }
+.feed-title { font-size: 29rpx; font-weight: 900; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-cat { font-size: 19rpx; padding: 5rpx 12rpx; border-radius: var(--radius-full); font-weight: 800; white-space: nowrap; }
+.feed-meta { display: flex; gap: 14rpx; flex-wrap: wrap; }
+.meta-item { display: flex; align-items: center; gap: 5rpx; color: var(--text-muted); font-size: 21rpx; }
+.meta-icon { width: 22rpx; height: 22rpx; }
+.feed-arrow { font-size: 34rpx; color: var(--text-muted); margin-left: 6rpx; }
+.empty { display: flex; flex-direction: column; align-items: center; padding-top: 120rpx; color: var(--text-muted); font-size: 26rpx; }
+.empty-icon { width: 78rpx; height: 78rpx; margin-bottom: 16rpx; }
 </style>

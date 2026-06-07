@@ -18,6 +18,8 @@ class Recipe(Base):
     carbs = Column(Integer, default=30)
     fat = Column(Integer, default=15)
     difficulty = Column(String(10), default="medium")
-    source = Column(String(20), default="seed")          # seed / ai_gen / manual / foodkg
+    story = Column(String(500), default="")              # 菜品文化背景故事
+    culture_tags = Column(JSON, default=list)            # 文化标签: ["粤菜","节气:冬至",...]
+    source = Column(String(20), default="seed")
     schema_version = Column(Integer, default=1)          # 结构版本，迁移用
     created_at = Column(DateTime, default=func.now())

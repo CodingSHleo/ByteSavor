@@ -1,140 +1,94 @@
 <template>
   <view class="rd-page" v-if="!isLoading">
-    <!-- 头部图 -->
-    <view class="rd-image">
-      <image v-if="detail?.imageUrl" :src="detail.imageUrl" class="rd-emoji" mode="aspectFill" />
-      <image v-else class="rd-emoji" src="/static/icons/icon_plate.svg" mode="widthFix" />
-    </view>
-
-    <!-- 菜谱元数据 -->
-    <view class="rd-meta-bar">
-      <view class="rd-meta-item">
-        <image class="rd-meta-icon-img" src="/static/icons/icon_clock.svg" mode="widthFix" />
-        <text class="rd-meta-text">{{ detail?.cookTime || '-' }}{{ $t('minutes') }}</text>
+    <view class="hero-card">
+      <view class="hero-visual">
+        <image v-if="detail?.imageUrl" :src="detail.imageUrl" class="hero-image" mode="aspectFill" />
+        <image v-else class="hero-icon" src="/static/icons/icon_plate.svg" mode="widthFix" />
       </view>
-      <view class="rd-meta-item">
-        <image class="rd-meta-icon-img" src="/static/icons/icon_chart.svg" mode="widthFix" />
-        <text class="rd-meta-text">{{ detail?.difficulty || '-' }}</text>
-      </view>
-      <view class="rd-meta-item">
-        <image class="rd-meta-icon-img" src="/static/icons/icon_fire.svg" mode="widthFix" />
-        <text class="rd-meta-text">{{ detail?.calories || '-' }}{{ $t('kcal') }}</text>
-      </view>
-      <view class="rd-meta-item">
-        <image class="rd-meta-icon-img" src="/static/icons/icon_plate.svg" mode="widthFix" />
-        <text class="rd-meta-text">{{ detail?.servingSize || '2人份' }}</text>
-      </view>
-    </view>
-
-    <!-- 食材清单 -->
-    <view class="card" v-if="detail?.ingredients && detail.ingredients.length > 0">
-      <text class="card-title">{{ $t('ingredients') }}</text>
-      <view class="rd-ing-list">
-        <view v-for="(ing, idx) in detail.ingredients" :key="idx" class="rd-ing-row">
-          <text class="rd-ing-bullet">•</text>
-          <text class="rd-ing-name">{{ ing.name }}</text>
-          <text class="rd-ing-amount">{{ ing.amount }}</text>
+      <view class="hero-info">
+        <text class="hero-title">{{ detail?.title || title }}</text>
+        <text class="hero-sub">适合今日目标的智能推荐菜谱</text>
+        <view class="hero-tags">
+          <text>{{ detail?.cookTime || '-' }}{{ $t('minutes') }}</text>
+          <text>{{ detail?.difficulty || '-' }}</text>
+          <text>{{ detail?.calories || '-' }}{{ $t('kcal') }}</text>
         </view>
       </view>
     </view>
 
-    <!-- 制作步骤 -->
-    <view class="card">
-      <text class="card-title">{{ $t('cookingSteps') }}</text>
-      <view
-        v-for="(step, idx) in detail?.steps || []"
-        :key="idx"
-        class="rd-step"
-      >
-        <view class="rd-step-num">{{ idx + 1 }}</view>
-        <text class="rd-step-text">{{ step }}</text>
-      </view>
-    </view>
-
-    <!-- 营养信息 -->
-    <view class="card" v-if="detail?.nutrition">
-      <text class="card-title">{{ $t('nutritionPerServing') }}</text>
-      <view class="rd-nutri-grid">
-        <view class="rd-nutri-item">
-          <text class="rd-nutri-val">{{ detail.nutrition.protein }}g</text>
-          <text class="rd-nutri-label">{{ $t('protein') }}</text>
-        </view>
-        <view class="rd-nutri-item">
-          <text class="rd-nutri-val">{{ detail.nutrition.fat }}g</text>
-          <text class="rd-nutri-label">{{ $t('fat') }}</text>
-        </view>
-        <view class="rd-nutri-item">
-          <text class="rd-nutri-val">{{ detail.nutrition.carbs }}g</text>
-          <text class="rd-nutri-label">{{ $t('carbs') }}</text>
-        </view>
-        <view class="rd-nutri-item">
-          <text class="rd-nutri-val">{{ detail.nutrition.fiber }}g</text>
-          <text class="rd-nutri-label">{{ $t('fiber') }}</text>
-        </view>
-      </view>
-      <view class="rd-nutri-extra">
-        <text class="rd-nutri-mini">维生素C {{ detail.nutrition.vitamin_c }}mg</text>
-        <text class="rd-nutri-mini">铁 {{ detail.nutrition.iron }}mg</text>
-        <text class="rd-nutri-mini">钙 {{ detail.nutrition.calcium }}mg</text>
-      </view>
-    </view>
-
-    <!-- 烹饪技巧 -->
-    <view class="ai-tip" v-if="detail?.tips">
-      <image class="ai-tip-icon" src="/static/icons/icon_export.svg" mode="widthFix" />
-      <text>{{ detail.tips }}</text>
-    </view>
-
-    <!-- 互动按钮 -->
-    <view class="rd-interactions">
-      <view class="rd-int-btn" @tap="toggleLike">
-        <image :src="isLiked ? '/static/icons/icon_heart.svg' : '/static/icons/icon_heart_outline.svg'" class="rd-int-icon" mode="widthFix" />
-        <text :style="{ color: isLiked ? 'var(--danger)' : '#999' }">{{ $t('like') }}</text>
-      </view>
-      <view class="rd-int-btn" @tap="showShare">
-        <image class="rd-int-icon" src="/static/icons/icon_share.svg" mode="widthFix" />
-        <text style="color: var(--accent);">{{ $t('share') }}</text>
-      </view>
-      <view class="rd-int-btn" @tap="saveRecipe">
-        <image class="rd-int-icon" src="/static/icons/icon_bookmark.svg" mode="widthFix" />
-        <text style="color: var(--accent);">{{ $t('saveBookmark') }}</text>
-      </view>
-    </view>
-
-    <!-- 生成购物清单 -->
-    <button class="rd-shopping-btn" @tap="generateShoppingList">
+    <button class="shopping-btn" @tap="generateShoppingList">
       <image class="btn-small-icon" src="/static/icons/icon_cart.svg" mode="widthFix" />
       {{ $t('generateShoppingList') }}
     </button>
 
-    <!-- 评分 -->
-    <view class="card">
-      <text class="card-title">{{ $t('rating') }}</text>
-      <view class="rd-stars">
-        <text
-          v-for="n in 5"
-          :key="n"
-          class="rd-star"
-          @tap="setRating(n)"
-        >{{ n <= rating ? '⭐' : '☆' }}</text>
+    <view class="action-row">
+      <view class="action-btn" @tap="toggleLike">
+        <image :src="isLiked ? '/static/icons/icon_heart.svg' : '/static/icons/icon_heart_outline.svg'" class="action-icon" mode="widthFix" />
+        <text>{{ $t('like') }}</text>
       </view>
-      <text class="rd-rating-label">
-        {{ rating > 0 ? $t('yourRating') + ': ' + rating + ' ' + $t('stars') : $t('clickToRate') }}
-      </text>
+      <view class="action-btn" @tap="showShare">
+        <image class="action-icon" src="/static/icons/icon_share.svg" mode="widthFix" />
+        <text>{{ $t('share') }}</text>
+      </view>
+      <view class="action-btn" @tap="saveRecipe">
+        <image class="action-icon" src="/static/icons/icon_bookmark.svg" mode="widthFix" />
+        <text>{{ $t('saveBookmark') }}</text>
+      </view>
     </view>
 
-    <!-- 反馈 -->
+    <view class="card" v-if="detail?.ingredients && detail.ingredients.length > 0">
+      <view class="card-head"><text>{{ $t('ingredients') }}</text><text>{{ detail.ingredients.length }} 项</text></view>
+      <view class="ing-list">
+        <view v-for="(ing, idx) in detail.ingredients" :key="idx" class="ing-row">
+          <text class="ing-dot"></text>
+          <text class="ing-name">{{ ing.name }}</text>
+          <text class="ing-amount">{{ ing.amount }}</text>
+        </view>
+      </view>
+    </view>
+
     <view class="card">
-      <text class="card-title">{{ $t('shareExperience') }}</text>
-      <textarea
-        class="rd-textarea"
-        v-model="feedback"
-        :placeholder="$t('sharePlaceholder')"
-        maxlength="500"
-      />
-      <view class="rd-feedback-btns">
-        <button class="rd-btn-cancel" @tap="feedback = ''">{{ $t('cancel') }}</button>
-        <button class="rd-btn-submit" @tap="submitFeedback">{{ $t('submitFeedback') }}</button>
+      <view class="card-head"><text>{{ $t('cookingSteps') }}</text><text>{{ (detail?.steps || []).length }} 步</text></view>
+      <view v-for="(step, idx) in detail?.steps || []" :key="idx" class="step-row">
+        <view class="step-num">{{ idx + 1 }}</view>
+        <text class="step-text">{{ step }}</text>
+      </view>
+    </view>
+
+    <view class="card" v-if="detail?.nutrition">
+      <view class="card-head"><text>{{ $t('nutritionPerServing') }}</text></view>
+      <view class="nutri-grid">
+        <view class="nutri-item protein"><text>{{ detail.nutrition.protein }}g</text><text>{{ $t('protein') }}</text></view>
+        <view class="nutri-item fat"><text>{{ detail.nutrition.fat }}g</text><text>{{ $t('fat') }}</text></view>
+        <view class="nutri-item carbs"><text>{{ detail.nutrition.carbs }}g</text><text>{{ $t('carbs') }}</text></view>
+        <view class="nutri-item fiber"><text>{{ detail.nutrition.fiber }}g</text><text>{{ $t('fiber') }}</text></view>
+      </view>
+      <view class="nutri-extra">
+        <text>维生素C {{ detail.nutrition.vitamin_c }}mg</text>
+        <text>铁 {{ detail.nutrition.iron }}mg</text>
+        <text>钙 {{ detail.nutrition.calcium }}mg</text>
+      </view>
+    </view>
+
+    <view class="tip-card" v-if="detail?.tips">
+      <image class="tip-icon" src="/static/icons/icon_ai.svg" mode="widthFix" />
+      <text>{{ detail.tips }}</text>
+    </view>
+
+    <view class="card">
+      <view class="card-head"><text>{{ $t('rating') }}</text></view>
+      <view class="stars">
+        <text v-for="n in 5" :key="n" class="star" :class="{ active: n <= rating }" @tap="setRating(n)">★</text>
+      </view>
+      <text class="rating-label">{{ rating > 0 ? $t('yourRating') + ': ' + rating + ' ' + $t('stars') : $t('clickToRate') }}</text>
+    </view>
+
+    <view class="card">
+      <view class="card-head"><text>{{ $t('shareExperience') }}</text></view>
+      <textarea class="feedback-textarea" v-model="feedback" :placeholder="$t('sharePlaceholder')" maxlength="500" />
+      <view class="feedback-btns">
+        <button class="btn-cancel" @tap="feedback = ''">{{ $t('cancel') }}</button>
+        <button class="btn-submit" @tap="submitFeedback">{{ $t('submitFeedback') }}</button>
       </view>
     </view>
   </view>
@@ -148,7 +102,6 @@ import { ApiService } from '@/api/index'
 import { t, currentLang } from '@/utils/i18n'
 
 const $t = key => t(key)
-
 const isLoading = ref(true)
 const recipeId = ref('')
 const title = ref('')
@@ -162,19 +115,13 @@ async function loadDetail() {
   uni.setNavigationBarTitle({ title: detail.value?.title || title.value })
   isLoading.value = false
 }
-
 onLoad(async (options) => {
   recipeId.value = options.recipeId || 'r_101'
   title.value = options.title ? decodeURIComponent(options.title) : ''
   await loadDetail()
 })
-
 watch(currentLang, () => { loadDetail() })
-
-function setRating(n) {
-  rating.value = n
-}
-
+function setRating(n) { rating.value = n }
 async function submitFeedback() {
   if (rating.value > 0) {
     const result = await ApiService.submitFeedback(recipeId.value, rating.value)
@@ -186,23 +133,17 @@ async function submitFeedback() {
     uni.showToast({ title: $t('clickToRate'), icon: 'none' })
   }
 }
-
 function toggleLike() {
   isLiked.value = !isLiked.value
   uni.showToast({ title: isLiked.value ? $t('likedRecipe') : $t('unlikedRecipe'), icon: 'none' })
 }
-
-function saveRecipe() {
-  uni.showToast({ title: $t('savedToMyRecipes'), icon: 'success' })
-}
-
+function saveRecipe() { uni.showToast({ title: $t('savedToMyRecipes'), icon: 'success' }) }
 async function generateShoppingList() {
-  const list = await ApiService.mergeShoppingList([recipeId.value])
+  await ApiService.mergeShoppingList([recipeId.value])
   const recipes = [{ recipeId: recipeId.value, title: detail.value?.title || '', matchScore: 1.0 }]
   const data = encodeURIComponent(JSON.stringify(recipes))
   uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${data}` })
 }
-
 function showShare() {
   uni.showActionSheet({
     itemList: [$t('wechat'), $t('xiaohongshu')],
@@ -215,131 +156,54 @@ function showShare() {
 </script>
 
 <style scoped>
-.rd-page { min-height: 100vh; background: var(--bg-color); padding: 24rpx; }
+.rd-page { min-height: 100vh; background: var(--bg); padding: 28rpx; }
 .loading-page { display: flex; align-items: center; justify-content: center; height: 100vh; }
-.rd-image {
-  width: 100%;
-  height: 360rpx;
-  background: var(--accent-bg);
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 24rpx;
-}
-.rd-emoji { width: 100%; height: 100%; object-fit: cover; border-radius: 12rpx; }
-.card { background: var(--card-bg); border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; }
-.card-title { font-size: 32rpx; font-weight: bold; color: var(--text-color); display: block; margin-bottom: 16rpx; }
-/* 元数据 */
-.rd-meta-bar {
-  display: flex;
-  justify-content: space-around;
-  background: var(--card-bg);
-  border-radius: 16rpx;
-  padding: 20rpx;
-  margin-bottom: 20rpx;
-}
-.rd-meta-item { display: flex; flex-direction: column; align-items: center; gap: 4rpx; }
-.rd-meta-icon-img { width: 40rpx; height: 40rpx; }
-.ai-tip-icon { width: 36rpx; height: 36rpx; margin-right: 8rpx; }
-.rd-meta-text { font-size: 22rpx; color: var(--text-secondary); }
-/* 食材清单 */
-.rd-ing-list { }
-.rd-ing-row {
-  display: flex;
-  align-items: center;
-  padding: 12rpx 0;
-  border-bottom: 1rpx solid var(--border-light);
-}
-.rd-ing-row:last-child { border-bottom: none; }
-.rd-ing-bullet { color: var(--accent); font-size: 28rpx; margin-right: 12rpx; }
-.rd-ing-name { flex: 1; font-size: 28rpx; color: var(--text-color); }
-.rd-ing-amount { font-size: 26rpx; color: var(--text-secondary); }
-/* 营养 */
-.rd-nutri-grid {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 16rpx;
-}
-.rd-nutri-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 12rpx 8rpx;
-}
-.rd-nutri-val { font-size: 30rpx; font-weight: bold; color: var(--accent); }
-.rd-nutri-label { font-size: 22rpx; color: var(--text-secondary); margin-top: 4rpx; }
-.rd-nutri-extra { display: flex; gap: 16rpx; flex-wrap: wrap; }
-.rd-nutri-mini {
-  font-size: 22rpx;
-  color: var(--text-secondary);
-  background: var(--border-light);
-  padding: 4rpx 14rpx;
-  border-radius: 10rpx;
-}
-/* 购物清单按钮 */
-.rd-shopping-btn {
-  width: 100%;
-  height: 80rpx;
-  background: var(--success);
-  color: #fff;
-  border: none;
-  border-radius: 16rpx;
-  font-size: 28rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 20rpx;
-}
-/* 步骤（更新为编号样式） */
-.rd-step { display: flex; margin-bottom: 16rpx; align-items: flex-start; }
-.rd-step-num {
-  width: 40rpx;
-  height: 40rpx;
-  background: var(--accent);
-  color: #fff;
-  border-radius: 50%;
-  font-size: 22rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 12rpx;
-  flex-shrink: 0;
-}
-.rd-step-text { font-size: 28rpx; color: var(--text-color); flex: 1; line-height: 1.6; }
-.rd-interactions { display: flex; justify-content: space-around; margin-bottom: 20rpx; }
-.rd-int-btn { display: flex; flex-direction: column; align-items: center; gap: 8rpx; padding: 16rpx; }
-.rd-int-icon { width: 48rpx; height: 48rpx; }
-.btn-small-icon { width: 40rpx; height: 40rpx; margin-right: 8rpx; }
-.rd-stars { display: flex; justify-content: center; gap: 12rpx; margin-bottom: 16rpx; }
-.rd-star { font-size: 56rpx; }
-.rd-rating-label { text-align: center; font-size: 26rpx; color: var(--text-secondary); display: block; }
-.rd-textarea {
-  width: 100%;
-  min-height: 160rpx;
-  background: var(--bg-color);
-  border-radius: 12rpx;
-  padding: 20rpx;
-  font-size: 28rpx;
-  box-sizing: border-box;
-  margin-bottom: 20rpx;
-}
-.rd-feedback-btns { display: flex; gap: 16rpx; }
-.rd-btn-cancel {
-  flex: 1;
-  height: 74rpx;
-  background: var(--card-bg);
-  border: 1rpx solid var(--border-color);
-  border-radius: 12rpx;
-  font-size: 28rpx;
-}
-.rd-btn-submit {
-  flex: 1;
-  height: 74rpx;
-  background: var(--accent);
-  color: #fff;
-  border: none;
-  border-radius: 12rpx;
-  font-size: 28rpx;
-}
+.hero-card { background: #fff; border-radius: var(--radius-lg); padding: 22rpx; box-shadow: var(--shadow-md); display: flex; gap: 20rpx; margin-bottom: 18rpx; }
+.hero-visual { width: 150rpx; height: 150rpx; border-radius: 34rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
+.hero-image { width: 100%; height: 100%; }
+.hero-icon { width: 78rpx; height: 78rpx; }
+.hero-info { flex: 1; min-width: 0; }
+.hero-title { display: block; font-size: 36rpx; font-weight: 900; color: var(--text); line-height: 1.25; }
+.hero-sub { display: block; margin-top: 8rpx; font-size: 24rpx; color: var(--text-secondary); }
+.hero-tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 16rpx; }
+.hero-tags text { background: var(--bg); color: var(--text-secondary); border-radius: var(--radius-full); padding: 6rpx 12rpx; font-size: 21rpx; font-weight: 700; }
+.shopping-btn { width: 100%; height: 90rpx; background: var(--teal); color: #fff; border: none; border-radius: var(--radius); font-size: 30rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; box-shadow: var(--shadow-sm); }
+.btn-small-icon { width: 40rpx; height: 40rpx; margin-right: 10rpx; filter: brightness(0) invert(1); }
+.action-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-bottom: 20rpx; }
+.action-btn { background: #fff; border-radius: var(--radius); padding: 16rpx 10rpx; display: flex; flex-direction: column; align-items: center; gap: 8rpx; color: var(--text-secondary); font-size: 22rpx; box-shadow: var(--shadow-sm); }
+.action-icon { width: 42rpx; height: 42rpx; }
+.card { background: #fff; border-radius: var(--radius); padding: 24rpx; margin-bottom: 20rpx; box-shadow: var(--shadow-sm); }
+.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18rpx; }
+.card-head text:first-child { font-size: 31rpx; font-weight: 900; color: var(--text); }
+.card-head text:last-child { font-size: 22rpx; color: var(--text-muted); font-weight: 700; }
+.ing-row { display: flex; align-items: center; padding: 13rpx 0; border-bottom: 1rpx solid var(--border-light); }
+.ing-row:last-child { border-bottom: none; }
+.ing-dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--teal); margin-right: 12rpx; }
+.ing-name { flex: 1; font-size: 27rpx; color: var(--text); font-weight: 800; }
+.ing-amount { font-size: 25rpx; color: var(--text-secondary); }
+.step-row { display: flex; align-items: flex-start; gap: 14rpx; margin-bottom: 18rpx; }
+.step-row:last-child { margin-bottom: 0; }
+.step-num { width: 42rpx; height: 42rpx; background: var(--teal-bg); color: var(--teal); border-radius: 50%; font-size: 22rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.step-text { font-size: 27rpx; color: var(--text); flex: 1; line-height: 1.65; }
+.nutri-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10rpx; margin-bottom: 14rpx; }
+.nutri-item { border-radius: 18rpx; padding: 14rpx 8rpx; text-align: center; }
+.nutri-item.protein { background: var(--green-bg); }
+.nutri-item.fat { background: var(--purple-bg); }
+.nutri-item.carbs { background: var(--amber-bg); }
+.nutri-item.fiber { background: var(--blue-bg); }
+.nutri-item text:first-child { display: block; color: var(--text); font-size: 27rpx; font-weight: 900; }
+.nutri-item text:last-child { display: block; color: var(--text-muted); font-size: 20rpx; margin-top: 4rpx; }
+.nutri-extra { display: flex; gap: 10rpx; flex-wrap: wrap; }
+.nutri-extra text { font-size: 21rpx; color: var(--text-secondary); background: var(--bg); padding: 6rpx 12rpx; border-radius: var(--radius-full); }
+.tip-card { background: var(--purple-bg); border-radius: var(--radius); padding: 18rpx; display: flex; gap: 12rpx; align-items: flex-start; color: var(--text-secondary); font-size: 24rpx; line-height: 1.55; margin-bottom: 20rpx; }
+.tip-icon { width: 38rpx; height: 38rpx; flex-shrink: 0; }
+.stars { display: flex; justify-content: center; gap: 10rpx; margin-bottom: 12rpx; }
+.star { font-size: 52rpx; color: var(--border); }
+.star.active { color: var(--amber); }
+.rating-label { display: block; text-align: center; font-size: 24rpx; color: var(--text-muted); }
+.feedback-textarea { width: 100%; min-height: 150rpx; background: var(--bg); border-radius: var(--radius); padding: 18rpx; font-size: 27rpx; box-sizing: border-box; margin-bottom: 16rpx; }
+.feedback-btns { display: flex; gap: 14rpx; }
+.btn-cancel, .btn-submit { flex: 1; height: 76rpx; border-radius: var(--radius); font-size: 27rpx; font-weight: 800; }
+.btn-cancel { background: #fff; color: var(--text-secondary); border: 1rpx solid var(--border); }
+.btn-submit { background: var(--teal); color: #fff; border: none; }
 </style>

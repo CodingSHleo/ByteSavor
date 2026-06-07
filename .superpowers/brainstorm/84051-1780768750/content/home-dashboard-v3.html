@@ -1,0 +1,108 @@
+<h2>首页布局 v3 · 融合看板能力</h2>
+<p class="subtitle">目标：让首页看起来能力完整，但不堆按钮。首页展示摘要，点击进入完整详情页。</p>
+
+<div class="section">
+  <h3>首页信息架构</h3>
+  <div class="mockup">
+    <div class="mockup-header">Home = 今日饮食驾驶舱，不是功能入口集合</div>
+    <div class="mockup-body" style="background:#f3faf7;border-radius:22px;padding:18px;max-width:390px;margin:auto">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div>
+          <strong style="font-size:20px;color:#17231f">早上好，Alex</strong>
+          <p style="margin:4px 0;color:#7d8c87">今天适合高蛋白、低油的一餐</p>
+        </div>
+        <div style="width:36px;height:36px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 20px rgba(28,80,58,.08)">铃</div>
+      </div>
+
+      <div style="background:white;border-radius:22px;padding:18px;box-shadow:0 14px 32px rgba(23,78,53,.07);margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:13px;color:#7d8c87">今日营养状态</div>
+            <strong style="font-size:34px;color:#17231f">65</strong>
+            <span style="color:#7d8c87"> / 100</span>
+          </div>
+          <div style="width:92px;height:92px;border-radius:50%;background:conic-gradient(#2eb98c 0 65%, #ffc875 65% 82%, #e8f1ed 82%);display:flex;align-items:center;justify-content:center">
+            <div style="width:62px;height:62px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center;font-weight:800;color:#2eb98c">65%</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:14px">
+          <div style="background:#f4fbf7;border-radius:14px;padding:10px"><strong>82%</strong><p style="margin:2px 0;color:#7d8c87">蛋白</p></div>
+          <div style="background:#fff8e9;border-radius:14px;padding:10px"><strong>58%</strong><p style="margin:2px 0;color:#7d8c87">碳水</p></div>
+          <div style="background:#f3f1ff;border-radius:14px;padding:10px"><strong>45%</strong><p style="margin:2px 0;color:#7d8c87">脂肪</p></div>
+        </div>
+        <div style="margin-top:12px;color:#18815f;font-size:13px">点入健康看板查看营养缺口和推荐理由</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1.1fr .9fr;gap:12px;margin-bottom:14px">
+        <div style="background:white;border-radius:20px;padding:16px;box-shadow:0 10px 24px rgba(23,78,53,.05)">
+          <strong>AI 识别</strong>
+          <p style="color:#7d8c87;margin:6px 0 14px">拍照识别食材和新鲜度</p>
+          <button class="mock-button">拍照识别</button>
+        </div>
+        <div style="background:white;border-radius:20px;padding:16px;box-shadow:0 10px 24px rgba(23,78,53,.05)">
+          <strong>B-Y-T-E</strong>
+          <p style="color:#7d8c87;margin:6px 0">感知 1/4</p>
+          <div style="height:8px;background:#e9f2ee;border-radius:8px;overflow:hidden"><div style="height:100%;width:25%;background:#2eb98c"></div></div>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:20px;padding:16px;box-shadow:0 10px 24px rgba(23,78,53,.05);margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <strong>当前食材</strong><span style="color:#18815f;font-size:13px">去校正</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <span style="background:#effaf4;border-radius:18px;padding:7px 12px">西兰花 · 新鲜</span>
+          <span style="background:#fff3e4;border-radius:18px;padding:7px 12px">牛肉 · 冷藏</span>
+          <span style="background:#f3f1ff;border-radius:18px;padding:7px 12px">番茄 · 新鲜</span>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:20px;padding:16px;box-shadow:0 10px 24px rgba(23,78,53,.05);margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>推荐下一餐</strong><span style="color:#18815f;font-size:13px">查看全部</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;margin-top:12px">
+          <div style="width:58px;height:58px;border-radius:18px;background:#e9f8f1"></div>
+          <div style="flex:1"><strong>香辣牛肉西兰花</strong><p style="margin:4px 0;color:#7d8c87">93% 匹配 · 25min · 320kcal</p></div>
+          <div style="color:#2eb98c;font-weight:800">93%</div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="placeholder" style="height:58px">购物清单 · 7 项</div>
+        <div class="placeholder" style="height:58px">AI 助手 · 输入目标</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>为什么这样更适合 ByteSavor</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>首页露出能力</h4>
+      <ul>
+        <li>健康看板摘要：分数、宏量营养、缺口提示</li>
+        <li>识别能力：拍照识别作为主 CTA</li>
+        <li>Agent 闭环：B-Y-T-E 阶段进度</li>
+        <li>推荐能力：菜谱卡和匹配分</li>
+        <li>执行能力：购物清单摘要</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>详情页承接</h4>
+      <ul>
+        <li>点营养卡 → 健康看板详情</li>
+        <li>点识别卡 → 食材识别流程</li>
+        <li>点食材卡 → 校正/确认</li>
+        <li>点推荐卡 → 菜谱详情</li>
+        <li>点清单卡 → 购物清单页</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>需要避免</h3>
+  <p class="subtitle">不能为了显得功能多而堆 8 个入口。首页应像仪表盘：每个模块只露出一句结论和一个行动，复杂内容放进详情页。</p>
+</div>

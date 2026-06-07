@@ -1,0 +1,135 @@
+<h2>ByteSavor UI 方案 v2 · 参考 ui.png</h2>
+<p class="subtitle">设计基准已切换为：清新、友好、轻量、专注、习惯养成感。下面是把参考图转译到 ByteSavor 的具体方式。</p>
+
+<div class="section">
+  <h3>从参考图提取的设计 DNA</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-body">
+        <h3>颜色</h3>
+        <p>浅雾绿背景 + 白色卡片 + 薄荷绿主色。橙、黄、蓝、紫只做局部状态，不做大面积渐变。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h3>布局</h3>
+        <p>顶部问候/标题，主体卡片纵向组织，底部 tab 固定。信息块之间用留白和轻阴影分层。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h3>组件</h3>
+        <p>目标列表、习惯列表、统计环图、趋势图、状态标签、圆角图标块、轻量提示卡。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h3>气质</h3>
+        <p>不压迫、不炫技，像一个每天打开都舒服的小工具。ByteSavor 要在这个基础上加入 AI 饮食决策感。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>ByteSavor 三个核心页面模板</h3>
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">模板 A：首页 · 今日饮食状态</div>
+      <div class="mockup-body" style="background:#f3faf7;border-radius:20px;padding:18px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+          <div>
+            <strong style="font-size:20px">早上好，Alex</strong>
+            <p style="margin:4px 0;color:#7b8a86">今天也要好好吃饭</p>
+          </div>
+          <div style="width:34px;height:34px;border-radius:50%;background:white;display:flex;align-items:center;justify-content:center">🔔</div>
+        </div>
+        <div style="background:white;border-radius:18px;padding:18px;box-shadow:0 12px 30px rgba(26,73,55,.06);margin-bottom:16px">
+          <div style="display:flex;justify-content:space-between">
+            <div><strong>今日状态</strong><p style="color:#7b8a86;margin:4px 0">营养分 65 · 蛋白还差 18g</p></div>
+            <div style="width:76px;height:56px;border-radius:18px;background:#e1f5ec"></div>
+          </div>
+          <div style="display:flex;gap:10px;margin-top:16px">
+            <span style="background:#dff7eb;color:#139b6d;border-radius:20px;padding:6px 12px">良好</span>
+            <span style="background:#fff3d9;color:#c77a12;border-radius:20px;padding:6px 12px">纤维不足</span>
+            <span style="background:#fde7e1;color:#c85a44;border-radius:20px;padding:6px 12px">需补铁</span>
+          </div>
+        </div>
+        <div style="background:white;border-radius:18px;padding:16px;margin-bottom:12px">
+          <strong>今日目标</strong>
+          <div class="placeholder" style="height:42px;margin-top:10px">拍照识别食材</div>
+          <div class="placeholder" style="height:42px;margin-top:10px">生成减脂菜谱</div>
+          <div class="placeholder" style="height:42px;margin-top:10px">导出购物清单</div>
+        </div>
+      </div>
+    </div>
+    <div class="mockup">
+      <div class="mockup-header">模板 B：识别/清单 · 任务列表</div>
+      <div class="mockup-body" style="background:#f3faf7;border-radius:20px;padding:18px">
+        <strong style="font-size:20px">食材识别</strong>
+        <div style="height:150px;border-radius:20px;background:linear-gradient(135deg,#dff7eb,#ffffff);margin:16px 0;display:flex;align-items:center;justify-content:center;color:#0f8f65">扫描画布</div>
+        <div style="background:#effaf4;border-radius:16px;padding:12px;margin-bottom:12px;color:#18815f">小贴士：确认食材后再生成推荐</div>
+        <div class="placeholder" style="height:58px;margin-bottom:10px">西兰花 · 98% · 新鲜</div>
+        <div class="placeholder" style="height:58px;margin-bottom:10px">牛肉 · 95% · 冷藏</div>
+        <button class="mock-button" style="width:100%">确认并生成推荐</button>
+      </div>
+    </div>
+  </div>
+  <div class="mockup" style="margin-top:16px">
+    <div class="mockup-header">模板 C：健康看板 · 数据统计</div>
+    <div class="mockup-body" style="background:#f3faf7;border-radius:20px;padding:18px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:16px">
+        <strong style="font-size:20px">数据统计</strong>
+        <span style="color:#7b8a86">今日</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+        <div style="background:white;border-radius:18px;padding:16px"><strong style="font-size:28px">65</strong><p style="margin:4px 0;color:#7b8a86">健康分</p></div>
+        <div style="background:white;border-radius:18px;padding:16px"><strong style="font-size:28px">78%</strong><p style="margin:4px 0;color:#7b8a86">目标完成</p></div>
+      </div>
+      <div style="background:white;border-radius:18px;padding:18px;display:flex;align-items:center;gap:24px">
+        <div style="width:110px;height:110px;border-radius:50%;background:conic-gradient(#28b486 0 65%, #ffd28a 65% 78%, #e7efeb 78%);display:flex;align-items:center;justify-content:center"><strong>65%</strong></div>
+        <div>
+          <p>蛋白 · 82%</p>
+          <p>碳水 · 58%</p>
+          <p>脂肪 · 45%</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>页面映射</h3>
+  <div class="cards">
+    <div class="card"><div class="card-body"><h3>首页 home</h3><p>套模板 A：今日状态、今日目标、BYTE 进度、推荐菜谱。主按钮是拍照识别。</p></div></div>
+    <div class="card"><div class="card-body"><h3>识别页 ingredient</h3><p>套模板 B：扫描画布、阶段进度、食材列表、确认按钮。</p></div></div>
+    <div class="card"><div class="card-body"><h3>健康看板 dashboard</h3><p>套模板 C：统计总览、营养环、缺口列表、推荐下一步。</p></div></div>
+    <div class="card"><div class="card-body"><h3>探索/知识</h3><p>套参考图中“习惯库”页：顶部标签、轻卡片列表、图标色块。</p></div></div>
+    <div class="card"><div class="card-body"><h3>购物清单</h3><p>套任务列表：统计头、可编辑清单、底部操作栏。</p></div></div>
+    <div class="card"><div class="card-body"><h3>我的/历史</h3><p>套个人中心/成就系统：头像、健康摘要、记录时间线。</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>执行原则</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>保留</h4>
+      <ul>
+        <li>现有 API 和数据字段</li>
+        <li>现有页面路由含义</li>
+        <li>现有本地缓存、历史记录、设置逻辑</li>
+        <li>现有识别/推荐/清单/反馈闭环</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>重构</h4>
+      <ul>
+        <li>统一颜色、圆角、阴影、间距</li>
+        <li>补齐并统一图标系统</li>
+        <li>减少 emoji 和蓝紫渐变</li>
+        <li>把页面重排成状态、任务、统计三类模板</li>
+      </ul>
+    </div>
+  </div>
+</div>

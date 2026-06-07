@@ -1,8 +1,12 @@
 <template>
   <view class="ingredient-tag">
-    <text class="it-emoji">🥘</text>
-    <text class="it-name">{{ ingredient.name }}</text>
-    <text v-if="ingredient.freshness" class="it-freshness">{{ freshnessLabel }}</text>
+    <view class="it-icon">
+      <image src="/static/icons/icon_leaf.svg" mode="aspectFit" />
+    </view>
+    <view class="it-copy">
+      <text class="it-name">{{ ingredient.name }}</text>
+      <text v-if="ingredient.freshness" class="it-freshness">{{ freshnessLabel }}</text>
+    </view>
   </view>
 </template>
 
@@ -22,34 +26,53 @@ const freshnessLabel = computed(() => {
 <style scoped>
 .ingredient-tag {
   background: var(--card-bg);
-  border: 1rpx solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 16rpx 24rpx;
+  border-radius: var(--radius);
+  padding: 16rpx 18rpx;
   margin-right: 16rpx;
-  min-width: 130rpx;
+  min-width: 190rpx;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6rpx;
-  box-shadow: var(--card-shadow);
+  gap: 14rpx;
+  box-shadow: var(--shadow-sm);
   transition: all var(--transition-fast);
 }
 .ingredient-tag:active {
   transform: scale(0.96);
 }
-.it-emoji {
-  font-size: 28rpx;
+.it-icon {
+  width: 54rpx;
+  height: 54rpx;
+  border-radius: 18rpx;
+  background: var(--teal-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.it-icon image {
+  width: 30rpx;
+  height: 30rpx;
+}
+.it-copy {
+  flex: 1;
+  min-width: 0;
 }
 .it-name {
+  display: block;
   font-weight: 600;
   font-size: 26rpx;
   color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .it-freshness {
+  display: inline-flex;
+  margin-top: 6rpx;
   font-size: 20rpx;
   color: var(--accent);
   background: var(--accent-bg);
-  padding: 2rpx 12rpx;
-  border-radius: 8rpx;
+  padding: 3rpx 12rpx;
+  border-radius: var(--radius-full);
 }
 </style>

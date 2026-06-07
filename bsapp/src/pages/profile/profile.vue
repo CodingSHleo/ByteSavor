@@ -1,81 +1,91 @@
 <template>
   <view class="profile-page">
     <scroll-view scroll-y class="profile-body">
-      <!-- 头像 -->
-      <view class="avatar-box">
-        <view class="avatar">
-          <image class="avatar-img" src="/static/icons/icon_avatar.svg" mode="widthFix" />
-        </view>
-      </view>
-
-      <!-- 用户信息 -->
-      <view class="user-info" v-if="profile">
-        <text class="user-name">{{ displayName }}</text>
-        <text class="user-goal">{{ $t('currentRating') }}: {{ goalLabel }}</text>
-        <view class="pref-tags">
-          <text
-            v-for="(p, idx) in profile.preferences"
-            :key="idx"
-            class="pref-tag"
-          >{{ prefLabel(p) }}</text>
-        </view>
-      </view>
-
-      <view class="divider"></view>
-
-      <!-- 健康数据 -->
-      <text class="section-title">{{ $t('nutritionInfo') }}</text>
-      <view class="card" v-if="nutrition">
-        <view class="health-row">
-          <text>{{ $t('healthScore') }}</text>
-          <text class="health-value">{{ nutrition.score }}/100</text>
-        </view>
-        <view class="progress-bar">
-          <view class="progress-fill" :style="{ width: (nutrition.score || 0) + '%' }"></view>
-        </view>
-        <view v-if="deficits.length > 0" style="margin-top: 16rpx;">
-          <text class="gap-label">{{ $t('vitaminDeficit') }}:</text>
-          <view class="gap-tags">
-            <text v-for="d in deficits" :key="d" class="gap-tag">{{ deficitLabel(d) }}</text>
+      <view class="profile-hero">
+        <view class="hero-top">
+          <view class="avatar">
+            <image class="avatar-img" src="/static/icons/icon_avatar.svg" mode="aspectFit" />
+          </view>
+          <view class="hero-info">
+            <text class="user-name">{{ displayName }}</text>
+            <text class="user-goal">{{ $t('currentRating') }} · {{ goalLabel }}</text>
+          </view>
+          <view class="score-pill" v-if="nutrition">
+            <text class="score-num">{{ nutrition.score }}</text>
+            <text class="score-label">{{ $t('points') }}</text>
           </view>
         </view>
+
+        <view class="pref-tags" v-if="profile && profile.preferences && profile.preferences.length">
+          <text v-for="(p, idx) in profile.preferences" :key="idx" class="pref-tag">{{ prefLabel(p) }}</text>
+        </view>
       </view>
 
-      <view class="divider"></view>
+      <view class="dashboard-grid" v-if="nutrition">
+        <view class="metric-card">
+          <text class="metric-label">{{ $t('healthScore') }}</text>
+          <text class="metric-value">{{ nutrition.score }}/100</text>
+          <view class="progress-bar">
+            <view class="progress-fill" :style="{ width: (nutrition.score || 0) + '%' }"></view>
+          </view>
+        </view>
+        <view class="metric-card warn">
+          <text class="metric-label">{{ $t('vitaminDeficit') }}</text>
+          <text class="metric-value">{{ deficits.length || 0 }}</text>
+          <text class="metric-hint">{{ deficits.length ? deficits.map(deficitLabel).join('、') : '营养状态稳定' }}</text>
+        </view>
+      </view>
 
-      <!-- 菜单 -->
-      <text class="section-title">{{ $t('settings') }}</text>
+      <view class="section-head">
+        <text class="section-title">{{ $t('settings') }}</text>
+        <text class="section-sub">Profile & preferences</text>
+      </view>
+
       <view class="menu-list">
         <view class="menu-item" @tap="showDietPrefs">
-          <image class="menu-icon-img" src="/static/icons/icon_plate.svg" mode="widthFix" />
-          <text class="menu-label">{{ $t('dietPreferences') }}</text>
+          <view class="menu-icon"><image src="/static/icons/icon_plate.svg" mode="aspectFit" /></view>
+          <view class="menu-copy">
+            <text class="menu-label">{{ $t('dietPreferences') }}</text>
+            <text class="menu-hint">目标、口味和营养偏好</text>
+          </view>
           <text class="menu-arrow">›</text>
         </view>
         <view class="menu-item" @tap="goHistory">
-          <image class="menu-icon-img" src="/static/icons/icon_clock.svg" mode="widthFix" />
-          <text class="menu-label">{{ $t('history') }}</text>
+          <view class="menu-icon blue"><image src="/static/icons/icon_clock.svg" mode="aspectFit" /></view>
+          <view class="menu-copy">
+            <text class="menu-label">{{ $t('history') }}</text>
+            <text class="menu-hint">查看识别、推荐和导出记录</text>
+          </view>
           <text class="menu-arrow">›</text>
         </view>
         <view class="menu-item" @tap="goSettings">
-          <text class="menu-icon">⚙️</text>
-          <text class="menu-label">{{ $t('systemSettings') }}</text>
+          <view class="menu-icon amber"><image src="/static/icons/icon_edit.svg" mode="aspectFit" /></view>
+          <view class="menu-copy">
+            <text class="menu-label">{{ $t('systemSettings') }}</text>
+            <text class="menu-hint">语言、通知和同步偏好</text>
+          </view>
           <text class="menu-arrow">›</text>
         </view>
         <view class="menu-item" @tap="showNotifications">
-          <image class="menu-icon-img" src="/static/icons/icon_bell.svg" mode="widthFix" />
-          <text class="menu-label">{{ $t('notificationSettings') }}</text>
+          <view class="menu-icon purple"><image src="/static/icons/icon_bell.svg" mode="aspectFit" /></view>
+          <view class="menu-copy">
+            <text class="menu-label">{{ $t('notificationSettings') }}</text>
+            <text class="menu-hint">{{ $t('recipeRecommendations') }} · {{ $t('nutritionReminders') }}</text>
+          </view>
           <text class="menu-arrow">›</text>
         </view>
         <view class="menu-item" @tap="showAbout">
-          <image class="menu-icon-img" src="/static/icons/icon_export.svg" mode="widthFix" />
-          <text class="menu-label">{{ $t('aboutApp') }}</text>
+          <view class="menu-icon"><image src="/static/icons/icon_export.svg" mode="aspectFit" /></view>
+          <view class="menu-copy">
+            <text class="menu-label">{{ $t('aboutApp') }}</text>
+            <text class="menu-hint">ByteSavor 智能饮食助手</text>
+          </view>
           <text class="menu-arrow">›</text>
         </view>
       </view>
 
-      <!-- 登出按钮 -->
       <button class="btn-logout" @tap="handleLogout">{{ $t('logout') }}</button>
-      <view style="height: 40rpx;"></view>
+      <view class="bottom-space"></view>
     </scroll-view>
   </view>
 </template>
@@ -115,7 +125,7 @@ function prefLabel(p) {
   return map[p] || p
 }
 function deficitLabel(d) {
-  const map = { vitamin_c: '维生素C', fiber: '膳食纤维' }
+  const map = { vitamin_c: '维生素C', fiber: '膳食纤维', iron: '铁' }
   return map[d] || d
 }
 
@@ -161,65 +171,125 @@ async function handleLogout() {
 </script>
 
 <style scoped>
-.profile-page { min-height: 100vh; background: var(--bg-color); }
-.profile-body { padding: 32rpx; }
-.avatar-box { display: flex; justify-content: center; margin-bottom: 24rpx; }
-.avatar {
-  width: 160rpx; height: 160rpx;
-  background: var(--accent); border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+.profile-page { min-height: 100vh; background: var(--bg); }
+.profile-body { padding: 28rpx 28rpx 0; }
+.profile-hero {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: 30rpx;
+  box-shadow: var(--shadow-md);
 }
-.avatar-img { width: 100%; height: 100%; border-radius: 50%; }
-.avatar-text { font-size: 72rpx; }
-.user-info { text-align: center; margin-bottom: 32rpx; }
+.hero-top { display: flex; align-items: center; gap: 20rpx; }
+.avatar {
+  width: 120rpx;
+  height: 120rpx;
+  background: var(--teal-bg);
+  border-radius: 36rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.avatar-img { width: 100%; height: 100%; border-radius: 36rpx; }
+.hero-info { flex: 1; min-width: 0; }
 .user-name {
-  font-size: 40rpx; font-weight: bold;
-  color: var(--text-color); display: block;
+  font-size: 42rpx;
+  line-height: 1.15;
+  font-weight: 800;
+  color: var(--text);
+  display: block;
 }
 .user-goal {
-  font-size: 26rpx; color: var(--text-secondary);
-  margin-top: 8rpx; display: block;
+  font-size: 24rpx;
+  color: var(--text-secondary);
+  margin-top: 8rpx;
+  display: block;
 }
-.pref-tags { display: flex; justify-content: center; gap: 16rpx; margin-top: 16rpx; }
+.score-pill {
+  min-width: 104rpx;
+  padding: 12rpx 14rpx;
+  border-radius: 24rpx;
+  background: var(--green-bg);
+  text-align: center;
+}
+.score-num { display: block; font-size: 34rpx; font-weight: 800; color: var(--accent); line-height: 1; }
+.score-label { display: block; margin-top: 4rpx; font-size: 18rpx; color: var(--text-secondary); }
+.pref-tags { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 24rpx; }
 .pref-tag {
-  background: var(--tag-bg); color: var(--accent);
-  font-size: 24rpx; padding: 8rpx 20rpx; border-radius: 24rpx;
+  background: var(--bg-elevated);
+  color: var(--ink-green);
+  font-size: 23rpx;
+  padding: 8rpx 18rpx;
+  border-radius: var(--radius-full);
 }
-.divider { height: 1rpx; background: var(--border-color); margin: 24rpx 0; }
-.section-title {
-  font-size: 32rpx; font-weight: bold;
-  color: var(--text-color); margin-bottom: 16rpx; display: block;
+.dashboard-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16rpx; margin-top: 20rpx; }
+.metric-card {
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 22rpx;
+  box-shadow: var(--shadow-sm);
 }
-.card { background: var(--card-bg); border-radius: 16rpx; padding: 24rpx; }
-.health-row { display: flex; justify-content: space-between; font-size: 28rpx; color: var(--text-color); }
-.health-value { font-weight: bold; }
-.progress-bar {
-  height: 12rpx; background: var(--border-color);
-  border-radius: 6rpx; margin-top: 16rpx; overflow: hidden;
+.metric-card.warn { background: var(--amber-bg); }
+.metric-label { display: block; font-size: 22rpx; color: var(--text-secondary); }
+.metric-value { display: block; margin-top: 6rpx; font-size: 34rpx; color: var(--text); font-weight: 800; }
+.metric-hint {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 21rpx;
+  color: var(--text-secondary);
+  line-height: 1.35;
 }
-.progress-fill {
-  height: 100%; background: linear-gradient(90deg, var(--accent), var(--success));
-  border-radius: 6rpx; transition: width 0.5s;
-}
-.gap-label { font-size: 24rpx; color: var(--text-secondary); }
-.gap-tags { display: flex; flex-wrap: wrap; gap: 12rpx; margin-top: 12rpx; }
-.gap-tag {
-  background: var(--danger-bg); color: var(--danger);
-  font-size: 22rpx; padding: 6rpx 16rpx; border-radius: 24rpx;
-}
-.menu-list { background: var(--card-bg); border-radius: 16rpx; overflow: hidden; }
+.progress-bar { height: 12rpx; background: var(--border-light); border-radius: 999rpx; margin-top: 14rpx; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg, var(--teal), var(--teal-light)); border-radius: 999rpx; }
+.section-head { display: flex; align-items: flex-end; justify-content: space-between; margin: 34rpx 2rpx 16rpx; }
+.section-title { margin: 0; }
+.section-sub { font-size: 20rpx; color: var(--text-muted); }
+.menu-list { display: flex; flex-direction: column; gap: 14rpx; }
 .menu-item {
-  display: flex; align-items: center; padding: 28rpx 24rpx;
-  border-bottom: 1rpx solid var(--border-light);
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius);
+  padding: 22rpx;
+  box-shadow: var(--shadow-sm);
 }
-.menu-item:last-child { border-bottom: none; }
-.menu-icon-img { width: 44rpx; height: 44rpx; margin-right: 20rpx; }
-.menu-label { flex: 1; font-size: 28rpx; color: var(--text-color); }
-.menu-arrow { font-size: 32rpx; color: var(--text-muted); }
+.menu-icon {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 20rpx;
+  background: var(--teal-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.menu-icon.blue { background: var(--blue-bg); }
+.menu-icon.amber { background: var(--amber-bg); }
+.menu-icon.purple { background: var(--purple-bg); }
+.menu-icon image { width: 34rpx; height: 34rpx; }
+.menu-copy { flex: 1; min-width: 0; }
+.menu-label { display: block; font-size: 28rpx; color: var(--text); font-weight: 700; }
+.menu-hint {
+  display: block;
+  font-size: 21rpx;
+  color: var(--text-secondary);
+  margin-top: 4rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.menu-arrow { font-size: 36rpx; color: var(--text-muted); }
 .btn-logout {
-  width: 100%; height: 88rpx;
-  background: var(--danger); color: #fff;
-  border: none; border-radius: 16rpx;
-  font-size: 32rpx; font-weight: bold; margin-top: 40rpx;
+  width: 100%;
+  height: 88rpx;
+  background: var(--red-bg);
+  color: var(--danger);
+  border: none;
+  border-radius: var(--radius);
+  font-size: 30rpx;
+  font-weight: 800;
+  margin-top: 28rpx;
 }
+.bottom-space { height: 52rpx; }
 </style>

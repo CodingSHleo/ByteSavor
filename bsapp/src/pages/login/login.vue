@@ -1,52 +1,66 @@
 <template>
   <view class="login-page">
-    <view class="login-container">
-      <!-- Logo -->
-      <view class="logo-box">
-        <text class="logo-emoji">🍳</text>
-      </view>
-
-      <!-- 标题 -->
-      <text class="app-title">ByteSavor</text>
-      <text class="app-subtitle">字节品鉴者 - 智能食谱推荐</text>
-
-      <!-- 输入 -->
-      <view class="input-group">
-        <view class="input-row">
-          <text class="input-icon">👤</text>
-          <input
-            class="input-field"
-            v-model="openid"
-            placeholder="输入 demo 即可体验"
-            placeholder-class="ph"
-          />
+    <view class="hero-card">
+      <view class="brand-row">
+        <view class="brand-mark">
+          <image src="/static/icons/icon_leaf.svg" mode="aspectFit" />
+        </view>
+        <view>
+          <text class="brand-title">ByteSavor</text>
+          <text class="brand-sub">智能饮食管理</text>
         </view>
       </view>
 
-      <!-- 错误提示 -->
-      <view v-if="errorMessage" class="error-banner">
-        <text>⚠️ {{ errorMessage }}</text>
+      <text class="headline">把今天的食材变成清晰计划</text>
+      <text class="subline">识别食材、生成食谱、同步营养缺口与采购清单。</text>
+
+      <view class="preview-grid">
+        <view class="preview-card">
+          <image src="/static/icons/icon_scan.svg" mode="aspectFit" />
+          <text class="preview-num">3</text>
+          <text class="preview-label">食材识别</text>
+        </view>
+        <view class="preview-card amber">
+          <image src="/static/icons/icon_chart.svg" mode="aspectFit" />
+          <text class="preview-num">82</text>
+          <text class="preview-label">健康指数</text>
+        </view>
+        <view class="preview-card blue">
+          <image src="/static/icons/icon_cart.svg" mode="aspectFit" />
+          <text class="preview-num">7</text>
+          <text class="preview-label">待采购</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="login-panel">
+      <view class="input-row">
+        <image class="input-icon" src="/static/icons/icon_avatar.svg" mode="aspectFit" />
+        <input
+          class="input-field"
+          v-model="openid"
+          placeholder="输入 demo 即可体验"
+          placeholder-class="ph"
+        />
       </view>
 
-      <!-- 登录按钮 -->
-      <button
-        class="btn-login"
-        :disabled="isLoading"
-        @tap="handleLogin"
-      >
+      <view v-if="errorMessage" class="error-banner">
+        <text>{{ errorMessage }}</text>
+      </view>
+
+      <button class="btn-login" :disabled="isLoading" @tap="handleLogin">
         <text v-if="!isLoading">{{ $t('login') }}</text>
         <view v-else class="loading-spinner"></view>
       </button>
 
-      <!-- 注册 -->
       <view class="link-row">
         <text class="link-label">{{ $t('noAccount') }}</text>
         <text class="link-action" @tap="goRegister">{{ $t('registerNow') }}</text>
       </view>
 
-      <!-- 演示账号提示 -->
       <view class="demo-tip">
-        <text>💡 输入 demo 即可登录，无需注册</text>
+        <image src="/static/icons/icon_flash.svg" mode="aspectFit" />
+        <text>输入 demo 即可登录，无需注册</text>
       </view>
     </view>
   </view>
@@ -78,7 +92,6 @@ async function handleLogin() {
     const result = await ApiService.login(openid.value.trim())
 
     const token = result.token || ''
-    // result 就是 res.data，直接包含 {token, user_id, name}
     const userId = result.user_id || result.userId || 'u_001'
     const username = result.name || openid.value
 
@@ -105,107 +118,122 @@ function goRegister() {
 <style scoped>
 .login-page {
   min-height: 100vh;
-  background: var(--bg-color);
+  background: var(--bg);
+  padding: 42rpx 28rpx 34rpx;
+}
+.hero-card {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: 34rpx;
+  box-shadow: var(--shadow-md);
+}
+.brand-row { display: flex; align-items: center; gap: 18rpx; }
+.brand-mark {
+  width: 78rpx;
+  height: 78rpx;
+  border-radius: 24rpx;
+  background: var(--teal-bg);
   display: flex;
   align-items: center;
   justify-content: center;
 }
-.login-container {
-  width: 100%;
-  max-width: 600rpx;
-  padding: 60rpx 48rpx;
-}
-.logo-box {
-  width: 140rpx; height: 140rpx;
-  background: var(--teal-bg);
-  border-radius: 32rpx;
-  display: flex; align-items: center; justify-content: center;
-  align-self: center; margin: 0 auto 40rpx;
-}
-.logo-emoji { font-size: 72rpx; }
-.app-title {
-  font-size: 52rpx;
-  font-weight: bold;
-  color: var(--text-color);
-  text-align: center;
+.brand-mark image { width: 42rpx; height: 42rpx; }
+.brand-title { display: block; font-size: 34rpx; font-weight: 800; color: var(--text); line-height: 1.1; }
+.brand-sub { display: block; margin-top: 6rpx; font-size: 22rpx; color: var(--text-secondary); }
+.headline {
   display: block;
+  margin-top: 34rpx;
+  max-width: 560rpx;
+  font-size: 46rpx;
+  line-height: 1.16;
+  font-weight: 800;
+  color: var(--ink-green);
 }
-.app-subtitle {
-  font-size: 26rpx;
+.subline {
+  display: block;
+  margin-top: 14rpx;
+  font-size: 25rpx;
+  line-height: 1.55;
   color: var(--text-secondary);
-  text-align: center;
-  display: block;
-  margin-top: 12rpx;
-  margin-bottom: 48rpx;
 }
-.input-group {
-  margin-bottom: 16rpx;
+.preview-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14rpx; margin-top: 30rpx; }
+.preview-card {
+  min-height: 132rpx;
+  border-radius: 24rpx;
+  background: var(--green-bg);
+  padding: 16rpx;
+}
+.preview-card.amber { background: var(--amber-bg); }
+.preview-card.blue { background: var(--blue-bg); }
+.preview-card image { width: 30rpx; height: 30rpx; }
+.preview-num { display: block; margin-top: 12rpx; font-size: 34rpx; line-height: 1; font-weight: 800; color: var(--text); }
+.preview-label { display: block; margin-top: 8rpx; font-size: 20rpx; color: var(--text-secondary); }
+.login-panel {
+  margin-top: 22rpx;
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: 28rpx;
+  box-shadow: var(--shadow-sm);
 }
 .input-row {
   display: flex;
   align-items: center;
-  background: var(--card-bg);
-  border-radius: 16rpx;
-  padding: 0 24rpx;
-  margin-bottom: 20rpx;
-  border: 1rpx solid var(--border-color);
+  height: 92rpx;
+  background: var(--bg-elevated);
+  border: 1rpx solid var(--border-light);
+  border-radius: var(--radius);
+  padding: 0 22rpx;
 }
-.input-icon {
-  font-size: 36rpx;
-  margin-right: 16rpx;
-}
-.input-field {
-  flex: 1;
-  height: 90rpx;
-  font-size: 30rpx;
-}
-.ph {
-  color: var(--text-muted);
+.input-icon { width: 38rpx; height: 38rpx; margin-right: 16rpx; }
+.input-field { flex: 1; height: 92rpx; border: none; background: transparent; font-size: 28rpx; color: var(--text); }
+.ph { color: var(--text-placeholder); }
+.error-banner {
+  margin-top: 16rpx;
+  padding: 16rpx 18rpx;
+  border-radius: 18rpx;
+  background: var(--red-bg);
+  color: var(--danger);
+  font-size: 24rpx;
 }
 .btn-login {
-  width: 100%; height: 90rpx;
-  background: var(--teal); color: #fff; border: none;
-  border-radius: var(--radius); font-size: 30rpx; font-weight: 700;
-  display: flex; align-items: center; justify-content: center;
-  margin-top: 16rpx; letter-spacing: 0.03em;
-  box-shadow: 0 2px 10px rgba(20,184,166,0.20);
-}
-.btn-login[disabled] { opacity: 0.6; }
-.link-row {
+  width: 100%;
+  height: 92rpx;
+  margin-top: 18rpx;
+  background: var(--teal);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 30rpx;
+  font-weight: 800;
   display: flex;
-  justify-content: center;
   align-items: center;
-  margin-top: 28rpx;
+  justify-content: center;
+  box-shadow: 0 16rpx 32rpx rgba(35, 169, 120, 0.22);
 }
-.link-label {
-  font-size: 26rpx;
-  color: var(--text-secondary);
-}
-.link-action {
-  font-size: 26rpx;
-  color: var(--accent);
-  font-weight: bold;
-  margin-left: 8rpx;
-}
+.btn-login[disabled] { opacity: 0.65; }
+.link-row { display: flex; justify-content: center; align-items: center; margin-top: 24rpx; }
+.link-label { font-size: 24rpx; color: var(--text-secondary); }
+.link-action { font-size: 24rpx; color: var(--accent); font-weight: 800; margin-left: 8rpx; }
 .demo-tip {
-  background: var(--info-bg);
-  border: 1rpx solid var(--info-border);
-  border-radius: 12rpx;
-  padding: 20rpx;
-  margin-top: 48rpx;
-  text-align: center;
-  font-size: 24rpx;
-  color: var(--accent);
+  margin-top: 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  background: var(--amber-bg);
+  border-radius: 18rpx;
+  padding: 16rpx;
+  color: #9B6A20;
+  font-size: 23rpx;
 }
+.demo-tip image { width: 28rpx; height: 28rpx; }
 .loading-spinner {
   width: 36rpx;
   height: 36rpx;
-  border: 4rpx solid rgba(255,255,255,0.3);
+  border: 4rpx solid rgba(255,255,255,0.35);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

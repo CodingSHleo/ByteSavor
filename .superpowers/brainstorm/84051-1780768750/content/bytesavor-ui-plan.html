@@ -1,0 +1,123 @@
+<h2>ByteSavor UI 重构方案 v1</h2>
+<p class="subtitle">参考薄荷健康、Foodvisor、MyFitnessPal 等成熟模式，但保持 ByteSavor 的 B-Y-T-E Agent 主线。方案只动 UI 层，不动接口、状态和后端逻辑。</p>
+
+<div class="section">
+  <h3>调研提炼</h3>
+  <div class="cards">
+    <div class="card">
+      <div class="card-body">
+        <h3>薄荷健康</h3>
+        <p>强项是中文食物库、饮食/运动记录、体重管理和减脂方案。ByteSavor 可借鉴“记录入口近、营养数据清楚”，但不继承社区/商城/课程堆叠。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h3>Foodvisor</h3>
+        <p>强项是拍照/条码/语音/文本多入口，强调 5 秒记录和 AI 营养解读。ByteSavor 应把“拍照识别”变成第一主操作。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-body">
+        <h3>MyFitnessPal</h3>
+        <p>新版 Today 把 Diary 作为首页，顶部展示 calories/macros/meals。ByteSavor 应把“今日任务闭环”作为首页，而不是普通功能宫格。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>三种设计方向</h3>
+  <div class="options">
+    <div class="option" data-choice="a" onclick="toggleSelect(this)">
+      <div class="letter">A</div>
+      <div class="content">
+        <h3>薄荷式健康记录</h3>
+        <p>三餐、热量、体重、营养优先。成熟但容易遮住 ByteSavor 的 Agent 差异化。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="b" onclick="toggleSelect(this)">
+      <div class="letter">B</div>
+      <div class="content">
+        <h3>AI 主厨工作台（推荐）</h3>
+        <p>首页围绕“拍照/输入 → 推荐 → 清单 → 反馈”。最贴合现有后端 B-Y-T-E 闭环。</p>
+      </div>
+    </div>
+    <div class="option" data-choice="c" onclick="toggleSelect(this)">
+      <div class="letter">C</div>
+      <div class="content">
+        <h3>菜谱探索社区</h3>
+        <p>内容流更漂亮，但需要大量图片、社区和运营内容，和当前代码基础不匹配。</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>推荐首页重构</h3>
+  <div class="mockup">
+    <div class="mockup-header">Home：从功能集合改成一次饮食决策任务</div>
+    <div class="mockup-body">
+      <div style="padding:18px;border-radius:22px;background:#15251b;color:white;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:22px;font-weight:800">今天这顿怎么安排？</div>
+            <div style="opacity:.76;margin-top:4px">减脂 · 30 分钟 · 蛋白还差 18g</div>
+          </div>
+          <button class="mock-button">拍照</button>
+        </div>
+        <div style="margin-top:16px;height:10px;background:rgba(255,255,255,.16);border-radius:8px;overflow:hidden">
+          <div style="height:100%;width:65%;background:#67d88b"></div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+        <div class="placeholder">食材识别</div>
+        <div class="placeholder">AI 输入</div>
+        <div class="placeholder">健康看板</div>
+        <div class="placeholder">购物清单</div>
+      </div>
+      <div class="placeholder" style="height:72px;margin-bottom:10px">当前食材：西兰花、牛肉、番茄</div>
+      <div class="placeholder" style="height:88px">推荐菜谱：香辣牛肉西兰花 · 93% · 25min</div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>页面级改造</h3>
+  <div class="cards">
+    <div class="card"><div class="card-body"><h3>识别页</h3><p>相机区域做成“扫描画布”，增加三阶段进度：上传、VLM 推理、人工校正。结果卡显示置信度条、新鲜度状态、编辑按钮。</p></div></div>
+    <div class="card"><div class="card-body"><h3>健康看板</h3><p>顶部改为一张营养总览卡，宏量营养用环形/条形组合；缺口列表按“需要补齐”排序，减少重复卡片。</p></div></div>
+    <div class="card"><div class="card-body"><h3>探索页</h3><p>修复缺失图标；从普通列表改为“筛选 chips + 紧凑菜谱卡”，突出时间、热量、目标标签。</p></div></div>
+    <div class="card"><div class="card-body"><h3>详情页</h3><p>重排为：菜名与匹配理由、元信息、食材、步骤、营养、反馈。购物清单按钮固定底部，减少长页迷路。</p></div></div>
+    <div class="card"><div class="card-body"><h3>清单页</h3><p>从按钮堆叠改为“采购任务页”：统计条、分组清单、勾选态、底部操作栏。保留复制/Markdown/分享/返回逻辑。</p></div></div>
+    <div class="card"><div class="card-body"><h3>我的/设置</h3><p>统一头像、健康分、目标和偏好标签；菜单用一致图标和行高，减少红色退出按钮的视觉压迫。</p></div></div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>设计系统</h3>
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>视觉语言</h4>
+      <ul>
+        <li>背景：浅雾绿/暖白，不继续偏奶油黄过重</li>
+        <li>主色：健康绿 #22C55E，深墨绿用于 Hero</li>
+        <li>辅助色：蛋白番茄红、碳水琥珀、AI 紫、信息蓝</li>
+        <li>卡片圆角收敛到 16-20rpx，避免全站过圆</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>交互与动效</h4>
+      <ul>
+        <li>页面进入：轻微 fade-up，避免过度弹跳</li>
+        <li>主按钮：pressed scale 0.98</li>
+        <li>识别进度：三段式 stepper + loading dots</li>
+        <li>推荐出现：列表 stagger，不改变数据加载逻辑</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>否定审查</h3>
+  <p class="subtitle">这套方案不能为了“漂亮”牺牲效率。首页不做营销英雄页，不加假数据，不加后端不支持的扫码、社区、商城、会员和真实三餐记录。健康建议保留免责声明边界，避免看起来像医疗诊断。</p>
+</div>

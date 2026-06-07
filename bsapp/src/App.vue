@@ -16,56 +16,55 @@ onLaunch(async () => {
 @import "uni.scss";
 
 /* ================================================================
-   ByteSavor V3.3 — Layered Cards · 卡片分层设计
-   设计理念：空间分割 / 色彩节奏 / 多层次阴影 / 紧凑克制
+   ByteSavor V3.4 — Fresh Dashboard · 清新信息仪表盘
+   设计理念：轻量习惯管理感 / 饮食 Agent 摘要 / 低饱和数据可视化
    ================================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
-
 :root {
-  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 
-  /* ======== Munch · 多彩食材色 ======== */
-  --bg:            #FFFBF7;
+  /* ======== Fresh habit palette · 参考 ui.png 的浅雾绿系统 ======== */
+  --bg:            #F2F8F5;
   --bg-white:      #FFFFFF;
   --bg-card:       #FFFFFF;
-  --bg-elevated:   #FFF8F2;
+  --bg-elevated:   #F7FCF9;
 
-  --text:          #2C2416;
-  --text-secondary:#7B6F62;
-  --text-muted:    #B0A699;
-  --text-placeholder:#CFC7BD;
+  --text:          #17231F;
+  --text-secondary:#62736D;
+  --text-muted:    #90A19A;
+  --text-placeholder:#B9C8C2;
 
-  /* 食材色系 */
-  --tomato:        #E74C3C;   /* 番茄红 — 蛋白质/肉类 */
-  --avocado:       #34C759;   /* 清新薄荷绿 — 蔬菜/健康 */
-  --cheese:        #F0A500;   /* 芝士黄 — 碳水/谷物 */
-  --berry:         #8E5EA2;   /* 浆果紫 — 水果/AI */
-  --ocean:         #4A90D9;   /* 海洋蓝 — 海鲜/信息 */
-  --cream:         #FFF0E0;   /* 奶油底 — 卡片背景 */
+  /* 饮食数据色系 */
+  --tomato:        #E67A61;   /* 蛋白/肉类 */
+  --avocado:       #23A978;   /* 主色/健康 */
+  --cheese:        #F2B75B;   /* 碳水/能量 */
+  --berry:         #8D7AE6;   /* AI/反馈 */
+  --ocean:         #4BA7C8;   /* 信息/水分 */
+  --cream:         #FFF8E9;   /* 温和提示 */
+  --ink-green:     #173B2E;
 
   /* 主色(绿) */
   --teal:          var(--avocado);
-  --teal-light:    #6EE08A;
-  --teal-bg:       #EBFAF0;
-  --teal-border:   #A3E8B8;
+  --teal-light:    #58CFA0;
+  --teal-bg:       #E8F8F0;
+  --teal-border:   #BEEBD8;
 
   /* 强调(芝士黄) */
   --amber:         var(--cheese);
-  --amber-bg:      #FFF8E8;
-  --amber-border:  #FCE4A8;
+  --amber-bg:      #FFF7E5;
+  --amber-border:  #F7D99C;
 
   /* 语义色 */
   --green:         var(--avocado);
-  --green-bg:      #F0F6EC;
+  --green-bg:      #EAF8F1;
   --red:           var(--tomato);
-  --red-bg:        #FDF0EC;
+  --red-bg:        #FCEDEA;
   --purple:        var(--berry);
-  --purple-bg:     #F6F0F8;
+  --purple-bg:     #F3F1FF;
   --blue:          var(--ocean);
-  --blue-light:    #6BAEE8;
-  --blue-bg:       #EDF4FB;
-  --blue-border:   #B8D5F2;
+  --blue-light:    #7BC1D8;
+  --blue-bg:       #EAF7FA;
+  --blue-border:   #BDE5EE;
 
   /* 兼容旧变量 */
   --primary:       var(--avocado);
@@ -82,21 +81,22 @@ onLaunch(async () => {
   --danger-bg:     var(--red-bg);
 
   /* ======== 边框 ======== */
-  --border:        #E5E7EB;
-  --border-light:  #F3F4F6;
+  --border:        #DDE9E3;
+  --border-light:  #EDF4F0;
 
   /* ======== 阴影 — iOS 风格柔和 ======== */
-  --shadow-sm:     0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:     0 2px 8px rgba(0,0,0,0.06);
-  --shadow-lg:     0 4px 16px rgba(0,0,0,0.08);
-  --shadow-xl:     0 2px 8px rgba(0,0,0,0.10);
+  --shadow-sm:     0 8rpx 20rpx rgba(26, 73, 55, 0.05);
+  --shadow-md:     0 14rpx 34rpx rgba(26, 73, 55, 0.07);
+  --shadow-lg:     0 20rpx 46rpx rgba(26, 73, 55, 0.10);
+  --shadow-xl:     0 28rpx 60rpx rgba(26, 73, 55, 0.12);
 
   /* ======== 圆角 24px ======== */
-  --radius-sm:   12rpx;
-  --radius:      24rpx;
+  --radius-xs:   10rpx;
+  --radius-sm:   14rpx;
+  --radius:      22rpx;
   --radius-md:   24rpx;
-  --radius-lg:   24rpx;
-  --radius-xl:   24rpx;
+  --radius-lg:   30rpx;
+  --radius-xl:   36rpx;
   --radius-full: 999rpx;
 
   /* ======== 动画 ======== */
@@ -136,7 +136,7 @@ onLaunch(async () => {
 
 /* ======== 手机端框架 ======== */
 html, body {
-  background: #E8E9EE;
+  background: #E7EFEB;
   margin: 0; padding: 0;
   display: flex; justify-content: center;
 }
@@ -147,7 +147,7 @@ html, body {
   background: var(--bg);
   position: relative;
   overflow-x: hidden;
-  box-shadow: 0 0 40px rgba(0,0,0,0.10);
+  box-shadow: 0 20px 70px rgba(18, 55, 40, 0.12);
 }
 
 page {
@@ -156,7 +156,7 @@ page {
   color: var(--text);
   background-color: var(--bg);
   -webkit-font-smoothing: antialiased;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   line-height: 1.5;
   overflow-x: hidden;
   max-width: 100vw;
@@ -238,7 +238,7 @@ page {
   color: var(--text);
   margin-bottom: 18rpx;
   display: block;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 button {
@@ -259,19 +259,19 @@ input, textarea {
   transition: border-color var(--fast), box-shadow var(--fast);
 }
 input:focus, textarea:focus {
-  border-color: var(--blue) !important;
-  box-shadow: 0 0 0 3px rgba(79,110,247,0.12);
+  border-color: var(--teal) !important;
+  box-shadow: 0 0 0 3px rgba(35,169,120,0.12);
   outline: none;
 }
 
 .btn-primary {
-  background: var(--blue); color: #fff; border: none;
+  background: var(--teal); color: #fff; border: none;
   border-radius: var(--radius); font-size: 30rpx; font-weight: 600;
   padding: 20rpx 0; width: 100%;
 }
 .btn-primary:active { background: var(--primary-dark); }
 .btn-outline {
-  background: transparent; color: var(--blue);
+  background: #fff; color: var(--teal);
   border: 1.5px solid var(--primary-border);
   border-radius: var(--radius); font-size: 30rpx; font-weight: 600;
   padding: 20rpx 0; width: 100%;

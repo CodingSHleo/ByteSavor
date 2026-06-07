@@ -23,6 +23,14 @@ async def agent_entry(req: AgentRequest, db: AsyncSession = Depends(get_db)):
         async def _sense(img): return await analyze_food(img)
         sense_fn = _sense
 
+    # mode: recommend(只推荐) / plan(只意图解析) / full(全流程)
+    if req.mode == "plan":
+        task_fn = None
+        decide_fn = None
+    elif req.mode == "recommend":
+        sense_fn = None
+        task_fn = None
+
     result = await run_pipeline(
         req.input,
         sense_fn=sense_fn,

@@ -13,8 +13,8 @@
       "path": "pages/register/register",
       "style": {
         "navigationBarTitleText": "创建账号",
-        "navigationBarBackgroundColor": "#34C759",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
       }
     },
     {
@@ -28,84 +28,89 @@
       "path": "pages/explore/explore",
       "style": {
         "navigationBarTitleText": "探索菜谱",
-        "navigationBarBackgroundColor": "#34C759",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/profile/profile",
       "style": {
         "navigationBarTitleText": "我的",
-        "navigationBarBackgroundColor": "#34C759",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/settings/settings",
       "style": {
         "navigationBarTitleText": "设置",
-        "navigationBarBackgroundColor": "#34C759",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/ingredient-recognition/ingredient-recognition",
       "style": {
         "navigationBarTitleText": "食材识别",
-        "navigationBarBackgroundColor": "#34C759",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/health-dashboard/health-dashboard",
       "style": {
         "navigationBarTitleText": "健康看板",
-        "navigationBarBackgroundColor": "#34C759",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/recipe-detail/recipe-detail",
       "style": {
         "navigationBarTitleText": "菜谱详情",
-        "navigationBarBackgroundColor": "#34C759",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
       }
     },
     {
       "path": "pages/food-knowledge/food-knowledge",
       "style": {
         "navigationBarTitleText": "美食知识",
-        "navigationBarBackgroundColor": "#34C759",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/history/history",
       "style": {
         "navigationBarTitleText": "历史记录",
-        "navigationBarBackgroundColor": "#34C759",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black",
+        "navigationStyle": "custom"
       }
     },
     {
       "path": "pages/list-export/list-export",
       "style": {
         "navigationBarTitleText": "购物清单",
-        "navigationBarBackgroundColor": "#34C759",
-        "navigationBarTextStyle": "white"
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
       }
     }
   ],
   "globalStyle": {
-    "navigationBarTextStyle": "white",
+    "navigationBarTextStyle": "black",
     "navigationBarTitleText": "ByteSavor",
-    "navigationBarBackgroundColor": "#34C759",
-    "backgroundColor": "#F5F5F5"
+    "navigationBarBackgroundColor": "#F2F8F5",
+    "backgroundColor": "#F2F8F5"
   },
   "tabBar": {
     "color": "#86909C",
-    "selectedColor": "#34C759",
+    "selectedColor": "#23A978",
     "backgroundColor": "#FFFFFF",
     "borderStyle": "white",
     "height": "50px",

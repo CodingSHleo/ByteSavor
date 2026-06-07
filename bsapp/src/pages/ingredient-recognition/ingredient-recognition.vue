@@ -1,34 +1,42 @@
 <template>
   <view class="ir-page">
-    <!-- 标题 -->
     <view class="ir-header">
       <text class="ir-title">{{ $t('smartIngredientRecognition') }}</text>
-      <text class="ir-desc">拍照或从相册选择食材图片，AI将自动识别食材并分析新鲜度</text>
+      <text class="ir-desc">拍照或选择食材图片，AI 将识别食材、新鲜度与可用特征。</text>
     </view>
 
-    <!-- 图片区域 -->
-    <view class="ir-image-box" @tap="showImageOptions">
-      <image v-if="selectedImage" :src="selectedImage" class="ir-image" mode="aspectFill" />
-      <view v-else class="ir-placeholder">
-        <image class="ir-placeholder-icon" src="/static/icons/icon_camera.svg" mode="widthFix" />
-        <text class="ir-placeholder-text">{{ $t('noImage') }}</text>
+    <view class="scan-panel" @tap="showImageOptions">
+      <image v-if="selectedImage" :src="selectedImage" class="scan-image" mode="aspectFill" />
+      <view v-else class="scan-empty">
+        <view class="scan-icon-wrap">
+          <image class="scan-icon" src="/static/icons/icon_scan.svg" mode="widthFix" />
+        </view>
+        <text class="scan-title">添加一张食材照片</text>
+        <text class="scan-sub">支持冰箱、菜板、餐盘等场景</text>
+      </view>
+      <view class="scan-corners">
+        <view></view><view></view><view></view><view></view>
       </view>
     </view>
 
-    <!-- 操作按钮 -->
     <view class="ir-actions">
-      <button class="ir-btn ir-btn-outline" @tap="pickFromGallery">
+      <button class="ir-btn secondary" @tap="pickFromGallery">
         <image class="btn-small-icon" src="/static/icons/icon_export.svg" mode="widthFix" />
         <text>{{ $t('selectFromGallery') }}</text>
       </button>
-      <button class="ir-btn ir-btn-primary" @tap="takePhoto">
+      <button class="ir-btn primary" @tap="takePhoto">
         <image class="btn-small-icon" src="/static/icons/icon_camera.svg" mode="widthFix" />
         <text>{{ $t('takePhoto') }}</text>
       </button>
     </view>
 
+    <view class="stage-card">
+      <view v-for="(stage, idx) in stages" :key="stage.label" class="stage-item" :class="{ active: stageIndex >= idx }">
+        <view class="stage-dot">{{ idx + 1 }}</view>
+        <text>{{ stage.label }}</text>
+      </view>
+    </view>
 
-    <!-- 状态 -->
     <view v-if="recognitionStatus" class="ir-status">
       <text>{{ recognitionStatus }}</text>
       <view v-if="isLoading" class="loading-dots">
@@ -36,32 +44,36 @@
       </view>
     </view>
 
-    <!-- 错误 -->
     <view v-if="errorMessage" class="error-banner">
-      <text>⚠️ {{ errorMessage }}</text>
+      <text>{{ errorMessage }}</text>
     </view>
 
-    <!-- 识别结果 -->
     <view v-if="recognizedIngredients.length > 0" class="ir-results">
-      <text class="section-title">{{ $t('recognitionResults') }}</text>
-      <view
-        v-for="(item, idx) in recognizedIngredients"
-        :key="idx"
-        class="ir-ingredient-card"
-      >
-        <view class="ir-ing-avatar">
-          <text class="ir-ing-letter">{{ item.name.charAt(0).toUpperCase() }}</text>
+      <view class="section-head">
+        <text>{{ $t('recognitionResults') }}</text>
+        <text class="section-sub">{{ recognizedIngredients.length }} 种食材</text>
+      </view>
+      <view v-for="(item, idx) in recognizedIngredients" :key="idx" class="ingredient-card">
+        <view class="ing-symbol" :class="freshnessClass(item.freshness)">
+          <text>{{ item.name.charAt(0).toUpperCase() }}</text>
         </view>
-        <view class="ir-ing-info">
-          <text class="ir-ing-name">{{ item.name }}</text>
-          <text class="ir-ing-detail">{{ $t('confidence') }}: {{ (item.confidence * 100).toFixed(1) }}%</text>
-          <text class="ir-ing-detail">{{ $t('freshness') }}: {{ item.freshness }} ({{ item.state }})</text>
-          <text v-if="item.features" class="ir-ing-features">{{ $t('features') }}: {{ item.features }}</text>
+        <view class="ing-info">
+          <view class="ing-title-row">
+            <text class="ing-name">{{ item.name }}</text>
+            <text class="freshness-pill" :class="freshnessClass(item.freshness)">{{ freshnessLabel(item.freshness) }}</text>
+          </view>
+          <view class="confidence-row">
+            <view class="confidence-track">
+              <view class="confidence-fill" :style="{ width: Math.round((item.confidence || 0) * 100) + '%' }"></view>
+            </view>
+            <text>{{ ((item.confidence || 0) * 100).toFixed(0) }}%</text>
+          </view>
+          <text v-if="item.features" class="ing-features">{{ item.features }}</text>
+          <text v-else class="ing-features">{{ item.state || '等待确认' }}</text>
         </view>
-        <image class="ir-ing-edit" @tap="editIngredient(item, idx)" src="/static/icons/icon_edit.svg" mode="widthFix" />
+        <image class="edit-icon" @tap="editIngredient(item, idx)" src="/static/icons/icon_edit.svg" mode="widthFix" />
       </view>
 
-      <!-- 确认按钮 -->
       <button class="btn-confirm" @tap="confirmAndNavigate">
         {{ $t('confirmAndGoToDashboard') }}
       </button>
@@ -70,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { ApiService } from '@/api/index'
 import { useHistoryStore } from '@/store/history'
 import { t } from '@/utils/i18n'
@@ -83,6 +95,13 @@ const recognizedIngredients = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const recognitionStatus = ref('')
+const stages = [{ label: '上传图片' }, { label: 'AI 识别' }, { label: '人工校正' }]
+const stageIndex = computed(() => {
+  if (recognizedIngredients.value.length > 0) return 2
+  if (isLoading.value) return 1
+  if (selectedImage.value) return 0
+  return -1
+})
 
 function showImageOptions() {
   uni.showActionSheet({
@@ -95,7 +114,6 @@ function showImageOptions() {
 }
 
 function triggerFileInput(capture) {
-  // 动态创建 file input（避免 #ifdef 编译问题）
   const input = document.createElement('input')
   input.type = 'file'
   input.accept = 'image/*'
@@ -162,11 +180,10 @@ function handleNativeFile(e) {
 async function analyzeImage() {
   if (!selectedImage.value) return
   isLoading.value = true
-  recognitionStatus.value = 'VLM多模态模型推理中...'
+  recognitionStatus.value = 'VLM 多模态模型推理中...'
 
   try {
     let imageData = selectedImage.value
-    // 如果是本地文件路径（小程序），读文件转 base64
     if (!imageData.startsWith('data:')) {
       const fs = uni.getFileSystemManager()
       const base64 = await new Promise((resolve, reject) => {
@@ -181,7 +198,7 @@ async function analyzeImage() {
     }
     const ingredients = await ApiService.analyzeIngredient(imageData)
     recognizedIngredients.value = ingredients
-    recognitionStatus.value = `识别完成！检测到${ingredients.length}种食材`
+    recognitionStatus.value = `识别完成，检测到 ${ingredients.length} 种食材`
     isLoading.value = false
 
     if (ingredients.length > 0) {
@@ -209,7 +226,6 @@ function showVisionVerify(ingredient) {
 }
 
 function showManualCorrection(ingredient) {
-  // 简化版本：逐个修正
   uni.showModal({
     title: $t('manualCorrection'),
     content: `${$t('ingredientName')}: ${ingredient.name}\n${$t('freshness')}: ${ingredient.freshness}`,
@@ -219,10 +235,7 @@ function showManualCorrection(ingredient) {
       if (res.confirm && res.content) {
         const idx = recognizedIngredients.value.indexOf(ingredient)
         if (idx >= 0) {
-          recognizedIngredients.value[idx] = {
-            ...ingredient,
-            name: res.content
-          }
+          recognizedIngredients.value[idx] = { ...ingredient, name: res.content }
         }
       }
     }
@@ -237,10 +250,7 @@ function editIngredient(ingredient, idx) {
     placeholderText: ingredient.name,
     success: (res) => {
       if (res.confirm && res.content) {
-        recognizedIngredients.value[idx] = {
-          ...ingredient,
-          name: res.content
-        }
+        recognizedIngredients.value[idx] = { ...ingredient, name: res.content }
       }
     }
   })
@@ -256,114 +266,65 @@ function confirmAndNavigate() {
     title: $t('scanCompleteTitle'),
     detail: t('scanCompleteDetail', { n: recognizedIngredients.value.length })
   })
-  // 保存到本地，首页可直接读取
   uni.setStorageSync('last_ingredients', JSON.stringify(recognizedIngredients.value))
   const data = encodeURIComponent(JSON.stringify(recognizedIngredients.value))
   uni.navigateTo({ url: `/pages/health-dashboard/health-dashboard?ingredients=${data}` })
 }
+
+function freshnessLabel(f) { return ({ high: '新鲜', normal: '冷藏', medium: '普通', low: '待确认' })[f] || f || '待确认' }
+function freshnessClass(f) { return f === 'high' ? 'fresh-high' : f === 'low' ? 'fresh-low' : 'fresh-normal' }
 </script>
 
 <style scoped>
-.ir-page { min-height: 100vh; background: var(--bg-color); padding: 24rpx; }
-.ir-header { margin-bottom: 32rpx; }
-.ir-title { font-size: 40rpx; font-weight: bold; color: var(--text-color); display: block; }
-.ir-desc { font-size: 26rpx; color: var(--text-secondary); margin-top: 12rpx; display: block; }
-.ir-image-box {
-  width: 100%;
-  height: 500rpx;
-  background: var(--card-bg);
-  border: 2rpx dashed var(--border-color);
-  border-radius: 16rpx;
-  overflow: hidden;
-  margin-bottom: 24rpx;
-}
-.ir-image { width: 100%; height: 100%; }
-.ir-placeholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-}
-.ir-placeholder-icon { width: 88rpx; height: 88rpx; margin-bottom: 12rpx; }
-.ir-placeholder-text { color: var(--text-secondary); font-size: 28rpx; margin-top: 16rpx; }
-.ir-actions { display: flex; gap: 16rpx; margin-bottom: 24rpx; }
-.ir-btn {
-  flex: 1;
-  height: 88rpx;
-  border: none;
-  border-radius: 16rpx;
-  font-size: 28rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+.ir-page { min-height: 100vh; background: var(--bg); padding: 28rpx; }
+.ir-header { margin-bottom: 24rpx; }
+.ir-title { font-size: 42rpx; line-height: 1.2; font-weight: 900; color: var(--text); display: block; }
+.ir-desc { font-size: 25rpx; color: var(--text-secondary); margin-top: 10rpx; display: block; line-height: 1.45; }
+.scan-panel { height: 520rpx; background: linear-gradient(135deg, #E8F8F0, #FFFFFF); border-radius: var(--radius-xl); overflow: hidden; position: relative; margin-bottom: 18rpx; box-shadow: var(--shadow-md); }
+.scan-image { width: 100%; height: 100%; }
+.scan-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.scan-icon-wrap { width: 116rpx; height: 116rpx; border-radius: 32rpx; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); }
+.scan-icon { width: 66rpx; height: 66rpx; }
+.scan-title { margin-top: 26rpx; font-size: 31rpx; font-weight: 900; color: var(--text); }
+.scan-sub { margin-top: 8rpx; font-size: 24rpx; color: var(--text-muted); }
+.scan-corners view { position: absolute; width: 46rpx; height: 46rpx; border-color: rgba(35,169,120,.55); }
+.scan-corners view:nth-child(1) { left: 28rpx; top: 28rpx; border-left: 4rpx solid; border-top: 4rpx solid; border-radius: 12rpx 0 0 0; }
+.scan-corners view:nth-child(2) { right: 28rpx; top: 28rpx; border-right: 4rpx solid; border-top: 4rpx solid; border-radius: 0 12rpx 0 0; }
+.scan-corners view:nth-child(3) { left: 28rpx; bottom: 28rpx; border-left: 4rpx solid; border-bottom: 4rpx solid; border-radius: 0 0 0 12rpx; }
+.scan-corners view:nth-child(4) { right: 28rpx; bottom: 28rpx; border-right: 4rpx solid; border-bottom: 4rpx solid; border-radius: 0 0 12rpx 0; }
+.ir-actions { display: flex; gap: 16rpx; margin-bottom: 18rpx; }
+.ir-btn { flex: 1; height: 88rpx; border: none; border-radius: var(--radius); font-size: 27rpx; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.ir-btn.primary { background: var(--teal); color: #fff; }
+.ir-btn.secondary { background: #fff; color: var(--teal); box-shadow: var(--shadow-sm); }
 .btn-small-icon { width: 36rpx; height: 36rpx; margin-right: 10rpx; }
-.ir-btn-primary { background: var(--accent); color: #fff; }
-.ir-btn-outline { background: var(--info-bg); color: var(--accent); }
-.ir-status {
-  background: var(--info-bg);
-  border: 1rpx solid var(--info-border);
-  border-radius: 12rpx;
-  padding: 20rpx;
-  margin-bottom: 24rpx;
-  display: flex;
-  align-items: center;
-  gap: 12rpx;
-  font-size: 26rpx;
-  color: var(--accent);
-}
+.stage-card { background: #fff; border-radius: var(--radius); padding: 18rpx; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8rpx; box-shadow: var(--shadow-sm); margin-bottom: 18rpx; }
+.stage-item { display: flex; align-items: center; justify-content: center; gap: 8rpx; color: var(--text-muted); font-size: 22rpx; }
+.stage-dot { width: 34rpx; height: 34rpx; border-radius: 50%; background: var(--border-light); display: flex; align-items: center; justify-content: center; font-size: 18rpx; font-weight: 900; }
+.stage-item.active { color: var(--teal); font-weight: 800; }
+.stage-item.active .stage-dot { background: var(--teal-bg); }
+.ir-status { background: var(--blue-bg); border-radius: var(--radius); padding: 18rpx 20rpx; margin-bottom: 18rpx; display: flex; align-items: center; justify-content: space-between; gap: 12rpx; font-size: 25rpx; color: var(--text-secondary); }
 .loading-dots { display: flex; gap: 8rpx; }
-.dot {
-  width: 12rpx; height: 12rpx;
-  background: var(--accent); border-radius: 50%;
-  animation: blink 1.4s infinite ease-in-out both;
-}
-.dot:nth-child(2) { animation-delay: 0.16s; }
-.dot:nth-child(3) { animation-delay: 0.32s; }
-@keyframes blink {
-  0%, 80%, 100% { opacity: 0; }
-  40% { opacity: 1; }
-}
-.section-title {
-  font-size: 34rpx;
-  font-weight: bold;
-  color: var(--text-color);
-  margin-bottom: 20rpx;
-  display: block;
-}
-.ir-ingredient-card {
-  display: flex;
-  align-items: center;
-  background: var(--card-bg);
-  border-radius: 16rpx;
-  padding: 24rpx;
-  margin-bottom: 16rpx;
-}
-.ir-ing-avatar {
-  width: 100rpx;
-  height: 100rpx;
-  background: var(--accent-bg);
-  border-radius: 16rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.ir-ing-letter { font-size: 48rpx; font-weight: bold; color: var(--accent); }
-.ir-ing-info { flex: 1; margin-left: 20rpx; }
-.ir-ing-name { font-size: 30rpx; font-weight: bold; color: var(--text-color); display: block; }
-.ir-ing-detail { font-size: 24rpx; color: var(--text-secondary); display: block; }
-.ir-ing-features { font-size: 22rpx; color: var(--text-secondary); }
-.ir-ing-edit { width: 44rpx; height: 44rpx; }
-.btn-confirm {
-  width: 100%;
-  height: 90rpx;
-  background: var(--success);
-  color: #fff;
-  border: none;
-  border-radius: 16rpx;
-  font-size: 32rpx;
-  font-weight: bold;
-  margin-top: 16rpx;
-}
+.dot { width: 12rpx; height: 12rpx; background: var(--teal); border-radius: 50%; animation: blink 1.4s infinite ease-in-out both; }
+.dot:nth-child(2) { animation-delay: .16s; }
+.dot:nth-child(3) { animation-delay: .32s; }
+@keyframes blink { 0%, 80%, 100% { opacity: .25; } 40% { opacity: 1; } }
+.section-head { display: flex; justify-content: space-between; align-items: baseline; margin: 24rpx 2rpx 14rpx; }
+.section-head text:first-child { font-size: 32rpx; font-weight: 900; color: var(--text); }
+.section-sub { font-size: 23rpx; color: var(--text-muted); }
+.ingredient-card { display: flex; align-items: flex-start; gap: 16rpx; background: #fff; border-radius: var(--radius); padding: 20rpx; margin-bottom: 14rpx; box-shadow: var(--shadow-sm); }
+.ing-symbol { width: 82rpx; height: 82rpx; border-radius: 24rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ing-symbol text { font-size: 32rpx; font-weight: 900; }
+.fresh-high { background: var(--green-bg); color: var(--teal); }
+.fresh-normal { background: var(--amber-bg); color: #9A651B; }
+.fresh-low { background: var(--red-bg); color: var(--red); }
+.ing-info { flex: 1; min-width: 0; }
+.ing-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10rpx; }
+.ing-name { font-size: 30rpx; font-weight: 900; color: var(--text); }
+.freshness-pill { border-radius: var(--radius-full); padding: 5rpx 12rpx; font-size: 20rpx; font-weight: 800; white-space: nowrap; }
+.confidence-row { display: flex; align-items: center; gap: 10rpx; margin-top: 12rpx; color: var(--text-muted); font-size: 22rpx; }
+.confidence-track { flex: 1; height: 8rpx; border-radius: 8rpx; background: var(--border-light); overflow: hidden; }
+.confidence-fill { height: 100%; border-radius: 8rpx; background: var(--teal); }
+.ing-features { display: block; margin-top: 10rpx; font-size: 23rpx; color: var(--text-secondary); line-height: 1.45; }
+.edit-icon { width: 42rpx; height: 42rpx; flex-shrink: 0; }
+.btn-confirm { width: 100%; height: 92rpx; background: var(--teal); color: #fff; border: none; border-radius: var(--radius); font-size: 30rpx; font-weight: 900; margin-top: 16rpx; box-shadow: var(--shadow-md); }
 </style>

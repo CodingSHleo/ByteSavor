@@ -75,4 +75,6 @@ async def get_recipe_detail(recipe_id: str = Path(...), db: AsyncSession = Depen
         "protein": recipe.protein,
         "cook_time": recipe.cook_time,
         "difficulty": recipe.difficulty,
+        "story": getattr(recipe, 'story', '') or '',
+        "culture_tags": getattr(recipe, 'culture_tags', []) or [],
     })

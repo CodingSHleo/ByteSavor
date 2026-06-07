@@ -19,7 +19,15 @@ async def analyze_ingredients(req: SenseRequest):
         return ErrorResponse(error={"code": "NO_IMAGE", "message": "缺少图片URL"})
 
     result = await vlm.analyze_food(req.image_url)
-    if result is None or not result.get("ingredients"):
+    if result is None:
+        import logging
+        logging.getLogger("sense").warning("vlm returned None, using mock")
         result = MOCK
+    elif not result.get("ingredients"):
+        return SuccessResponse(data={
+            "ingredients": [],
+            "portion_estimation": {"total_weight": 0},
+            "note": "VLM未检测到食材"
+        })
 
     return SuccessResponse(data=result)

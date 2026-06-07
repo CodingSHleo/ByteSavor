@@ -1,148 +1,163 @@
 <template>
   <view class="home-page">
-    <!-- Header: Avatar + Greeting + Streak -->
-    <view class="header">
-      <view class="h-left">
-        <view class="h-avatar"><image class="h-avatar-img" src="/static/icons/icon_avatar.svg" mode="widthFix" /></view>
-        <view class="h-greeting">
-          <text class="h-hi">{{ greeting }}</text>
-          <text class="h-date">{{ todayDate }}</text>
+    <view class="home-top">
+      <view class="user-row">
+        <view class="user-left">
+          <image class="avatar" src="/static/icons/icon_avatar.svg" mode="aspectFill" />
+          <view>
+            <text class="greeting">{{ greeting }}</text>
+            <text class="date-text">{{ todayDate }}</text>
+          </view>
+        </view>
+        <view class="streak-pill">
+          <image src="/static/icons/icon_fire.svg" class="streak-icon" mode="widthFix" />
+          <text>7 天</text>
         </view>
       </view>
-      <view class="h-streak">
-        <image class="h-streak-icon" src="/static/icons/icon_fire.svg" mode="widthFix" />
-        <text class="h-streak-num">7</text>
-        <text class="h-streak-label">天</text>
+
+      <view class="status-card" @tap="goHealthDashboard">
+        <view class="status-main">
+          <view>
+            <text class="eyebrow">今日营养状态</text>
+            <view class="score-line">
+              <text class="score">{{ nutritionScore }}</text>
+              <text class="score-unit">/100</text>
+            </view>
+            <text class="status-copy">{{ statusCopy }}</text>
+          </view>
+          <view class="score-ring" :style="{ background: ringGradient }">
+            <view class="score-ring-inner">
+              <text>{{ nutritionScore }}%</text>
+            </view>
+          </view>
+        </view>
+        <view class="macro-grid">
+          <view class="macro-card protein">
+            <text class="macro-value">{{ proteinPct }}%</text>
+            <text class="macro-label">蛋白</text>
+          </view>
+          <view class="macro-card carbs">
+            <text class="macro-value">{{ carbPct }}%</text>
+            <text class="macro-label">碳水</text>
+          </view>
+          <view class="macro-card fat">
+            <text class="macro-value">{{ fatPct }}%</text>
+            <text class="macro-label">脂肪</text>
+          </view>
+        </view>
       </view>
     </view>
 
     <scroll-view class="home-body" scroll-y refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
-
-      <!-- Today's Focus Card -->
-      <view class="focus-card">
-        <view class="fc-top">
-          <text class="fc-label">今日聚焦</text>
-          <text class="fc-badge">AI 推荐</text>
+      <view class="action-grid">
+        <view class="scan-card" @tap="goIngredientRecognition">
+          <view class="scan-icon-wrap">
+            <image src="/static/icons/icon_scan.svg" class="scan-icon" mode="widthFix" />
+          </view>
+          <view class="scan-text">
+            <text class="scan-title">拍照识别食材</text>
+            <text class="scan-desc">识别新鲜度、分量和可做菜谱</text>
+          </view>
+          <text class="chevron">›</text>
         </view>
-        <view class="fc-main">
-          <view class="fc-info">
-            <text class="fc-score">{{ nutritionScore }}</text>
-            <text class="fc-unit">健康分</text>
-          </view>
-          <text class="fc-emoji">🥗</text>
-        </view>
-        <view class="fc-bars">
-          <view class="fc-bar">
-            <view class="fc-bar-head"><text>🥩 蛋白</text><text>{{ proteinPct }}%</text></view>
-            <view class="fc-bar-track"><view class="fc-bar-fill p" :style="{width:proteinPct+'%'}"></view></view>
-          </view>
-          <view class="fc-bar">
-            <view class="fc-bar-head"><text>🍚 碳水</text><text>{{ carbPct }}%</text></view>
-            <view class="fc-bar-track"><view class="fc-bar-fill c" :style="{width:carbPct+'%'}"></view></view>
-          </view>
-          <view class="fc-bar">
-            <view class="fc-bar-head"><text>🥑 脂肪</text><text>{{ fatPct }}%</text></view>
-            <view class="fc-bar-track"><view class="fc-bar-fill f" :style="{width:fatPct+'%'}"></view></view>
+        <view class="byte-card">
+          <text class="byte-title">B-Y-T-E</text>
+          <text class="byte-desc">{{ byteStageText }}</text>
+          <view class="byte-track">
+            <view class="byte-fill" :style="{ width: byteProgress + '%' }"></view>
           </view>
         </view>
-        <view class="fc-cta" @tap="goIngredientRecognition">
-          <text>📸 拍照识别食材</text>
-          <text class="fc-arrow">›</text>
+      </view>
+
+      <view v-if="apiNotice" class="notice-card">
+        <image src="/static/icons/icon_flash.svg" mode="aspectFit" />
+        <text>{{ apiNotice }}</text>
+      </view>
+
+      <view class="byte-flow-card">
+        <view v-for="(step, idx) in byteFlow" :key="step.key" class="byte-flow-step" :class="{ active: byteFlowActive(idx) }">
+          <view class="flow-dot">{{ step.key }}</view>
+          <text>{{ step.label }}</text>
         </view>
       </view>
 
-      <!-- Progress Section -->
-      <view class="section-title">本周进度</view>
-      <view class="progress-row">
-        <view class="pr-card">
-          <text class="pr-num">78%</text>
-          <text class="pr-label">完成率</text>
+      <view class="section-head">
+        <text>当前食材</text>
+        <text class="section-link" @tap="goIngredientRecognition">{{ ingredients.length ? '去校正' : '去识别' }}</text>
+      </view>
+      <view class="ingredient-card">
+        <view v-if="ingredients.length > 0" class="ingredient-list">
+          <view v-for="(item, idx) in ingredients" :key="idx" class="ingredient-chip" :class="freshnessClass(item.freshness)">
+            <text class="ingredient-name">{{ item.name }}</text>
+            <text class="ingredient-meta">{{ freshnessLabel(item.freshness) }}</text>
+          </view>
         </view>
-        <view class="pr-card">
-          <text class="pr-num">12</text>
-          <text class="pr-label">道菜谱</text>
-        </view>
-        <view class="pr-card">
-          <text class="pr-num up">↑8%</text>
-          <text class="pr-label">比上周</text>
+        <view v-else class="empty-row">
+          <image src="/static/icons/icon_camera.svg" class="empty-icon" mode="widthFix" />
+          <text>还没有食材记录，先拍一张冰箱或食材照片</text>
         </view>
       </view>
 
-      <!-- Quick Actions -->
-      <view class="section-title">快捷操作</view>
-      <view class="quick-row">
-        <view class="q-item" @tap="goIngredientRecognition">
-          <image class="q-icon" src="/static/icons/icon_export.svg" mode="widthFix" />
-          <text class="q-label">食材识别</text>
+      <view class="section-head">
+        <text>推荐下一餐</text>
+        <text class="section-link" @tap="refreshRecommendations">刷新</text>
+      </view>
+      <view v-if="topRecipe" class="meal-card" @tap="goRecipeDetail(topRecipe)">
+        <view class="meal-visual">
+          <text>{{ topRecipe.imageEmoji || '食' }}</text>
         </view>
-        <view class="q-item" @tap="goHealthDashboard">
-          <image class="q-icon" src="/static/icons/icon_heart.svg" mode="widthFix" />
-          <text class="q-label">健康看板</text>
+        <view class="meal-info">
+          <text class="meal-title">{{ topRecipe.title }}</text>
+          <text class="meal-meta">{{ topRecipe.cookTime || '--' }} min · {{ topRecipe.calories || '--' }} kcal</text>
+          <view class="reason-row">
+            <text v-for="reason in recipeReasons" :key="reason" class="reason-chip">{{ reason }}</text>
+          </view>
         </view>
-        <view class="q-item" @tap="goListExport">
-          <image class="q-icon" src="/static/icons/icon_copy.svg" mode="widthFix" />
-          <text class="q-label">导出清单</text>
+        <view class="match-badge">{{ matchPercent(topRecipe) }}%</view>
+      </view>
+      <view v-else class="empty-card">
+        <text>暂无推荐，识别食材后生成更准确的菜谱</text>
+      </view>
+
+      <view class="mini-grid">
+        <view class="mini-card" @tap="goListExport">
+          <image src="/static/icons/icon_cart.svg" class="mini-icon" mode="widthFix" />
+          <text class="mini-title">购物清单</text>
+          <text class="mini-desc">{{ recipes.length || 0 }} 道菜可合并</text>
         </view>
-        <view class="q-item" @tap="goHistory">
-          <image class="q-icon" src="/static/icons/icon_clock.svg" mode="widthFix" />
-          <text class="q-label">历史记录</text>
+        <view class="mini-card" @tap="goHistory">
+          <image src="/static/icons/icon_clock.svg" class="mini-icon" mode="widthFix" />
+          <text class="mini-title">历史记录</text>
+          <text class="mini-desc">回看识别与推荐</text>
         </view>
       </view>
 
-      <!-- Recommended Next Step -->
-      <view class="section-title">AI 推荐下一步</view>
-      <view class="next-card" @tap="goIngredientRecognition">
-        <image class="nx-emoji" src="/static/icons/icon_share.svg" mode="widthFix" />
-        <view class="nx-body">
-          <text class="nx-title">扫描你的食材</text>
-          <text class="nx-desc">拍照识别冰箱里的食材，AI 为你定制今日菜谱</text>
-        </view>
-        <text class="nx-go">→</text>
+      <view class="section-head">
+        <text>AI 助手</text>
+        <text class="section-sub">输入目标直接走 Agent</text>
       </view>
-
-      <!-- Current Ingredients -->
-      <view class="section-title">{{ $t('currentIngredients') }}</view>
-      <view v-if="ingredients.length > 0" class="ing-row">
-        <view v-for="(item, idx) in ingredients" :key="idx" class="ing-chip">
-          <text class="ing-chip-dot"></text>
-          <text>{{ item.name }}</text>
-        </view>
-      </view>
-      <text v-else class="empty-hint">暂无食材，请先扫描识别</text>
-
-      <!-- AI Assistant -->
-      <view class="section-title">{{ $t('aiAssistant') }}</view>
-      <view class="ai-box">
+      <view class="ai-card">
         <view class="ai-input-row">
+          <image src="/static/icons/icon_ai.svg" class="ai-icon" mode="widthFix" />
           <input class="ai-input" v-model="agentMessage" :placeholder="$t('aiPlaceholder')" placeholder-class="ph" @confirm="sendAgentMessage" />
           <button class="ai-send" @tap="sendAgentMessage">{{ $t('send') }}</button>
         </view>
         <view v-if="agentResult" class="ai-result">
           <view v-if="agentResult.parsed_intent" class="ai-intent-row">
-            <text class="ai-intent-chip">⏱ {{ agentResult.parsed_intent.time_limit || agentResult.parsed_intent.time }}min</text>
-            <text class="ai-intent-chip">🎯 {{ goalLabel(agentResult.parsed_intent.goal) }}</text>
+            <text class="ai-intent-chip">{{ agentResult.parsed_intent.time_limit || agentResult.parsed_intent.time || 30 }}min</text>
+            <text class="ai-intent-chip">{{ goalLabel(agentResult.parsed_intent.goal) }}</text>
             <text v-for="item in (agentResult.parsed_intent.ingredients || agentResult.parsed_intent.core_items || [])" :key="item" class="ai-intent-chip">{{ item }}</text>
           </view>
           <view v-if="agentResult.cot_reasoning && agentResult.cot_reasoning.length > 0" class="ai-cot">
             <view v-for="(step, idx) in agentResult.cot_reasoning.slice(0,3)" :key="idx" class="ai-cot-row">
-              <text class="ai-cot-num">{{ idx+1 }}</text><text class="ai-cot-text">{{ step }}</text>
+              <text class="ai-cot-num">{{ idx + 1 }}</text>
+              <text class="ai-cot-text">{{ step }}</text>
             </view>
           </view>
         </view>
       </view>
 
-      <!-- Recommended Recipes -->
-      <view class="section-title">{{ $t('recommendedRecipes') }}</view>
-      <view v-for="(r, idx) in recipes" :key="idx" class="recipe-row" @tap="goRecipeDetail(r)">
-        <text class="rr-emoji">{{ r.imageEmoji || '🍽️' }}</text>
-        <view class="rr-info">
-          <text class="rr-title">{{ r.title }}</text>
-          <text class="rr-meta">⏱ {{ r.cookTime||'--' }}' · 🔥 {{ r.calories||'--' }}kcal</text>
-        </view>
-        <view class="rr-score">{{ ((r.matchScore||0)*100).toFixed(0) }}%</view>
-      </view>
-
-      <view style="height: 30rpx;"></view>
+      <view class="bottom-safe"></view>
     </scroll-view>
   </view>
 </template>
@@ -166,15 +181,59 @@ const isLoading = ref(false)
 const refreshing = ref(false)
 const agentMessage = ref('')
 const agentResult = ref(null)
+const apiNotice = ref('')
+const byteFlow = [
+  { key: 'B', label: '食材感知' },
+  { key: 'Y', label: '约束推理' },
+  { key: 'T', label: '任务执行' },
+  { key: 'E', label: '反馈优化' }
+]
 
 const proteinPct = computed(() => Math.min(100, Math.round(nutritionScore.value * 1.15)))
 const carbPct = computed(() => Math.min(100, Math.round(nutritionScore.value * 0.9)))
 const fatPct = computed(() => Math.min(100, Math.round(nutritionScore.value * 0.7)))
+const topRecipe = computed(() => recipes.value[0] || null)
+const byteProgress = computed(() => {
+  if (agentResult.value) return 100
+  if (recipes.value.length > 0 && ingredients.value.length > 0) return 75
+  if (recipes.value.length > 0) return 50
+  if (ingredients.value.length > 0) return 25
+  return 10
+})
+const byteStageText = computed(() => {
+  if (byteProgress.value >= 100) return '反馈闭环已生成'
+  if (byteProgress.value >= 75) return '已完成推荐，待执行'
+  if (byteProgress.value >= 50) return '探索模式推荐中'
+  if (byteProgress.value >= 25) return '已感知食材'
+  return '等待输入'
+})
+const statusCopy = computed(() => {
+  if (nutritionScore.value >= 80) return '状态很好，保持当前饮食节奏'
+  if (nutritionScore.value >= 60) return '整体平稳，建议补足蛋白和纤维'
+  return '今日缺口较多，建议生成一餐均衡食谱'
+})
+const ringGradient = computed(() => {
+  const score = Math.max(0, Math.min(100, nutritionScore.value))
+  return `conic-gradient(var(--teal) 0 ${score}%, var(--amber) ${score}% ${Math.min(100, score + 14)}%, #E8F1ED ${Math.min(100, score + 14)}% 100%)`
+})
+const recipeReasons = computed(() => {
+  const r = topRecipe.value
+  if (!r) return []
+  const out = []
+  if (r.cookTime) out.push(`${r.cookTime}分钟`)
+  if (r.calories) out.push(`${r.calories}kcal`)
+  out.push('适合今日目标')
+  return out.slice(0, 3)
+})
+function byteFlowActive(idx) {
+  const thresholds = [25, 50, 75, 100]
+  return byteProgress.value >= thresholds[idx]
+}
 
 const greeting = computed(() => {
   const h = new Date().getHours()
   const name = authStore.currentUser?.username || ''
-  const hi = h < 12 ? '☀️ 早上好' : h < 18 ? '🌤 下午好' : '🌙 晚上好'
+  const hi = h < 12 ? '早上好' : h < 18 ? '下午好' : '晚上好'
   return hi + (name ? '，' + name : '')
 })
 const todayDate = computed(() => {
@@ -185,27 +244,54 @@ const todayDate = computed(() => {
 watch(currentLang, () => { loadIngredients(); loadNutrition(); generateRecommendations() })
 
 async function loadIngredients() {
-  // 首页不传空 image_url 调 API，直接从本地缓存恢复或保持空
   try {
     const cached = uni.getStorageSync('last_ingredients')
     if (cached) ingredients.value = JSON.parse(cached)
   } catch (e) { /* ignore */ }
 }
-async function loadNutrition() { const d = await ApiService.getNutritionStatus(); nutritionScore.value = d.score || 65 }
-async function generateRecommendations() { isLoading.value = true; const n = ingredients.value.map(i => i.name); recipes.value = await ApiService.generateMealPlan(n); isLoading.value = false }
-async function onRefresh() { refreshing.value = true; await generateRecommendations(); refreshing.value = false }
+async function loadNutrition() {
+  try {
+    const d = await ApiService.getNutritionStatus()
+    nutritionScore.value = d.score || 65
+  } catch (e) {
+    apiNotice.value = '后端营养服务暂不可用，当前显示本地演示数据。'
+  }
+}
+async function generateRecommendations() {
+  isLoading.value = true
+  try {
+    const n = ingredients.value.map(i => i.name)
+    recipes.value = await ApiService.generateMealPlan(n)
+  } catch (e) {
+    apiNotice.value = '推荐服务暂不可用，已保留默认菜谱用于界面预览。'
+  } finally {
+    isLoading.value = false
+  }
+}
+async function onRefresh() { refreshing.value = true; await loadNutrition(); await generateRecommendations(); refreshing.value = false }
 async function refreshRecommendations() { await generateRecommendations(); historyStore.addEntry({ type: 'recommendation', title: $t('refreshTitle'), detail: t('refreshDetail',{n:ingredients.value.length}) }) }
 async function sendAgentMessage() {
   const m = agentMessage.value.trim(); if (!m) return
-  isLoading.value = true; const r = await ApiService.agentExecute(m); agentResult.value = r; agentMessage.value = ''; isLoading.value = false
+  isLoading.value = true
+  try {
+    const r = await ApiService.agentExecute(m)
+    agentResult.value = r
+    agentMessage.value = ''
+  } catch (e) {
+    apiNotice.value = 'AI Agent 暂未连通，请稍后重试或检查后端服务。'
+  } finally {
+    isLoading.value = false
+  }
 }
-function goalLabel(g) { const m = { fat_loss:'减脂', muscle_gain:'增肌', maintain:'保持' }; return m[g]||g }
+function goalLabel(g) { const m = { fat_loss:'减脂', muscle_gain:'增肌', maintain:'保持', balanced:'均衡', healthy:'健康' }; return m[g]||g }
+function matchPercent(r) { return ((r?.matchScore || r?.match_score || 0) * 100).toFixed(0) }
+function freshnessLabel(f) { return ({ high: '新鲜', normal: '冷藏', medium: '普通', low: '待确认' })[f] || f || '待确认' }
+function freshnessClass(f) { return f === 'high' ? 'fresh-high' : f === 'low' ? 'fresh-low' : 'fresh-normal' }
 function goRecipeDetail(r) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${r.recipe_id || r.recipeId}&title=${encodeURIComponent(r.title)}` }) }
 function goIngredientRecognition() { uni.navigateTo({ url: '/pages/ingredient-recognition/ingredient-recognition' }) }
 function goHealthDashboard() { uni.navigateTo({ url: `/pages/health-dashboard/health-dashboard?ingredients=${encodeURIComponent(JSON.stringify(ingredients.value))}` }) }
 function goListExport() { uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(recipes.value))}` }) }
 function goHistory() { uni.navigateTo({ url: '/pages/history/history' }) }
-function goExplore() { uni.switchTab({ url: '/pages/explore/explore' }) }
 
 onShow(() => {
   if (!authStore.isLoggedIn) { uni.redirectTo({ url: '/pages/login/login' }); return }
@@ -215,122 +301,139 @@ onShow(() => {
 
 <style scoped>
 .home-page { min-height: 100vh; background: var(--bg); overflow-x: hidden; }
+.home-top { padding: calc(22rpx + var(--status-bar-height, 0px)) 28rpx 18rpx; }
+.user-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22rpx; }
+.user-left { display: flex; align-items: center; gap: 16rpx; }
+.avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm); }
+.greeting { display: block; font-size: 32rpx; font-weight: 800; color: var(--text); }
+.date-text { display: block; font-size: 23rpx; color: var(--text-muted); margin-top: 2rpx; }
+.streak-pill { height: 56rpx; padding: 0 18rpx; border-radius: var(--radius-full); background: #fff; display: flex; align-items: center; gap: 6rpx; color: var(--teal); font-size: 24rpx; font-weight: 700; box-shadow: var(--shadow-sm); }
+.streak-icon { width: 26rpx; height: 26rpx; }
 
-/* ======== Header ======== */
-.header {
-  display: flex; justify-content: space-between; align-items: center;
-  padding: 16rpx 28rpx; padding-top: calc(16rpx + var(--status-bar-height, 0px));
-  background: #fff; border-bottom: 1px solid var(--border-light);
-  position: sticky; top: 0; z-index: 100;
-}
-.h-left { display: flex; align-items: center; gap: 14rpx; }
-.h-avatar { width: 72rpx; height: 72rpx; background: var(--teal-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; }
-.h-avatar-img { width: 64rpx; height: 64rpx; border-radius: 50%; }
-.h-greeting { display: flex; flex-direction: column; }
-.h-hi { font-size: 30rpx; font-weight: 700; color: var(--text); }
-.h-date { font-size: 24rpx; color: var(--text-muted); margin-top: 2rpx; }
-.h-streak { display: flex; align-items: center; gap: 4rpx; background: var(--teal-bg); padding: 10rpx 18rpx; border-radius: var(--radius-full); }
-.h-streak-icon { width: 28rpx; height: 28rpx; }
-.h-streak-num { font-size: 26rpx; font-weight: 800; color: var(--teal); }
-.h-streak-label { font-size: 20rpx; color: var(--teal); }
+.status-card { background: #fff; border-radius: var(--radius-lg); padding: 26rpx; box-shadow: var(--shadow-md); }
+.status-main { display: flex; justify-content: space-between; align-items: center; gap: 20rpx; }
+.eyebrow { display: block; font-size: 24rpx; color: var(--text-secondary); margin-bottom: 8rpx; }
+.score-line { display: flex; align-items: flex-end; }
+.score { font-size: 68rpx; line-height: 1; font-weight: 900; color: var(--text); }
+.score-unit { font-size: 28rpx; color: var(--text-muted); margin-left: 4rpx; margin-bottom: 6rpx; }
+.status-copy { display: block; margin-top: 10rpx; font-size: 24rpx; color: var(--text-secondary); line-height: 1.45; max-width: 390rpx; }
+.score-ring { width: 150rpx; height: 150rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.score-ring-inner { width: 98rpx; height: 98rpx; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; color: var(--teal); font-size: 24rpx; font-weight: 900; box-shadow: inset 0 0 0 1px var(--border-light); }
+.macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-top: 22rpx; }
+.macro-card { border-radius: 18rpx; padding: 16rpx 14rpx; }
+.macro-card.protein { background: var(--green-bg); }
+.macro-card.carbs { background: var(--amber-bg); }
+.macro-card.fat { background: var(--purple-bg); }
+.macro-value { display: block; font-size: 30rpx; font-weight: 900; color: var(--text); }
+.macro-label { display: block; margin-top: 4rpx; font-size: 22rpx; color: var(--text-muted); }
 
-.home-body { padding: 20rpx 24rpx; height: calc(100vh - 120rpx - var(--status-bar-height, 0px)); }
-
-/* ======== Focus Card ======== */
-.focus-card {
-  background: #fff; border-radius: var(--radius); padding: 24rpx; margin-bottom: 24rpx;
-  box-shadow: var(--shadow-md);
-}
-.fc-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18rpx; }
-.fc-label { font-size: 30rpx; font-weight: 700; color: var(--text); }
-.fc-badge { font-size: 22rpx; background: var(--teal-bg); color: var(--teal); padding: 6rpx 16rpx; border-radius: var(--radius-full); font-weight: 600; }
-.fc-main { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20rpx; }
-.fc-info { display: flex; flex-direction: column; }
-.fc-score { font-size: 64rpx; font-weight: 800; color: var(--text); line-height: 1; }
-.fc-unit { font-size: 26rpx; color: var(--text-muted); margin-top: 4rpx; }
-.fc-emoji { width: 88rpx; height: 88rpx; }
-.fc-bars { display: flex; flex-direction: column; gap: 10rpx; margin-bottom: 18rpx; }
-.fc-bar-head { display: flex; justify-content: space-between; font-size: 24rpx; color: var(--text-secondary); margin-bottom: 4rpx; }
-.fc-bar-track { height: 8rpx; background: var(--border-light); border-radius: 4rpx; overflow: hidden; }
-.fc-bar-fill { height: 100%; border-radius: 4rpx; }
-.fc-bar-fill.p { background: var(--tomato); }
-.fc-bar-fill.c { background: var(--cheese); }
-.fc-bar-fill.f { background: var(--berry); }
-.fc-cta {
-  display: flex; align-items: center; justify-content: space-between;
-  background: var(--avocado); color: #fff;
-  padding: 18rpx 24rpx; border-radius: 16rpx;
-  font-size: 28rpx; font-weight: 600;
-}
-.fc-arrow { font-size: 34rpx; }
-
-/* ======== Section ======== */
-.section-title { font-size: 32rpx; font-weight: 700; color: var(--text); margin: 28rpx 0 16rpx; }
-
-/* ======== Progress ======== */
-.progress-row { display: flex; gap: 14rpx; }
-.pr-card {
-  flex: 1; background: #fff; border-radius: var(--radius); padding: 24rpx;
-  box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; gap: 8rpx;
-}
-.pr-num { font-size: 36rpx; font-weight: 800; color: var(--text); }
-.pr-num.up { color: var(--green); }
-.pr-label { font-size: 24rpx; color: var(--text-muted); }
-
-/* ======== Quick Actions ======== */
-.quick-row { display: flex; gap: 14rpx; }
-.q-item {
-  flex: 1; background: #fff; border-radius: var(--radius); padding: 24rpx 8rpx;
-  box-shadow: var(--shadow-sm); display: flex; flex-direction: column; align-items: center; gap: 10rpx;
-}
-.q-icon { width: 56rpx; height: 56rpx; }
-.q-label { font-size: 24rpx; font-weight: 600; color: var(--text-secondary); }
-
-/* ======== Next Step ======== */
-.next-card {
-  display: flex; align-items: center; gap: 18rpx;
-  background: #fff; border-radius: var(--radius); padding: 24rpx;
+.home-body { padding: 0 28rpx; height: calc(100vh - 360rpx - var(--status-bar-height, 0px)); }
+.action-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 16rpx; margin-bottom: 24rpx; }
+.scan-card, .byte-card, .ingredient-card, .meal-card, .mini-card, .ai-card, .empty-card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.scan-card { min-height: 148rpx; padding: 22rpx; display: flex; align-items: center; gap: 16rpx; }
+.scan-icon-wrap { width: 68rpx; height: 68rpx; border-radius: 20rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.scan-icon { width: 42rpx; height: 42rpx; }
+.scan-text { flex: 1; min-width: 0; }
+.scan-title { display: block; font-size: 28rpx; font-weight: 800; color: var(--text); }
+.scan-desc { display: block; font-size: 22rpx; color: var(--text-muted); margin-top: 6rpx; line-height: 1.4; }
+.chevron { color: var(--text-muted); font-size: 38rpx; }
+.byte-card { padding: 22rpx; }
+.byte-title { display: block; font-size: 30rpx; font-weight: 900; color: var(--text); }
+.byte-desc { display: block; margin-top: 8rpx; color: var(--text-secondary); font-size: 22rpx; min-height: 56rpx; }
+.byte-track { height: 10rpx; border-radius: 10rpx; background: var(--border-light); overflow: hidden; margin-top: 14rpx; }
+.byte-fill { height: 100%; border-radius: 10rpx; background: var(--teal); transition: width .35s var(--ease); }
+.notice-card {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background: var(--amber-bg);
+  color: #9A651B;
+  border-radius: var(--radius);
+  padding: 16rpx 18rpx;
+  margin-bottom: 18rpx;
+  font-size: 23rpx;
+  line-height: 1.45;
   box-shadow: var(--shadow-sm);
 }
-.nx-emoji { width: 64rpx; height: 64rpx; }
-.nx-body { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
-.nx-title { font-size: 28rpx; font-weight: 700; color: var(--text); }
-.nx-desc { font-size: 24rpx; color: var(--text-muted); line-height: 1.4; }
-.nx-go { font-size: 36rpx; color: var(--text-muted); }
-
-/* ======== Ingredients ======== */
-.ing-row { display: flex; flex-wrap: wrap; gap: 10rpx; }
-.ing-chip {
-  display: flex; align-items: center; gap: 6rpx;
-  background: #fff; border-radius: var(--radius-full); padding: 12rpx 20rpx;
-  font-size: 26rpx; color: var(--text); box-shadow: var(--shadow-sm);
+.notice-card image { width: 30rpx; height: 30rpx; flex-shrink: 0; }
+.byte-flow-card {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8rpx;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 14rpx;
+  margin-bottom: 22rpx;
+  box-shadow: var(--shadow-sm);
 }
-.ing-chip-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--teal); }
-.empty-hint { font-size: 26rpx; color: var(--text-muted); display: block; padding: 10rpx 0; }
+.byte-flow-step {
+  min-height: 92rpx;
+  border-radius: 18rpx;
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+  color: var(--text-muted);
+}
+.byte-flow-step.active { background: var(--teal-bg); color: var(--accent); }
+.flow-dot {
+  width: 34rpx;
+  height: 34rpx;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+  font-weight: 900;
+  background: #fff;
+}
+.byte-flow-step text { font-size: 19rpx; font-weight: 800; }
 
-/* ======== AI ======== */
-.ai-box { background: #fff; border-radius: var(--radius); padding: 22rpx 24rpx; box-shadow: var(--shadow-sm); }
-.ai-input-row { display: flex; gap: 10rpx; }
-.ai-input { flex: 1; height: 72rpx; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-full); padding: 0 24rpx; font-size: 28rpx; color: var(--text); }
-.ai-send { width: 100rpx; height: 72rpx; background: var(--berry); color: #fff; border: none; border-radius: var(--radius-full); font-size: 26rpx; font-weight: 700; white-space: nowrap; }
+.section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 24rpx 2rpx 14rpx; }
+.section-head text:first-child { font-size: 31rpx; font-weight: 900; color: var(--text); }
+.section-link { font-size: 24rpx; color: var(--teal); font-weight: 700; }
+.section-sub { font-size: 22rpx; color: var(--text-muted); }
+.ingredient-card { padding: 20rpx; }
+.ingredient-list { display: flex; flex-wrap: wrap; gap: 12rpx; }
+.ingredient-chip { padding: 12rpx 16rpx; border-radius: var(--radius-full); display: flex; align-items: center; gap: 8rpx; }
+.ingredient-chip.fresh-high { background: var(--green-bg); color: var(--teal); }
+.ingredient-chip.fresh-normal { background: var(--amber-bg); color: #9A651B; }
+.ingredient-chip.fresh-low { background: var(--red-bg); color: var(--red); }
+.ingredient-name { font-size: 25rpx; font-weight: 800; }
+.ingredient-meta { font-size: 21rpx; opacity: .75; }
+.empty-row { min-height: 88rpx; display: flex; align-items: center; gap: 14rpx; color: var(--text-muted); font-size: 25rpx; line-height: 1.45; }
+.empty-icon { width: 48rpx; height: 48rpx; }
+
+.meal-card { padding: 20rpx; display: flex; align-items: center; gap: 18rpx; }
+.meal-visual { width: 82rpx; height: 82rpx; border-radius: 24rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 38rpx; }
+.meal-info { flex: 1; min-width: 0; }
+.meal-title { display: block; font-size: 29rpx; font-weight: 900; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.meal-meta { display: block; font-size: 23rpx; color: var(--text-muted); margin-top: 6rpx; }
+.reason-row { display: flex; gap: 8rpx; flex-wrap: wrap; margin-top: 10rpx; }
+.reason-chip { font-size: 20rpx; color: var(--text-secondary); background: var(--bg); border-radius: var(--radius-full); padding: 4rpx 10rpx; }
+.match-badge { min-width: 66rpx; height: 54rpx; border-radius: 18rpx; background: var(--green-bg); color: var(--teal); font-size: 25rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+.empty-card { padding: 26rpx; color: var(--text-muted); font-size: 25rpx; }
+
+.mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 24rpx; }
+.mini-card { padding: 22rpx; min-height: 142rpx; }
+.mini-icon { width: 42rpx; height: 42rpx; margin-bottom: 14rpx; }
+.mini-title { display: block; font-size: 27rpx; font-weight: 850; color: var(--text); }
+.mini-desc { display: block; margin-top: 6rpx; font-size: 22rpx; color: var(--text-muted); }
+
+.ai-card { padding: 18rpx; }
+.ai-input-row { display: flex; align-items: center; gap: 10rpx; }
+.ai-icon { width: 42rpx; height: 42rpx; flex-shrink: 0; }
+.ai-input { flex: 1; height: 72rpx; background: var(--bg); border: 1px solid var(--border-light); border-radius: var(--radius-full); padding: 0 22rpx; font-size: 26rpx; color: var(--text); }
+.ai-send { width: 96rpx; height: 72rpx; background: var(--berry); color: #fff; border: none; border-radius: var(--radius-full); font-size: 25rpx; font-weight: 800; }
 .ai-result { margin-top: 16rpx; }
 .ai-intent-row { display: flex; flex-wrap: wrap; gap: 8rpx; margin-bottom: 12rpx; }
-.ai-intent-chip { font-size: 22rpx; background: var(--teal-bg); color: var(--teal); padding: 6rpx 16rpx; border-radius: var(--radius-full); }
-.ai-cot { display: flex; flex-direction: column; gap: 8rpx; }
-.ai-cot-row { display: flex; align-items: flex-start; gap: 8rpx; }
-.ai-cot-num { width: 30rpx; height: 30rpx; background: var(--berry); color: #fff; border-radius: 50%; font-size: 20rpx; display: flex; align-items: center; justify-content: center; }
-.ai-cot-text { font-size: 24rpx; color: var(--text-secondary); flex: 1; }
-
-/* ======== Recipes ======== */
-.recipe-row {
-  display: flex; align-items: center; gap: 16rpx;
-  background: #fff; border-radius: var(--radius); padding: 20rpx 24rpx; margin-bottom: 14rpx;
-  box-shadow: var(--shadow-sm);
-}
-.rr-emoji { font-size: 44rpx; }
-.rr-info { flex: 1; display: flex; flex-direction: column; gap: 6rpx; }
-.rr-title { font-size: 28rpx; font-weight: 600; color: var(--text); }
-.rr-meta { font-size: 24rpx; color: var(--text-muted); }
-.rr-score { font-size: 30rpx; font-weight: 800; color: var(--avocado); }
+.ai-intent-chip { font-size: 22rpx; background: var(--purple-bg); color: var(--berry); padding: 7rpx 14rpx; border-radius: var(--radius-full); }
+.ai-cot { display: flex; flex-direction: column; gap: 10rpx; }
+.ai-cot-row { display: flex; align-items: flex-start; gap: 10rpx; }
+.ai-cot-num { width: 32rpx; height: 32rpx; background: var(--berry); color: #fff; border-radius: 50%; font-size: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ai-cot-text { font-size: 24rpx; color: var(--text-secondary); flex: 1; line-height: 1.45; }
 .ph { color: var(--text-placeholder); }
+.bottom-safe { height: 132rpx; }
 </style>
