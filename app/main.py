@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s %(message)s")
 from app.core.database import engine, Base, async_session
 from app.models.recipe import Recipe  # noqa: 注册 ORM
-from app.routers import sense, decision, task, agent, feedback, user, auth, assistant
+from app.routers import sense, decision, task, agent, feedback, user, auth, assistant, quality
 
 logger = logging.getLogger("main")
 
@@ -67,6 +67,7 @@ app.include_router(agent.router)
 app.include_router(feedback.router)
 app.include_router(user.router)
 app.include_router(assistant.router)
+app.include_router(quality.router)
 
 if __name__ == "__main__":
     import uvicorn
