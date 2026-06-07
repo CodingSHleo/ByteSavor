@@ -45,12 +45,6 @@ async def generate_meal_plan(
         await cache.set(ck, result)
     return SuccessResponse(data=result)
 
-    recipes = await match_recipes(db, req.ingredients, req.constraints, user_prefs)
-    ids = [r["recipe_id"] for r in recipes]
-    gap = await calc_gap(db, ids, goal)
-
-    return SuccessResponse(data={"recipes": recipes, "nutrition_gap": gap})
-
 
 @router.get("/v1/recipes/{recipe_id}", tags=["Decision"])
 async def get_recipe_detail(recipe_id: str = Path(...), db: AsyncSession = Depends(get_db)):

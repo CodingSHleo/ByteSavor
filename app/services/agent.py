@@ -100,7 +100,7 @@ async def execute(
         "stages": [(s["stage"], s["status"], s["latency_ms"]) for s in stages],
     })
 
-    has_error = any(s["status"] == "error" for s in stages)
+    has_error = any(s["status"] in {"error", "failed"} for s in stages)
     return {
         "trace_id": trace_id,
         "stages": stages,

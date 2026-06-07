@@ -15,6 +15,9 @@ logger = logging.getLogger("main")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    from app.core.config import settings
+    if not settings.jwt_secret:
+        logger.warning("JWT_SECRET 未设置！请修改 .env 中的 JWT_SECRET")
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
