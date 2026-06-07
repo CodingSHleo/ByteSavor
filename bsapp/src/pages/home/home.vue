@@ -109,6 +109,20 @@
       </view>
 
       <view class="section-head">
+        <text>功能中枢</text>
+        <text class="section-sub">完整入口都在这里</text>
+      </view>
+      <view class="hub-grid">
+        <view v-for="item in hubItems" :key="item.key" class="hub-card" :class="item.tone" @tap="goHub(item.key)">
+          <view class="hub-icon">
+            <image :src="item.icon" mode="aspectFit" />
+          </view>
+          <text class="hub-title">{{ item.title }}</text>
+          <text class="hub-desc">{{ item.desc }}</text>
+        </view>
+      </view>
+
+      <view class="section-head">
         <text>当前食材</text>
         <text class="section-link" @tap="goIngredientRecognition">{{ ingredients.length ? '去校正' : '去识别' }}</text>
       </view>
@@ -148,19 +162,6 @@
       </view>
       <view v-else class="empty-card">
         <text>暂无推荐，识别食材后生成更准确的菜谱</text>
-      </view>
-
-      <view class="mini-grid">
-        <view class="mini-card" @tap="goListExport">
-          <image src="/static/icons/icon_cart.svg" class="mini-icon" mode="widthFix" />
-          <text class="mini-title">购物清单</text>
-          <text class="mini-desc">{{ recipes.length || 0 }} 道菜可合并</text>
-        </view>
-        <view class="mini-card" @tap="goHistory">
-          <image src="/static/icons/icon_clock.svg" class="mini-icon" mode="widthFix" />
-          <text class="mini-title">历史记录</text>
-          <text class="mini-desc">回看识别与推荐</text>
-        </view>
       </view>
 
       <view class="section-head ai-section-head">
@@ -252,6 +253,16 @@ const proteinPct = computed(() => Math.min(100, Math.round(nutritionScore.value 
 const carbPct = computed(() => Math.min(100, Math.round(nutritionScore.value * 0.9)))
 const fatPct = computed(() => Math.min(100, Math.round(nutritionScore.value * 0.7)))
 const topRecipe = computed(() => recipes.value[0] || null)
+const hubItems = computed(() => [
+  { key: 'health', title: '状态看板', desc: '营养缺口与趋势', icon: '/static/icons/icon_chart.svg', tone: 'green' },
+  { key: 'scan', title: '拍照识别', desc: '食材新鲜度和分量', icon: '/static/icons/icon_scan.svg', tone: 'teal' },
+  { key: 'explore', title: '探索菜谱', desc: '按目标找下一餐', icon: '/static/icons/icon_search.svg', tone: 'blue' },
+  { key: 'list', title: '购物清单', desc: `${recipes.value.length || 0} 道菜可合并`, icon: '/static/icons/icon_cart.svg', tone: 'amber' },
+  { key: 'history', title: '历史记录', desc: '识别、推荐与导出', icon: '/static/icons/icon_clock.svg', tone: 'purple' },
+  { key: 'knowledge', title: '美食知识', desc: '营养与烹饪指南', icon: '/static/icons/icon_leaf.svg', tone: 'green' },
+  { key: 'settings', title: '系统设置', desc: '语言、通知和偏好', icon: '/static/icons/icon_edit.svg', tone: 'amber' },
+  { key: 'profile', title: '我的档案', desc: '目标和个人画像', icon: '/static/icons/icon_avatar.svg', tone: 'blue' }
+])
 const byteProgress = computed(() => {
   if (agentResult.value) return 100
   if (recipes.value.length > 0 && ingredients.value.length > 0) return 75
@@ -393,10 +404,23 @@ function matchPercent(r) { return ((r?.matchScore || r?.match_score || 0) * 100)
 function freshnessLabel(f) { return ({ high: '新鲜', normal: '冷藏', medium: '普通', low: '待确认' })[f] || f || '待确认' }
 function freshnessClass(f) { return f === 'high' ? 'fresh-high' : f === 'low' ? 'fresh-low' : 'fresh-normal' }
 function goRecipeDetail(r) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${r.recipe_id || r.recipeId}&title=${encodeURIComponent(r.title)}` }) }
-function goIngredientRecognition() { uni.navigateTo({ url: '/pages/ingredient-recognition/ingredient-recognition' }) }
+function goIngredientRecognition() { uni.switchTab({ url: '/pages/ingredient-recognition/ingredient-recognition' }) }
 function goHealthDashboard() { uni.navigateTo({ url: `/pages/health-dashboard/health-dashboard?ingredients=${encodeURIComponent(JSON.stringify(ingredients.value))}` }) }
 function goListExport() { uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(recipes.value))}` }) }
 function goHistory() { uni.navigateTo({ url: '/pages/history/history' }) }
+function goHub(key) {
+  const routes = {
+    health: () => goHealthDashboard(),
+    scan: () => goIngredientRecognition(),
+    explore: () => uni.switchTab({ url: '/pages/explore/explore' }),
+    list: () => goListExport(),
+    history: () => goHistory(),
+    knowledge: () => uni.switchTab({ url: '/pages/food-knowledge/food-knowledge' }),
+    settings: () => uni.navigateTo({ url: '/pages/settings/settings' }),
+    profile: () => uni.switchTab({ url: '/pages/profile/profile' })
+  }
+  routes[key]?.()
+}
 
 onShow(() => {
   if (!authStore.isLoggedIn) { uni.redirectTo({ url: '/pages/login/login' }); return }
@@ -573,6 +597,45 @@ onShow(() => {
 .section-head text:first-child { font-size: 31rpx; font-weight: 950; color: var(--text); }
 .section-link { font-size: 24rpx; color: var(--teal); font-weight: 700; }
 .section-sub { font-size: 22rpx; color: var(--text-muted); }
+.hub-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12rpx;
+  background: rgba(255,255,255,.92);
+  border-radius: var(--radius-lg);
+  padding: 14rpx;
+  box-shadow: var(--shadow-sm), var(--hairline);
+}
+.hub-card {
+  min-height: 132rpx;
+  border-radius: 22rpx;
+  padding: 13rpx 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: var(--bg-elevated);
+  box-shadow: inset 0 0 0 1rpx rgba(255,255,255,.5);
+}
+.hub-card.green, .hub-card.teal { background: linear-gradient(180deg, var(--teal-bg), #F8FCFA); }
+.hub-card.blue { background: linear-gradient(180deg, var(--blue-bg), #F8FCFA); }
+.hub-card.amber { background: linear-gradient(180deg, var(--amber-bg), #FFFDFC); }
+.hub-card.purple { background: linear-gradient(180deg, var(--purple-bg), #FFFEFF); }
+.hub-icon {
+  width: 46rpx;
+  height: 46rpx;
+  border-radius: 16rpx;
+  background: rgba(255,255,255,.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 8rpx;
+  box-shadow: var(--shadow-xs), var(--hairline);
+}
+.hub-icon image { width: 27rpx; height: 27rpx; }
+.hub-title { display: block; font-size: 21rpx; font-weight: 900; color: var(--text); line-height: 1.15; }
+.hub-desc { display: block; width: 100%; margin-top: 5rpx; font-size: 17rpx; line-height: 1.2; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ai-section-head {
   justify-content: flex-start;
   align-items: baseline;
@@ -605,12 +668,6 @@ onShow(() => {
 .match-badge text:first-child { font-size: 25rpx; line-height: 1; }
 .match-badge text:last-child { margin-top: 5rpx; font-size: 15rpx; color: var(--text-muted); }
 .empty-card { padding: 26rpx; color: var(--text-muted); font-size: 25rpx; }
-
-.mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 24rpx; }
-.mini-card { padding: 22rpx; min-height: 142rpx; background: linear-gradient(180deg, #FFFFFF, #F9FCFA); }
-.mini-icon { width: 42rpx; height: 42rpx; margin-bottom: 14rpx; }
-.mini-title { display: block; font-size: 27rpx; font-weight: 850; color: var(--text); }
-.mini-desc { display: block; margin-top: 6rpx; font-size: 22rpx; color: var(--text-muted); }
 
 .ai-card { padding: 18rpx; position: relative; overflow: hidden; background: linear-gradient(150deg, #FFFFFF 0%, #FBFAFF 100%); }
 .ai-card::before { content: ""; position: absolute; top: -80rpx; right: -70rpx; width: 180rpx; height: 180rpx; border-radius: 50%; background: rgba(141,122,230,.08); pointer-events: none; }

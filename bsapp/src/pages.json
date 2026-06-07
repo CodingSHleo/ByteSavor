@@ -122,10 +122,22 @@
         "selectedIconPath": "static/icons/home-active.png"
       },
       {
+        "pagePath": "pages/ingredient-recognition/ingredient-recognition",
+        "text": "识别",
+        "iconPath": "static/icons/scan.png",
+        "selectedIconPath": "static/icons/scan-active.png"
+      },
+      {
         "pagePath": "pages/explore/explore",
         "text": "探索",
         "iconPath": "static/icons/explore.png",
         "selectedIconPath": "static/icons/explore-active.png"
+      },
+      {
+        "pagePath": "pages/food-knowledge/food-knowledge",
+        "text": "知识",
+        "iconPath": "static/icons/knowledge.png",
+        "selectedIconPath": "static/icons/knowledge-active.png"
       },
       {
         "pagePath": "pages/profile/profile",
