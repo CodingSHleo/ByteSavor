@@ -448,7 +448,7 @@ export const ApiService = {
         method: 'POST',
         data: {
           ingredients: ingredients,
-          constraints: { time_limit: 30, taste: 'any', goal: 'healthy' }
+          constraints: { time_limit: 30, taste: '', goal: 'balanced' }
         }
       })
       if (res.status === 'success') {
