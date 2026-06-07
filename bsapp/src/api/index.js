@@ -532,8 +532,7 @@ export const ApiService = {
     } catch (e) {
       console.error('API Error - login:', e)
     }
-    // fallback: 后端不可用时返回mock
-    return { token: 'mock_token', user_id: 'u_001', name: 'demo' }
+    throw new Error('登录失败，请检查网络或后端服务')
   },
 
   // 注册
