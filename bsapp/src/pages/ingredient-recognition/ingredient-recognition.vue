@@ -180,12 +180,28 @@ function handleNativeFile(e) {
   if (!file) return
   const reader = new FileReader()
   reader.onload = (ev) => {
-    selectedImage.value = ev.target.result
-    recognizedIngredients.value = []
-    recognitionStatus.value = '正在识别食材...'
-    analyzeImage()
+    compressImage(ev.target.result, (compressed) => {
+      selectedImage.value = compressed
+      recognizedIngredients.value = []
+      recognitionStatus.value = '正在识别食材...'
+      analyzeImage()
+    })
   }
   reader.readAsDataURL(file)
+}
+
+function compressImage(dataUrl, callback) {
+  const img = new Image()
+  img.onload = () => {
+    const maxW = 800
+    let w = img.width, h = img.height
+    if (w > maxW) { h = h * maxW / w; w = maxW }
+    const canvas = document.createElement('canvas')
+    canvas.width = w; canvas.height = h
+    canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+    callback(canvas.toDataURL('image/jpeg', 0.7))
+  }
+  img.src = dataUrl
 }
 
 async function analyzeImage() {
