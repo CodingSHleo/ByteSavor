@@ -20,6 +20,35 @@
       </view>
     </view>
 
+    <view v-if="errorNotice" class="notice-card">
+      <image src="/static/icons/icon_flash.svg" mode="aspectFit" />
+      <text>{{ errorNotice }}</text>
+    </view>
+
+    <view class="automation-card">
+      <view class="auto-step active">
+        <text>1</text>
+        <view>
+          <text class="auto-title">合并食材</text>
+          <text class="auto-copy">按菜谱去重并整理规格</text>
+        </view>
+      </view>
+      <view class="auto-step active">
+        <text>2</text>
+        <view>
+          <text class="auto-title">人工校正</text>
+          <text class="auto-copy">支持编辑、删除和勾选</text>
+        </view>
+      </view>
+      <view class="auto-step">
+        <text>3</text>
+        <view>
+          <text class="auto-title">导出复用</text>
+          <text class="auto-copy">复制或生成 Markdown</text>
+        </view>
+      </view>
+    </view>
+
     <view class="section">
       <view class="section-header">
         <text class="section-label">{{ $t('relatedRecipes') }}</text>
@@ -80,6 +109,7 @@ const isLoading = ref(true)
 const recipes = ref([])
 const editingList = ref([])
 const checkedItems = ref({})
+const errorNotice = ref('')
 const recipeCount = computed(() => recipes.value.length)
 const checkedCount = computed(() => Object.values(checkedItems.value).filter(Boolean).length)
 const uniqueIngredientCount = computed(() => {
@@ -110,8 +140,17 @@ onLoad(async (options) => {
       if (parsed.length > 0 && (parsed[0].recipeId || parsed[0].recipe_id)) {
         recipes.value = parsed
         const ids = parsed.map(r => r.recipeId || r.recipe_id)
-        const merged = await ApiService.mergeShoppingList(ids)
-        editingList.value = dedupeIngredients(merged)
+        try {
+          const merged = await ApiService.mergeShoppingList(ids)
+          editingList.value = dedupeIngredients(merged)
+        } catch (e) {
+          errorNotice.value = '后端清单合并暂未连通，已根据食谱生成本地演示清单。'
+          editingList.value = dedupeIngredients([
+            { name: '牛肉', amount: '300g', nameEn: 'Beef' },
+            { name: '西兰花', amount: '200g', nameEn: 'Broccoli' },
+            { name: '蒜蓉', amount: '10g', nameEn: 'Minced Garlic' }
+          ])
+        }
       } else if (parsed.length > 0 && parsed[0].name) {
         recipes.value = [{ title: 'AI推荐', recipeId: 'r_ai' }]
         editingList.value = dedupeIngredients(parsed)
@@ -190,6 +229,54 @@ function goBack() { uni.navigateBack() }
 .summary-card { background: #fff; border-radius: var(--radius); padding: 18rpx; box-shadow: var(--shadow-sm); }
 .summary-num { display: block; font-size: 40rpx; font-weight: 900; color: var(--text); line-height: 1; }
 .summary-label { display: block; margin-top: 8rpx; font-size: 21rpx; color: var(--text-muted); }
+.notice-card {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  background: var(--amber-bg);
+  color: #9A651B;
+  border-radius: var(--radius);
+  padding: 16rpx 18rpx;
+  margin-bottom: 20rpx;
+  font-size: 23rpx;
+  line-height: 1.45;
+  box-shadow: var(--shadow-sm);
+}
+.notice-card image { width: 30rpx; height: 30rpx; flex-shrink: 0; }
+.automation-card {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10rpx;
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 14rpx;
+  margin-bottom: 22rpx;
+  box-shadow: var(--shadow-sm);
+}
+.auto-step {
+  min-height: 128rpx;
+  border-radius: 18rpx;
+  background: var(--bg-elevated);
+  padding: 14rpx;
+  display: flex;
+  flex-direction: column;
+  gap: 10rpx;
+}
+.auto-step.active { background: var(--teal-bg); }
+.auto-step > text {
+  width: 32rpx;
+  height: 32rpx;
+  border-radius: 12rpx;
+  background: #fff;
+  color: var(--accent);
+  font-size: 20rpx;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.auto-title { display: block; font-size: 21rpx; font-weight: 900; color: var(--text); }
+.auto-copy { display: block; margin-top: 4rpx; font-size: 18rpx; color: var(--text-secondary); line-height: 1.35; }
 .section { margin-bottom: 22rpx; }
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14rpx; }
 .section-label { font-size: 30rpx; font-weight: 900; color: var(--text); }

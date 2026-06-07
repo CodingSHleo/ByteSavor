@@ -36,5 +36,6 @@ async def agent_entry(req: AgentRequest, db: AsyncSession = Depends(get_db)):
         sense_fn=sense_fn,
         decide_fn=decide_fn,
         task_fn=task_fn,
+        image_url=req.image_url,
     )
     return SuccessResponse(data=result)

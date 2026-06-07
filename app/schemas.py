@@ -58,7 +58,8 @@ class MergeRequest(BaseModel):
 # ---------- Agent & Feedback ----------
 class AgentRequest(BaseModel):
     input: str
-    mode: str = "full"   # recommend / plan / full
+    mode: str = "full"
+    image_url: str | None = None
 
 class FeedbackRequest(BaseModel):
     recipe_id: str

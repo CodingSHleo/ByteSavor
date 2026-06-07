@@ -1,4 +1,3 @@
-import base64
 import json
 import logging
 import httpx
@@ -14,13 +13,17 @@ class OpenAICompatProvider(BaseVLMProvider):
 
     async def analyze_food(self, image_url: str, prompt: str) -> dict | None:
         if not settings.vlm_api_url:
+            logger.warning("vlm_skip: no API URL configured")
             return None
 
+        # 图片格式：HTTP URL 直接传，base64 data URL 直接传
         img_src = image_url
-        if image_url.startswith("http://") or image_url.startswith("https://"):
-            b64 = await _download_as_base64(image_url)
-            if b64:
-                img_src = b64
+        is_data = image_url.startswith("data:")
+        is_http = image_url.startswith("http://") or image_url.startswith("https://")
+        logger.info("vlm_request model=%s host=%s img_type=%s img_len=%d",
+                    self.model, settings.vlm_api_url.split("/")[2],
+                    "data_url" if is_data else "http_url" if is_http else "other",
+                    len(image_url))
 
         try:
             async with httpx.AsyncClient(timeout=120) as client:
@@ -29,48 +32,48 @@ class OpenAICompatProvider(BaseVLMProvider):
                     headers={"Authorization": f"Bearer {settings.vlm_api_key}"},
                     json={
                         "model": self.model,
-                        "messages": [
-                            {
-                                "role": "user",
-                                "content": [
-                                    {"type": "image_url", "image_url": {"url": img_src}},
-                                    {"type": "text", "text": prompt},
-                                ],
-                            }
-                        ],
+                        "messages": [{
+                            "role": "user",
+                            "content": [
+                                {"type": "image_url", "image_url": {"url": img_src}},
+                                {"type": "text", "text": prompt},
+                            ],
+                        }],
+                        "max_tokens": 300,
                     },
                 )
                 if resp.status_code != 200:
-                    logger.warning("vlm_http_error status=%s body=%s", resp.status_code, resp.text[:200])
+                    logger.warning("vlm_http status=%d body=%s", resp.status_code, resp.text[:300])
                     return None
                 result = _parse(resp.json())
-                logger.info("vlm_result ingredients=%s", len(result.get("ingredients", [])))
+                n = len(result.get("ingredients", []))
+                logger.info("vlm_ok ingredients=%d", n)
                 return result
         except Exception as e:
-            logger.warning("vlm_exception %s", e)
+            logger.warning("vlm_exception %s: %s", type(e).__name__, str(e)[:200])
             return None
 
 
 def _parse(data: dict) -> dict:
     try:
-        content = data["choices"][0]["message"]["content"]
+        content = data["choices"][0]["message"]["content"].strip()
+        # 1. Markdown 代码块
         if "```json" in content:
             content = content.split("```json")[1].split("```")[0]
         elif "```" in content:
             content = content.split("```")[1].split("```")[0]
-        return json.loads(content.strip())
+        # 2. 文本中嵌 JSON
+        elif "{" in content and "}" in content:
+            start = content.find("{")
+            end = content.rfind("}") + 1
+            content = content[start:end]
+        parsed = json.loads(content)
+        # 校验
+        if "ingredients" not in parsed:
+            parsed["ingredients"] = []
+        if "portion_estimation" not in parsed:
+            parsed["portion_estimation"] = {"total_weight": 0}
+        return parsed
     except Exception:
+        logger.info("vlm_parse_failed raw=%s", str(data.get("choices", [{}])[0].get("message", {}).get("content", ""))[:200])
         return {"ingredients": [], "portion_estimation": {"total_weight": 0}}
-
-
-async def _download_as_base64(url: str) -> str | None:
-    try:
-        async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(url)
-            if resp.status_code != 200:
-                return None
-            ct = resp.headers.get("content-type", "image/jpeg")
-            b64 = base64.b64encode(resp.content).decode()
-            return f"data:{ct};base64,{b64}"
-    except Exception:
-        return None
