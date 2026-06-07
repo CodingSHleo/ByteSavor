@@ -138063,5 +138063,192 @@
     "source": "tada",
     "story": "",
     "culture_tags": []
+  },
+  {
+    "id": "r_demo_001",
+    "title": "豉汁石斑",
+    "steps": [
+      "石斑鱼洗净划刀",
+      "姜丝葱段铺面",
+      "淋豉汁",
+      "水开上锅蒸10分钟",
+      "出锅淋热油"
+    ],
+    "ingredients": [
+      {
+        "name": "石斑鱼",
+        "amount": "1条(约600g)"
+      },
+      {
+        "name": "豆豉",
+        "amount": "20g"
+      },
+      {
+        "name": "姜",
+        "amount": "5片"
+      },
+      {
+        "name": "葱",
+        "amount": "2根"
+      },
+      {
+        "name": "蒜",
+        "amount": "3瓣"
+      },
+      {
+        "name": "生抽",
+        "amount": "1勺"
+      },
+      {
+        "name": "料酒",
+        "amount": "1勺"
+      }
+    ],
+    "tags": [
+      "light",
+      "high_protein",
+      "seafood",
+      "粤菜"
+    ],
+    "cook_time": 15,
+    "calories": 280,
+    "protein": 52,
+    "carbs": 5,
+    "fat": 8,
+    "difficulty": "easy",
+    "source": "demo",
+    "story": "豉汁蒸鱼是粤菜最经典的鱼类烹饪法。豆豉的咸鲜与石斑鱼的鲜甜完美融合，蒸制保留鱼肉原汁原味。广东人讲究'清蒸是对一条鱼最高的尊重'。",
+    "culture_tags": [
+      "粤菜经典",
+      "清蒸技法",
+      "海鲜"
+    ]
+  },
+  {
+    "id": "r_demo_002",
+    "title": "XO酱西芹炒虾球",
+    "steps": [
+      "虾仁开背去虾线",
+      "西芹削皮切段",
+      "热油爆香蒜末",
+      "虾仁滑炒变色盛出",
+      "炒西芹至断生",
+      "虾仁回锅加XO酱翻匀"
+    ],
+    "ingredients": [
+      {
+        "name": "虾仁",
+        "amount": "300g"
+      },
+      {
+        "name": "西芹",
+        "amount": "200g"
+      },
+      {
+        "name": "XO酱",
+        "amount": "2勺"
+      },
+      {
+        "name": "蒜",
+        "amount": "3瓣"
+      },
+      {
+        "name": "红椒",
+        "amount": "半个"
+      },
+      {
+        "name": "盐",
+        "amount": "少许"
+      },
+      {
+        "name": "料酒",
+        "amount": "1勺"
+      }
+    ],
+    "tags": [
+      "light",
+      "high_protein",
+      "seafood",
+      "粤菜"
+    ],
+    "cook_time": 12,
+    "calories": 220,
+    "protein": 38,
+    "carbs": 8,
+    "fat": 6,
+    "difficulty": "easy",
+    "source": "demo",
+    "story": "XO酱是香港半岛酒店1980年代首创的高级调味酱，用瑶柱、虾米、金华火腿等名贵食材制成。配西芹炒虾球是港式酒楼的招牌小炒。",
+    "culture_tags": [
+      "港式酒楼",
+      "XO酱",
+      "小炒"
+    ]
+  },
+  {
+    "id": "r_demo_003",
+    "title": "小炒黄牛肉",
+    "steps": [
+      "黄牛肉切薄片腌制",
+      "小米辣切圈，蒜姜切末",
+      "香菜切段",
+      "大火热油爆香姜蒜辣椒",
+      "下牛肉片爆炒30秒变色",
+      "加生抽蚝油翻匀",
+      "撒香菜出锅"
+    ],
+    "ingredients": [
+      {
+        "name": "黄牛肉",
+        "amount": "300g"
+      },
+      {
+        "name": "小米辣",
+        "amount": "5个"
+      },
+      {
+        "name": "蒜",
+        "amount": "5瓣"
+      },
+      {
+        "name": "姜",
+        "amount": "3片"
+      },
+      {
+        "name": "香菜",
+        "amount": "1把"
+      },
+      {
+        "name": "生抽",
+        "amount": "1勺"
+      },
+      {
+        "name": "蚝油",
+        "amount": "1勺"
+      },
+      {
+        "name": "料酒",
+        "amount": "1勺"
+      }
+    ],
+    "tags": [
+      "spicy",
+      "high_protein",
+      "湘菜",
+      "quick"
+    ],
+    "cook_time": 10,
+    "calories": 320,
+    "protein": 45,
+    "carbs": 6,
+    "fat": 15,
+    "difficulty": "easy",
+    "source": "demo",
+    "story": "小炒黄牛肉是湘菜经典，讲究'猛火快炒、30秒出锅'。黄牛肉比普通牛肉更嫩滑，配小米辣的鲜辣和香菜的清香，是湖南人最爱的下饭菜。",
+    "culture_tags": [
+      "湘菜经典",
+      "猛火快炒",
+      "下饭神器"
+    ]
   }
 ]
