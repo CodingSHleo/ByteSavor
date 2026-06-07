@@ -24,13 +24,14 @@ onLaunch(async () => {
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'PingFang SC', 'Microsoft YaHei', sans-serif;
 
   /* ======== Fresh habit palette · 参考 ui.png 的浅雾绿系统 ======== */
-  --bg:            #F2F8F5;
+  --bg:            #F3F8F5;
   --bg-white:      #FFFFFF;
   --bg-card:       #FFFFFF;
-  --bg-elevated:   #F7FCF9;
+  --bg-elevated:   #F8FCFA;
+  --bg-soft:       #EEF7F2;
 
-  --text:          #17231F;
-  --text-secondary:#62736D;
+  --text:          #13231D;
+  --text-secondary:#5C7169;
   --text-muted:    #90A19A;
   --text-placeholder:#B9C8C2;
 
@@ -81,22 +82,24 @@ onLaunch(async () => {
   --danger-bg:     var(--red-bg);
 
   /* ======== 边框 ======== */
-  --border:        #DDE9E3;
-  --border-light:  #EDF4F0;
+  --border:        #DCEAE3;
+  --border-light:  #ECF4F0;
 
   /* ======== 阴影 — iOS 风格柔和 ======== */
-  --shadow-sm:     0 8rpx 20rpx rgba(26, 73, 55, 0.05);
-  --shadow-md:     0 14rpx 34rpx rgba(26, 73, 55, 0.07);
-  --shadow-lg:     0 20rpx 46rpx rgba(26, 73, 55, 0.10);
-  --shadow-xl:     0 28rpx 60rpx rgba(26, 73, 55, 0.12);
+  --shadow-xs:     0 4rpx 12rpx rgba(26, 73, 55, 0.035);
+  --shadow-sm:     0 10rpx 26rpx rgba(26, 73, 55, 0.055);
+  --shadow-md:     0 18rpx 42rpx rgba(26, 73, 55, 0.075);
+  --shadow-lg:     0 26rpx 58rpx rgba(26, 73, 55, 0.11);
+  --shadow-xl:     0 34rpx 80rpx rgba(26, 73, 55, 0.14);
+  --hairline:      inset 0 0 0 1rpx rgba(22, 61, 45, 0.045);
 
   /* ======== 圆角 24px ======== */
   --radius-xs:   10rpx;
   --radius-sm:   14rpx;
-  --radius:      22rpx;
-  --radius-md:   24rpx;
-  --radius-lg:   30rpx;
-  --radius-xl:   36rpx;
+  --radius:      24rpx;
+  --radius-md:   28rpx;
+  --radius-lg:   34rpx;
+  --radius-xl:   42rpx;
   --radius-full: 999rpx;
 
   /* ======== 动画 ======== */
@@ -136,7 +139,9 @@ onLaunch(async () => {
 
 /* ======== 手机端框架 ======== */
 html, body {
-  background: #E7EFEB;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(35,169,120,.10), transparent 32%),
+    #E7EFEB;
   margin: 0; padding: 0;
   display: flex; justify-content: center;
 }
@@ -147,7 +152,7 @@ html, body {
   background: var(--bg);
   position: relative;
   overflow-x: hidden;
-  box-shadow: 0 20px 70px rgba(18, 55, 40, 0.12);
+  box-shadow: 0 24px 90px rgba(18, 55, 40, 0.14);
 }
 
 page {
@@ -170,6 +175,35 @@ page {
   to   { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes soft-pop {
+  0% { opacity: 0; transform: scale(.985) translateY(12rpx); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes bar-grow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+@keyframes float-breathe {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5rpx); }
+}
+
+@keyframes shimmer-sweep {
+  0% { transform: translateX(-120%); opacity: 0; }
+  25% { opacity: .7; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+  }
+}
+
 .home-page, .explore-page, .profile-page, .settings-page,
 .ir-page, .hd-page, .rd-page, .fk-page, .hist-page, .le-page,
 .login-page, .register-page {
@@ -186,16 +220,16 @@ page {
   border-radius: var(--radius);
   padding: 24rpx;
   margin-bottom: 20rpx;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm), var(--hairline);
   transition: transform var(--normal) var(--ease),
               box-shadow var(--normal) var(--ease);
 }
 /* 毛玻璃变体 — 高级感 */
 .card-glass {
-  background: rgba(255,255,255,0.8);
-  backdrop-filter: blur(10rpx);
-  -webkit-backdrop-filter: blur(10rpx);
-  border: 1px solid rgba(0,0,0,0.04);
+  background: rgba(255,255,255,0.82);
+  backdrop-filter: blur(14rpx);
+  -webkit-backdrop-filter: blur(14rpx);
+  box-shadow: var(--shadow-sm), var(--hairline);
 }
 /* 第二级 — 强调卡片 */
 .card-elevated {
@@ -221,7 +255,7 @@ page {
 /* 卡片入场交错 */
 .card, .recipe-card, .recipe-item, .hist-card,
 .ir-ingredient-card, .le-item, .fk-card, .menu-item {
-  animation: fade-up var(--normal) var(--ease) both;
+  animation: soft-pop var(--normal) var(--ease) both;
 }
 .card:nth-child(1) { animation-delay: 0ms; }
 .card:nth-child(2) { animation-delay: 40ms; }

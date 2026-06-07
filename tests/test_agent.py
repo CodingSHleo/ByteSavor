@@ -1,4 +1,5 @@
 from app.services.agent import _parse_intent_regex
+import pytest
 
 
 def test_parse_intent_fat_loss():
@@ -24,3 +25,16 @@ def test_parse_intent_default():
     intent = _parse_intent_regex("随便吃点东西")
     assert intent["goal"] == "balanced"
     assert intent["time_limit"] == 30
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_agent_execute_returns_reply_text(client):
+    resp = await client.post("/v1/agent/execute", json={
+        "input": "牛肉南瓜减脂30分钟",
+        "mode": "recommend"
+    })
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+    assert data["data"]["reply"]
+    assert "recipes" in data["data"]

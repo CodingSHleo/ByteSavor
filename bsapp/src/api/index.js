@@ -296,31 +296,6 @@ export const MOCK_RECIPE_DETAILS = {
   }
 }
 
-export const MOCK_AGENT_RESPONSE = {
-  parsed_intent: {
-    time: 30,
-    goal: 'fat_loss',
-    core_items: ['牛肉', '南瓜']
-  },
-  cot_reasoning: [
-    '识别关键词："30分钟""减脂""牛肉""南瓜"',
-    '匹配用户偏好：辣味、高蛋白、低脂',
-    '检索食谱库：南瓜炖牛肉匹配度最高',
-    '营养校验：南瓜可补充今日纤维缺口',
-    '确认方案：30分钟内可完成，热量320kcal符合减脂目标'
-  ],
-  recipes: [
-    { recipe_id: 'r_202', title: '南瓜炖牛肉', titleEn: 'Pumpkin Beef Stew', match_score: 0.96, cookTime: 30, difficulty: '简单', difficultyEn: 'Easy', calories: 310 }
-  ],
-  shopping_list: [
-    { name: '牛肉', amount: '300g' },
-    { name: '南瓜', amount: '200g' },
-    { name: '生姜', amount: '少许' },
-    { name: '蒜', amount: '3瓣' },
-    { name: '生抽', amount: '适量' }
-  ]
-}
-
 // 响应式获取探索菜谱（根据当前语言自动切换）
 export function getExploreRecipes() {
   return L(EXPLORE_RECIPES_RAW)
@@ -409,44 +384,30 @@ export const ApiService = {
 
   // 食材识别
   async analyzeIngredient(imageUrl) {
-    try {
-      const res = await request({
-        url: '/v1/sense/analyze',
-        method: 'POST',
-        data: {
-          task_id: 'task_' + Date.now(),
-          image_url: imageUrl,
-          context: { scene: 'kitchen' }
-        }
-      })
-      if (res.status === 'success') {
-        return res.data.ingredients
+    const res = await request({
+      url: '/v1/sense/analyze',
+      method: 'POST',
+      data: {
+        task_id: 'task_' + Date.now(),
+        image_url: imageUrl,
+        context: { scene: 'kitchen' }
       }
-    } catch (e) {
-      console.error('API Error - analyzeIngredient:', e)
-    }
-    // fallback: 随机返回1-3个食材让UI更有动态感
-    const count = Math.floor(Math.random() * 3) + 1
-    return L(MOCK_INGREDIENTS.slice(0, count))
+    })
+    if (res.status === 'success') return L(res.data.ingredients || [])
+    throw new Error(res.error?.message || '食材识别失败')
   },
 
   // 获取用户画像
   async getUserProfile() {
-    try {
-      const res = await request({ url: '/v1/user/profile' })
-      if (res.status === 'success') return res.data
-    } catch (e) {
-      console.error('API Error - getUserProfile:', e)
-    }
-    return L(MOCK_USER_PROFILE)
+    const res = await request({ url: '/v1/user/profile' })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '获取用户画像失败')
   },
 
   async updateProfile(goal, preferences) {
-    try {
-      const res = await request({ url: '/v1/user/profile', method: 'PUT', data: { goal, preferences } })
-      if (res.status === 'success') return res.data
-    } catch (e) { console.error('API Error - updateProfile:', e) }
-    return null
+    const res = await request({ url: '/v1/user/profile', method: 'PUT', data: { goal, preferences } })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '更新用户画像失败')
   },
 
   // 获取营养状态
@@ -472,60 +433,42 @@ export const ApiService = {
 
   // 获取菜谱详情
   async getRecipeDetail(recipeId) {
-    try {
-      const res = await request({ url: `/v1/recipes/${recipeId}` })
-      if (res.status === 'success') return res.data
-    } catch (e) {
-      console.error('API Error - getRecipeDetail:', e)
-    }
-    // 优先从详情字典查找
-    if (MOCK_RECIPE_DETAILS[recipeId]) return L(MOCK_RECIPE_DETAILS[recipeId])
-    return L(MOCK_RECIPE_DETAIL)
+    const res = await request({ url: `/v1/recipes/${recipeId}` })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || '获取菜谱详情失败')
   },
 
   // Agent对话（支持传入图片 URL）
   async agentExecute(input, imageUrl = null) {
-    try {
-      const res = await request({
-        url: '/v1/agent/execute',
-        method: 'POST',
-        data: { input, image_url: imageUrl || undefined }
-      })
-      if (res.status === 'success') return res.data
-    } catch (e) {
-      console.error('API Error - agentExecute:', e)
-    }
-    return L(MOCK_AGENT_RESPONSE)
+    const res = await request({
+      url: '/v1/agent/execute',
+      method: 'POST',
+      data: { input, image_url: imageUrl || undefined }
+    })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || 'AI Agent 暂未连通')
   },
 
   // 提交反馈
   async submitFeedback(recipeId, rating) {
-    try {
-      await request({
-        url: '/v1/feedback/meal',
-        method: 'POST',
-        data: { recipe_id: recipeId, rating }
-      })
-      return { acknowledged: true, reward_points: rating === 5 ? 5 : 1 }
-    } catch (e) {
-      console.error('API Error - submitFeedback:', e)
-    }
-    return { acknowledged: true, reward_points: rating === 5 ? 5 : 1 }
+    const res = await request({
+      url: '/v1/feedback/meal',
+      method: 'POST',
+      data: { recipe_id: recipeId, rating }
+    })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '提交反馈失败')
   },
 
   // 合并购物清单
   async mergeShoppingList(recipeIds) {
-    try {
-      const res = await request({
-        url: '/v1/task/merge-list',
-        method: 'POST',
-        data: { recipes: recipeIds }
-      })
-      if (res.status === 'success') return res.data.shopping_list
-    } catch (e) {
-      console.error('API Error - mergeShoppingList:', e)
-    }
-    return L(MOCK_SHOPPING_LIST)
+    const res = await request({
+      url: '/v1/task/merge-list',
+      method: 'POST',
+      data: { recipes: recipeIds }
+    })
+    if (res.status === 'success') return L(res.data.shopping_list || [])
+    throw new Error(res.error?.message || '合并购物清单失败')
   },
 
   // 登录（后端只收 openid，返回 { token, user_id, name }）

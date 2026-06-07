@@ -32,7 +32,10 @@
             </view>
           </view>
           <text class="hist-detail">{{ item.detail }}</text>
-          <text class="hist-time">{{ formatTime(item.createdAt) }}</text>
+          <view class="hist-bottom">
+            <text class="hist-time">{{ formatTime(item.createdAt) }}</text>
+            <button v-if="item.recipes && item.recipes.length" class="hist-export" @tap.stop="exportRecord(item)">导出</button>
+          </view>
         </view>
       </view>
     </view>
@@ -61,7 +64,13 @@ function formatTime(dateStr) {
 function goDetail(item) {
   if (item.recipeId) {
     uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${item.recipeId}&title=${encodeURIComponent(item.title)}` })
+  } else if (item.recipes && item.recipes.length) {
+    exportRecord(item)
   }
+}
+
+function exportRecord(item) {
+  uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(item.recipes || []))}` })
 }
 
 function iconFor(type) {
@@ -141,7 +150,9 @@ function iconFor(type) {
 .hist-row { display: flex; align-items: center; gap: 10rpx; }
 .hist-title { flex: 1; font-size: 28rpx; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .hist-detail { font-size: 24rpx; color: var(--text-secondary); display: block; margin-top: 8rpx; line-height: 1.45; }
-.hist-time { font-size: 21rpx; color: var(--text-muted); display: block; margin-top: 10rpx; }
+.hist-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 10rpx; }
+.hist-time { font-size: 21rpx; color: var(--text-muted); display: block; }
+.hist-export { width: 76rpx; height: 48rpx; margin: 0; padding: 0; border: none; border-radius: var(--radius-full); background: var(--teal); color: #fff; font-size: 20rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .hist-type-tag {
   background: var(--bg-elevated);
   padding: 6rpx 14rpx;

@@ -116,28 +116,36 @@ function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-det
 </script>
 
 <style scoped>
-.explore-page { min-height: 100vh; background: var(--bg); padding: 28rpx; overflow-x: hidden; }
+.explore-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 85% 0%, rgba(75,167,200,.12), transparent 30%),
+    linear-gradient(180deg, #F9FCFA 0%, var(--bg) 44%);
+  padding: 28rpx;
+  overflow-x: hidden;
+}
 .page-head { margin-bottom: 22rpx; }
-.page-title { display: block; font-size: 42rpx; font-weight: 900; color: var(--text); }
+.page-title { display: block; font-size: 44rpx; line-height: 1.12; font-weight: 950; color: var(--text); }
 .page-sub { display: block; margin-top: 8rpx; font-size: 24rpx; color: var(--text-secondary); }
-.search-bar { display: flex; align-items: center; background: #fff; border-radius: var(--radius-full); padding: 0 20rpx; height: 76rpx; margin-bottom: 16rpx; box-shadow: var(--shadow-sm); }
+.search-bar { display: flex; align-items: center; background: rgba(255,255,255,.94); border-radius: var(--radius-full); padding: 0 20rpx; height: 78rpx; margin-bottom: 16rpx; box-shadow: var(--shadow-sm), var(--hairline); backdrop-filter: blur(10rpx); }
 .search-icon { width: 36rpx; height: 36rpx; margin-right: 10rpx; }
 .search-input { flex: 1; font-size: 26rpx; color: var(--text); height: 100%; }
 .ph { color: var(--text-placeholder); }
 .recipe-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-bottom: 16rpx; }
-.recipe-stats view { background: #fff; border-radius: var(--radius); padding: 16rpx; box-shadow: var(--shadow-sm); }
+.recipe-stats view { background: rgba(255,255,255,.94); border-radius: var(--radius); padding: 17rpx; box-shadow: var(--shadow-sm), var(--hairline); }
 .recipe-stats text:first-child { display: block; color: var(--text); font-size: 32rpx; font-weight: 900; line-height: 1; }
 .recipe-stats text:last-child { display: block; margin-top: 8rpx; color: var(--text-muted); font-size: 20rpx; }
 .notice-card { display: flex; align-items: center; gap: 12rpx; background: var(--amber-bg); color: #9A651B; border-radius: var(--radius); padding: 16rpx 18rpx; margin-bottom: 18rpx; font-size: 23rpx; line-height: 1.45; box-shadow: var(--shadow-sm); }
 .notice-card image { width: 30rpx; height: 30rpx; flex-shrink: 0; }
 .cat-scroll { white-space: nowrap; margin-bottom: 20rpx; }
-.cat-tag { display: inline-flex; align-items: center; gap: 8rpx; padding: 13rpx 22rpx; border-radius: var(--radius-full); font-size: 24rpx; font-weight: 800; margin-right: 12rpx; background: #fff; color: var(--text-secondary); box-shadow: var(--shadow-sm); transition: all var(--fast) ease; }
-.cat-tag.active { background: var(--ink-green); color: #fff; transform: translateY(-2rpx); }
+.cat-tag { display: inline-flex; align-items: center; gap: 8rpx; padding: 13rpx 22rpx; border-radius: var(--radius-full); font-size: 24rpx; font-weight: 850; margin-right: 12rpx; background: rgba(255,255,255,.92); color: var(--text-secondary); box-shadow: var(--shadow-xs), var(--hairline); transition: all var(--fast) ease; }
+.cat-tag.active { background: linear-gradient(135deg, var(--ink-green), #245445); color: #fff; transform: translateY(-2rpx); box-shadow: 0 14rpx 28rpx rgba(23,59,46,.16); }
 .cat-icon { width: 28rpx; height: 28rpx; }
 .cat-tag.active .cat-icon { filter: brightness(0) invert(1); }
-.feed-list { display: flex; flex-direction: column; gap: 14rpx; }
-.feed-card { display: flex; align-items: center; background: #fff; border-radius: var(--radius); padding: 18rpx; box-shadow: var(--shadow-sm); }
-.feed-visual { width: 90rpx; height: 90rpx; border-radius: 26rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 38rpx; background: var(--green-bg); }
+.feed-list { display: flex; flex-direction: column; gap: 15rpx; }
+.feed-card { display: flex; align-items: center; background: linear-gradient(145deg, #FFFFFF, #F9FCFA); border-radius: var(--radius-md); padding: 18rpx; box-shadow: var(--shadow-sm), var(--hairline); animation: soft-pop .28s var(--ease) both; }
+.feed-card:active { transform: translateY(-2rpx); box-shadow: var(--shadow-md), var(--hairline); }
+.feed-visual { width: 92rpx; height: 92rpx; border-radius: 27rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 38rpx; background: var(--green-bg); box-shadow: inset 0 0 0 1rpx rgba(255,255,255,.6); }
 .feed-visual.high_protein { background: var(--red-bg); }
 .feed-visual.low_fat, .feed-visual.vegetarian { background: var(--green-bg); }
 .feed-visual.quick { background: var(--amber-bg); }
@@ -145,13 +153,13 @@ function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-det
 .feed-visual.comfort { background: var(--purple-bg); }
 .feed-body { flex: 1; margin-left: 18rpx; display: flex; flex-direction: column; gap: 10rpx; min-width: 0; }
 .feed-top { display: flex; align-items: center; gap: 10rpx; }
-.feed-title { font-size: 29rpx; font-weight: 900; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.feed-title { font-size: 29rpx; font-weight: 950; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .feed-cat { font-size: 19rpx; padding: 5rpx 12rpx; border-radius: var(--radius-full); font-weight: 800; white-space: nowrap; }
 .feed-meta { display: flex; gap: 14rpx; flex-wrap: wrap; }
 .meta-item { display: flex; align-items: center; gap: 5rpx; color: var(--text-muted); font-size: 21rpx; }
 .meta-icon { width: 22rpx; height: 22rpx; }
 .micro-row { display: flex; flex-wrap: wrap; gap: 8rpx; }
-.micro-row text { background: var(--blue-bg); color: var(--blue); border-radius: var(--radius-full); padding: 5rpx 11rpx; font-size: 19rpx; font-weight: 800; }
+.micro-row text { background: var(--blue-bg); color: var(--blue); border-radius: var(--radius-full); padding: 5rpx 11rpx; font-size: 19rpx; font-weight: 850; box-shadow: inset 0 0 0 1rpx rgba(75,167,200,.08); }
 .feed-arrow { font-size: 34rpx; color: var(--text-muted); margin-left: 6rpx; }
 .empty { display: flex; flex-direction: column; align-items: center; padding-top: 120rpx; color: var(--text-muted); font-size: 26rpx; }
 .empty-icon { width: 78rpx; height: 78rpx; margin-bottom: 16rpx; }

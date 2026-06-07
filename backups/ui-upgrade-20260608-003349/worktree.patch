@@ -1,0 +1,746 @@
+diff --git a/app/routers/sense.py b/app/routers/sense.py
+index 131cd60..3ef75eb 100644
+--- a/app/routers/sense.py
++++ b/app/routers/sense.py
+@@ -1,16 +1,11 @@
++import logging
++
+ from fastapi import APIRouter
+ from app.schemas import SenseRequest, SuccessResponse, ErrorResponse
+ from app.services import vlm
+ 
+ router = APIRouter()
+-
+-MOCK = {
+-    "ingredients": [
+-        {"name": "西兰花", "confidence": 0.98, "freshness": "high", "state": "新鲜"},
+-        {"name": "牛肉", "confidence": 0.95, "freshness": "normal", "state": "冷藏"},
+-    ],
+-    "portion_estimation": {"total_weight": 320},
+-}
++logger = logging.getLogger("sense")
+ 
+ 
+ @router.post("/v1/sense/analyze", tags=["Sense"])
+@@ -20,9 +15,11 @@ async def analyze_ingredients(req: SenseRequest):
+ 
+     result = await vlm.analyze_food(req.image_url)
+     if result is None:
+-        import logging
+-        logging.getLogger("sense").warning("vlm returned None, using mock")
+-        result = MOCK
++        logger.warning("vlm returned None; returning explicit unavailable error")
++        return ErrorResponse(error={
++            "code": "VLM_UNAVAILABLE",
++            "message": "视觉模型暂不可用，未使用本地模拟识别结果",
++        })
+     elif not result.get("ingredients"):
+         return SuccessResponse(data={
+             "ingredients": [],
+diff --git a/app/services/agent.py b/app/services/agent.py
+index 3d3d316..486ee78 100644
+--- a/app/services/agent.py
++++ b/app/services/agent.py
+@@ -101,9 +101,11 @@ async def execute(
+     })
+ 
+     has_error = any(s["status"] in {"error", "failed"} for s in stages)
++    reply = _build_reply(intent, recipes, shop_list, has_error)
+     return {
+         "trace_id": trace_id,
+         "stages": stages,
++        "reply": reply,
+         "parsed_intent": intent,
+         "ingredients": [{"name": i, "from": "text" if i in intent["ingredients"] else "vlm"} for i in ingredients],
+         "recipes": recipes,
+@@ -112,6 +114,30 @@ async def execute(
+     }
+ 
+ 
++def _build_reply(intent: dict, recipes: list[dict], shop_list: list[dict], degraded: bool) -> str:
++    goal_map = {"fat_loss": "减脂", "muscle_gain": "增肌", "balanced": "均衡", "healthy": "健康"}
++    goal = goal_map.get(intent.get("goal"), intent.get("goal") or "均衡")
++    time_limit = intent.get("time_limit", 30)
++    ingredients = "、".join(intent.get("ingredients") or [])
++    prefix = f"我按{goal}目标和{time_limit}分钟限制整理好了"
++    if ingredients:
++        prefix += f"，重点使用{ingredients}"
++    if recipes:
++        top = recipes[0]
++        title = top.get("title", "推荐菜谱")
++        score = int((top.get("match_score") or 0) * 100)
++        text = f"{prefix}。优先推荐「{title}」，匹配度约{score}%。"
++        if len(recipes) > 1:
++            text += f" 另外还有{len(recipes) - 1}个备选。"
++    else:
++        text = f"{prefix}，但暂时没有找到合适菜谱。"
++    if shop_list:
++        text += f" 我也合并了{len(shop_list)}项购物清单，后续可以直接导出。"
++    if degraded:
++        text += " 部分阶段降级执行，建议检查后端日志。"
++    return text
++
++
+ def _parse_intent_regex(text: str) -> dict:
+     goal = "balanced"
+     time_limit = 30
+diff --git a/bsapp/dist/build/h5/assets/profile-DWleNj5K.css b/bsapp/dist/build/h5/assets/profile-DWleNj5K.css
+deleted file mode 100644
+index 67e4caf..0000000
+--- a/bsapp/dist/build/h5/assets/profile-DWleNj5K.css
++++ /dev/null
+@@ -1 +0,0 @@
+-.profile-page[data-v-033cd3ab]{min-height:100vh;background:var(--bg)}.profile-body[data-v-033cd3ab]{padding:.875rem .875rem 0}.profile-hero[data-v-033cd3ab]{background:var(--bg-card);border-radius:var(--radius-xl);padding:.9375rem;box-shadow:var(--shadow-md)}.hero-top[data-v-033cd3ab]{display:flex;align-items:center;gap:.625rem}.avatar[data-v-033cd3ab]{width:3.75rem;height:3.75rem;background:var(--teal-bg);border-radius:1.125rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}.avatar-img[data-v-033cd3ab]{width:100%;height:100%;border-radius:1.125rem}.hero-info[data-v-033cd3ab]{flex:1;min-width:0}.user-name[data-v-033cd3ab]{font-size:1.3125rem;line-height:1.15;font-weight:800;color:var(--text);display:block}.user-goal[data-v-033cd3ab]{font-size:.75rem;color:var(--text-secondary);margin-top:.25rem;display:block}.score-pill[data-v-033cd3ab]{min-width:3.25rem;padding:.375rem .4375rem;border-radius:.75rem;background:var(--green-bg);text-align:center}.score-num[data-v-033cd3ab]{display:block;font-size:1.0625rem;font-weight:800;color:var(--accent);line-height:1}.score-label[data-v-033cd3ab]{display:block;margin-top:.125rem;font-size:.5625rem;color:var(--text-secondary)}.pref-tags[data-v-033cd3ab]{display:flex;flex-wrap:wrap;gap:.375rem;margin-top:.75rem}.pref-tag[data-v-033cd3ab]{background:var(--bg-elevated);color:var(--ink-green);font-size:.71875rem;padding:.25rem .5625rem;border-radius:var(--radius-full)}.dashboard-grid[data-v-033cd3ab]{display:grid;grid-template-columns:1.1fr .9fr;gap:.5rem;margin-top:.625rem}.metric-card[data-v-033cd3ab]{background:var(--bg-card);border-radius:var(--radius);padding:.6875rem;box-shadow:var(--shadow-sm)}.metric-card.warn[data-v-033cd3ab]{background:var(--amber-bg)}.metric-label[data-v-033cd3ab]{display:block;font-size:.6875rem;color:var(--text-secondary)}.metric-value[data-v-033cd3ab]{display:block;margin-top:.1875rem;font-size:1.0625rem;color:var(--text);font-weight:800}.metric-hint[data-v-033cd3ab]{display:block;margin-top:.25rem;font-size:.65625rem;color:var(--text-secondary);line-height:1.35}.progress-bar[data-v-033cd3ab]{height:.375rem;background:var(--border-light);border-radius:31.21875rem;margin-top:.4375rem;overflow:hidden}.progress-fill[data-v-033cd3ab]{height:100%;background:linear-gradient(90deg,var(--teal),var(--teal-light));border-radius:31.21875rem}.section-head[data-v-033cd3ab]{display:flex;align-items:flex-end;justify-content:space-between;margin:1.0625rem .0625rem .5rem}.section-title[data-v-033cd3ab]{margin:0}.section-sub[data-v-033cd3ab]{font-size:.625rem;color:var(--text-muted)}.menu-list[data-v-033cd3ab]{display:flex;flex-direction:column;gap:.4375rem}.menu-item[data-v-033cd3ab]{display:flex;align-items:center;gap:.5625rem;background:var(--bg-card);border-radius:var(--radius);padding:.6875rem;box-shadow:var(--shadow-sm)}.menu-icon[data-v-033cd3ab]{width:2rem;height:2rem;border-radius:.625rem;background:var(--teal-bg);display:flex;align-items:center;justify-content:center;flex-shrink:0}.menu-icon.blue[data-v-033cd3ab]{background:var(--blue-bg)}.menu-icon.amber[data-v-033cd3ab]{background:var(--amber-bg)}.menu-icon.purple[data-v-033cd3ab]{background:var(--purple-bg)}.menu-icon uni-image[data-v-033cd3ab]{width:1.0625rem;height:1.0625rem}.menu-copy[data-v-033cd3ab]{flex:1;min-width:0}.menu-label[data-v-033cd3ab]{display:block;font-size:.875rem;color:var(--text);font-weight:700}.menu-hint[data-v-033cd3ab]{display:block;font-size:.65625rem;color:var(--text-secondary);margin-top:.125rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.menu-arrow[data-v-033cd3ab]{font-size:1.125rem;color:var(--text-muted)}.btn-logout[data-v-033cd3ab]{width:100%;height:2.75rem;background:var(--red-bg);color:var(--danger);border:none;border-radius:var(--radius);font-size:.9375rem;font-weight:800;margin-top:.875rem}.bottom-space[data-v-033cd3ab]{height:1.625rem}
+diff --git a/bsapp/dist/build/h5/index.html b/bsapp/dist/build/h5/index.html
+index 61cb427..3448831 100644
+--- a/bsapp/dist/build/h5/index.html
++++ b/bsapp/dist/build/h5/index.html
+@@ -6,7 +6,7 @@
+     <meta charset="UTF-8" />
+     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+     <title>ByteSavor</title>
+-    <script type="module" crossorigin src="/assets/index-BOphINEH.js"></script>
++    <script type="module" crossorigin src="/assets/index-DHQ67dG3.js"></script>
+     <link rel="stylesheet" crossorigin href="/assets/index-CDQsifyj.css">
+   </head>
+   <body>
+diff --git a/bsapp/src/api/index.js b/bsapp/src/api/index.js
+index 89d8e33..954ef34 100644
+--- a/bsapp/src/api/index.js
++++ b/bsapp/src/api/index.js
+@@ -296,32 +296,7 @@ export const MOCK_RECIPE_DETAILS = {
+   }
+ }
+ 
+-export const MOCK_AGENT_RESPONSE = {
+-  parsed_intent: {
+-    time: 30,
+-    goal: 'fat_loss',
+-    core_items: ['牛肉', '南瓜']
+-  },
+-  cot_reasoning: [
+-    '识别关键词："30分钟""减脂""牛肉""南瓜"',
+-    '匹配用户偏好：辣味、高蛋白、低脂',
+-    '检索食谱库：南瓜炖牛肉匹配度最高',
+-    '营养校验：南瓜可补充今日纤维缺口',
+-    '确认方案：30分钟内可完成，热量320kcal符合减脂目标'
+-  ],
+-  recipes: [
+-    { recipe_id: 'r_202', title: '南瓜炖牛肉', titleEn: 'Pumpkin Beef Stew', match_score: 0.96, cookTime: 30, difficulty: '简单', difficultyEn: 'Easy', calories: 310 }
+-  ],
+-  shopping_list: [
+-    { name: '牛肉', amount: '300g' },
+-    { name: '南瓜', amount: '200g' },
+-    { name: '生姜', amount: '少许' },
+-    { name: '蒜', amount: '3瓣' },
+-    { name: '生抽', amount: '适量' }
+-  ]
+-}
+-
+-// 响应式获取探索菜谱（根据当前语言自动切换）
++// 响应式获取探索菜谱（根据当前语言自动切换）
+ export function getExploreRecipes() {
+   return L(EXPLORE_RECIPES_RAW)
+ }
+@@ -408,46 +383,32 @@ export const ApiService = {
+   },
+ 
+   // 食材识别
+-  async analyzeIngredient(imageUrl) {
+-    try {
+-      const res = await request({
+-        url: '/v1/sense/analyze',
+-        method: 'POST',
+-        data: {
+-          task_id: 'task_' + Date.now(),
+-          image_url: imageUrl,
+-          context: { scene: 'kitchen' }
+-        }
+-      })
+-      if (res.status === 'success') {
+-        return res.data.ingredients
+-      }
+-    } catch (e) {
+-      console.error('API Error - analyzeIngredient:', e)
+-    }
+-    // fallback: 随机返回1-3个食材让UI更有动态感
+-    const count = Math.floor(Math.random() * 3) + 1
+-    return L(MOCK_INGREDIENTS.slice(0, count))
+-  },
+-
+-  // 获取用户画像
+-  async getUserProfile() {
+-    try {
+-      const res = await request({ url: '/v1/user/profile' })
+-      if (res.status === 'success') return res.data
+-    } catch (e) {
+-      console.error('API Error - getUserProfile:', e)
+-    }
+-    return L(MOCK_USER_PROFILE)
+-  },
++  async analyzeIngredient(imageUrl) {
++    const res = await request({
++      url: '/v1/sense/analyze',
++      method: 'POST',
++      data: {
++        task_id: 'task_' + Date.now(),
++        image_url: imageUrl,
++        context: { scene: 'kitchen' }
++      }
++    })
++    if (res.status === 'success') return L(res.data.ingredients || [])
++    throw new Error(res.error?.message || '食材识别失败')
++  },
+ 
+-  async updateProfile(goal, preferences) {
+-    try {
+-      const res = await request({ url: '/v1/user/profile', method: 'PUT', data: { goal, preferences } })
+-      if (res.status === 'success') return res.data
+-    } catch (e) { console.error('API Error - updateProfile:', e) }
+-    return null
+-  },
++  // 获取用户画像
++  async getUserProfile() {
++    const res = await request({ url: '/v1/user/profile' })
++    if (res.status === 'success') return res.data
++    throw new Error(res.error?.message || '获取用户画像失败')
++  },
++
++  async updateProfile(goal, preferences) {
++    const res = await request({ url: '/v1/user/profile', method: 'PUT', data: { goal, preferences } })
++    if (res.status === 'success') return res.data
++    throw new Error(res.error?.message || '更新用户画像失败')
++  },
+ 
+   // 获取营养状态
+   async getNutritionStatus() {
+@@ -470,63 +431,45 @@ export const ApiService = {
+     throw new Error(res.error?.message || '生成推荐失败')
+   },
+ 
+-  // 获取菜谱详情
+-  async getRecipeDetail(recipeId) {
+-    try {
+-      const res = await request({ url: `/v1/recipes/${recipeId}` })
+-      if (res.status === 'success') return res.data
+-    } catch (e) {
+-      console.error('API Error - getRecipeDetail:', e)
+-    }
+-    // 优先从详情字典查找
+-    if (MOCK_RECIPE_DETAILS[recipeId]) return L(MOCK_RECIPE_DETAILS[recipeId])
+-    return L(MOCK_RECIPE_DETAIL)
+-  },
++  // 获取菜谱详情
++  async getRecipeDetail(recipeId) {
++    const res = await request({ url: `/v1/recipes/${recipeId}` })
++    if (res.status === 'success') return L(res.data)
++    throw new Error(res.error?.message || '获取菜谱详情失败')
++  },
+ 
+-  // Agent对话（支持传入图片 URL）
+-  async agentExecute(input, imageUrl = null) {
+-    try {
+-      const res = await request({
+-        url: '/v1/agent/execute',
+-        method: 'POST',
+-        data: { input, image_url: imageUrl || undefined }
+-      })
+-      if (res.status === 'success') return res.data
+-    } catch (e) {
+-      console.error('API Error - agentExecute:', e)
+-    }
+-    return L(MOCK_AGENT_RESPONSE)
+-  },
++  // Agent对话（支持传入图片 URL）
++  async agentExecute(input, imageUrl = null) {
++    const res = await request({
++      url: '/v1/agent/execute',
++      method: 'POST',
++      data: { input, image_url: imageUrl || undefined }
++    })
++    if (res.status === 'success') return L(res.data)
++    throw new Error(res.error?.message || 'AI Agent 暂未连通')
++  },
+ 
+-  // 提交反馈
+-  async submitFeedback(recipeId, rating) {
+-    try {
+-      await request({
+-        url: '/v1/feedback/meal',
+-        method: 'POST',
+-        data: { recipe_id: recipeId, rating }
+-      })
+-      return { acknowledged: true, reward_points: rating === 5 ? 5 : 1 }
+-    } catch (e) {
+-      console.error('API Error - submitFeedback:', e)
+-    }
+-    return { acknowledged: true, reward_points: rating === 5 ? 5 : 1 }
+-  },
++  // 提交反馈
++  async submitFeedback(recipeId, rating) {
++    const res = await request({
++      url: '/v1/feedback/meal',
++      method: 'POST',
++      data: { recipe_id: recipeId, rating }
++    })
++    if (res.status === 'success') return res.data
++    throw new Error(res.error?.message || '提交反馈失败')
++  },
+ 
+-  // 合并购物清单
+-  async mergeShoppingList(recipeIds) {
+-    try {
+-      const res = await request({
+-        url: '/v1/task/merge-list',
+-        method: 'POST',
+-        data: { recipes: recipeIds }
+-      })
+-      if (res.status === 'success') return res.data.shopping_list
+-    } catch (e) {
+-      console.error('API Error - mergeShoppingList:', e)
+-    }
+-    return L(MOCK_SHOPPING_LIST)
+-  },
++  // 合并购物清单
++  async mergeShoppingList(recipeIds) {
++    const res = await request({
++      url: '/v1/task/merge-list',
++      method: 'POST',
++      data: { recipes: recipeIds }
++    })
++    if (res.status === 'success') return L(res.data.shopping_list || [])
++    throw new Error(res.error?.message || '合并购物清单失败')
++  },
+ 
+   // 登录（后端只收 openid，返回 { token, user_id, name }）
+   async login(openid) {
+diff --git a/bsapp/src/pages/history/history.vue b/bsapp/src/pages/history/history.vue
+index 88cce0d..bee9c0d 100644
+--- a/bsapp/src/pages/history/history.vue
++++ b/bsapp/src/pages/history/history.vue
+@@ -32,7 +32,10 @@
+             </view>
+           </view>
+           <text class="hist-detail">{{ item.detail }}</text>
+-          <text class="hist-time">{{ formatTime(item.createdAt) }}</text>
++          <view class="hist-bottom">
++            <text class="hist-time">{{ formatTime(item.createdAt) }}</text>
++            <button v-if="item.recipes && item.recipes.length" class="hist-export" @tap.stop="exportRecord(item)">导出</button>
++          </view>
+         </view>
+       </view>
+     </view>
+@@ -61,9 +64,15 @@ function formatTime(dateStr) {
+ function goDetail(item) {
+   if (item.recipeId) {
+     uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${item.recipeId}&title=${encodeURIComponent(item.title)}` })
++  } else if (item.recipes && item.recipes.length) {
++    exportRecord(item)
+   }
+ }
+ 
++function exportRecord(item) {
++  uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(item.recipes || []))}` })
++}
++
+ function iconFor(type) {
+   const text = String(type || '')
+   if (text.includes('识别') || text.toLowerCase().includes('scan')) return '/static/icons/icon_scan.svg'
+@@ -141,7 +150,9 @@ function iconFor(type) {
+ .hist-row { display: flex; align-items: center; gap: 10rpx; }
+ .hist-title { flex: 1; font-size: 28rpx; font-weight: 800; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+ .hist-detail { font-size: 24rpx; color: var(--text-secondary); display: block; margin-top: 8rpx; line-height: 1.45; }
+-.hist-time { font-size: 21rpx; color: var(--text-muted); display: block; margin-top: 10rpx; }
++.hist-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 10rpx; }
++.hist-time { font-size: 21rpx; color: var(--text-muted); display: block; }
++.hist-export { width: 76rpx; height: 48rpx; margin: 0; padding: 0; border: none; border-radius: var(--radius-full); background: var(--teal); color: #fff; font-size: 20rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+ .hist-type-tag {
+   background: var(--bg-elevated);
+   padding: 6rpx 14rpx;
+diff --git a/bsapp/src/pages/home/home.vue b/bsapp/src/pages/home/home.vue
+index abc13ca..ff60be1 100644
+--- a/bsapp/src/pages/home/home.vue
++++ b/bsapp/src/pages/home/home.vue
+@@ -138,24 +138,47 @@
+         <text class="section-sub">输入目标直接走 Agent</text>
+       </view>
+       <view class="ai-card">
++        <view v-if="agentMessages.length === 0" class="ai-empty">
++          <text>告诉我你的目标、食材和时间，我会展示推理过程并给出可导出的食谱。</text>
++        </view>
++        <view v-else class="ai-thread">
++          <view v-for="msg in agentMessages" :key="msg.id" class="chat-row" :class="msg.role">
++            <view class="chat-bubble">
++              <text class="chat-text">{{ msg.text }}</text>
++              <view v-if="msg.result" class="agent-panel">
++                <view class="agent-stages">
++                  <view v-for="stage in msg.result.stages || []" :key="stage.stage" class="agent-stage" :class="stage.status">
++                    <text class="stage-name">{{ stageLabel(stage.stage) }}</text>
++                    <text class="stage-status">{{ stageStatusLabel(stage.status) }}</text>
++                  </view>
++                </view>
++                <view v-if="msg.result.parsed_intent" class="ai-intent-row">
++                  <text class="ai-intent-chip">{{ msg.result.parsed_intent.time_limit || msg.result.parsed_intent.time || 30 }}min</text>
++                  <text class="ai-intent-chip">{{ goalLabel(msg.result.parsed_intent.goal) }}</text>
++                  <text v-for="item in intentIngredients(msg.result)" :key="item" class="ai-intent-chip">{{ item }}</text>
++                </view>
++                <view v-if="msg.result.recipes && msg.result.recipes.length" class="agent-recipes">
++                  <view v-for="recipe in msg.result.recipes.slice(0, 2)" :key="recipe.recipe_id || recipe.recipeId" class="agent-recipe">
++                    <view class="agent-recipe-main" @tap="goRecipeDetail(recipe)">
++                      <text class="agent-recipe-title">{{ recipe.title }}</text>
++                      <text class="agent-recipe-meta">{{ matchPercent(recipe) }}% 匹配 · {{ recipe.cookTime || recipe.cook_time || '--' }}min · {{ recipe.calories || '--' }}kcal</text>
++                    </view>
++                    <button class="agent-mini-btn" @tap.stop="saveAgentRecipe(recipe, msg.result)">记录</button>
++                  </view>
++                </view>
++                <view v-if="msg.result.shopping_list && msg.result.shopping_list.length" class="agent-shopping">
++                  <text>已合并 {{ msg.result.shopping_list.length }} 项清单</text>
++                  <button @tap.stop="exportAgentList(msg.result)">导出</button>
++                </view>
++              </view>
++            </view>
++          </view>
++        </view>
+         <view class="ai-input-row">
+           <image src="/static/icons/icon_ai.svg" class="ai-icon" mode="widthFix" />
+           <input class="ai-input" v-model="agentMessage" :placeholder="$t('aiPlaceholder')" placeholder-class="ph" @confirm="sendAgentMessage" />
+           <button class="ai-send" @tap="sendAgentMessage">{{ $t('send') }}</button>
+         </view>
+-        <view v-if="agentResult" class="ai-result">
+-          <view v-if="agentResult.parsed_intent" class="ai-intent-row">
+-            <text class="ai-intent-chip">{{ agentResult.parsed_intent.time_limit || agentResult.parsed_intent.time || 30 }}min</text>
+-            <text class="ai-intent-chip">{{ goalLabel(agentResult.parsed_intent.goal) }}</text>
+-            <text v-for="item in (agentResult.parsed_intent.ingredients || agentResult.parsed_intent.core_items || [])" :key="item" class="ai-intent-chip">{{ item }}</text>
+-          </view>
+-          <view v-if="agentResult.cot_reasoning && agentResult.cot_reasoning.length > 0" class="ai-cot">
+-            <view v-for="(step, idx) in agentResult.cot_reasoning.slice(0,3)" :key="idx" class="ai-cot-row">
+-              <text class="ai-cot-num">{{ idx + 1 }}</text>
+-              <text class="ai-cot-text">{{ step }}</text>
+-            </view>
+-          </view>
+-        </view>
+       </view>
+ 
+       <view class="bottom-safe"></view>
+@@ -182,6 +205,7 @@ const isLoading = ref(false)
+ const refreshing = ref(false)
+ const agentMessage = ref('')
+ const agentResult = ref(null)
++const agentMessages = ref([])
+ const apiNotice = ref('')
+ const byteFlow = [
+   { key: 'B', label: '食材感知' },
+@@ -275,19 +299,61 @@ async function onRefresh() { refreshing.value = true; await loadNutrition(); awa
+ async function refreshRecommendations() { await generateRecommendations(); historyStore.addEntry({ type: 'recommendation', title: $t('refreshTitle'), detail: t('refreshDetail',{n:ingredients.value.length}) }) }
+ async function sendAgentMessage() {
+   const m = agentMessage.value.trim(); if (!m) return
++  const userMsg = { id: 'u_' + Date.now(), role: 'user', text: m }
++  agentMessages.value.push(userMsg)
+   isLoading.value = true
+   try {
+     const r = await ApiService.agentExecute(m)
+     agentResult.value = r
+     if (r.recipes && r.recipes.length) recipes.value = r.recipes
+     if (r.parsed_intent?.ingredients) ingredients.value = r.parsed_intent.ingredients.map(i => typeof i === 'string' ? { name: i } : i)
++    agentMessages.value.push({
++      id: 'a_' + Date.now(),
++      role: 'assistant',
++      text: r.reply || '我已完成分析，并整理了推荐食谱。',
++      result: r
++    })
++    saveAgentSession(r)
+     agentMessage.value = ''
+   } catch (e) {
+     apiNotice.value = 'AI Agent 暂未连通，请稍后重试或检查后端服务。'
++    agentMessages.value.push({ id: 'e_' + Date.now(), role: 'assistant', text: e.message || apiNotice.value })
+   } finally {
+     isLoading.value = false
+   }
+ }
++function intentIngredients(result) {
++  const intent = result?.parsed_intent || {}
++  return (intent.ingredients || intent.core_items || []).map(i => typeof i === 'string' ? i : i.name).filter(Boolean)
++}
++function stageLabel(stage) { return ({ sense: '感知', decision: '推荐', task: '清单' })[stage] || stage }
++function stageStatusLabel(status) { return ({ success: '完成', skipped: '跳过', empty: '空', error: '异常', failed: '失败' })[status] || status }
++function saveAgentSession(result) {
++  const first = result.recipes?.[0]
++  historyStore.addEntry({
++    type: 'agent_recipe',
++    title: first?.title || 'AI 助手推荐',
++    detail: result.reply || `生成 ${result.recipes?.length || 0} 个推荐`,
++    recipeId: first?.recipe_id || first?.recipeId || '',
++    recipes: result.recipes || [],
++    shoppingList: result.shopping_list || []
++  })
++}
++function saveAgentRecipe(recipe, result) {
++  historyStore.addEntry({
++    type: 'agent_recipe',
++    title: recipe.title,
++    detail: `AI 推荐 · ${matchPercent(recipe)}% 匹配`,
++    recipeId: recipe.recipe_id || recipe.recipeId || '',
++    recipes: [recipe],
++    shoppingList: result.shopping_list || []
++  })
++  uni.showToast({ title: '已记录到历史', icon: 'success' })
++}
++function exportAgentList(result) {
++  const payload = result.recipes?.length ? result.recipes : recipes.value
++  uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(payload))}` })
++}
+ function goalLabel(g) { const m = { fat_loss:'减脂', muscle_gain:'增肌', maintain:'保持', balanced:'均衡', healthy:'健康' }; return m[g]||g }
+ function matchPercent(r) { return ((r?.matchScore || r?.match_score || 0) * 100).toFixed(0) }
+ function freshnessLabel(f) { return ({ high: '新鲜', normal: '冷藏', medium: '普通', low: '待确认' })[f] || f || '待确认' }
+@@ -437,17 +503,37 @@ onShow(() => {
+ .mini-desc { display: block; margin-top: 6rpx; font-size: 22rpx; color: var(--text-muted); }
+ 
+ .ai-card { padding: 18rpx; }
++.ai-empty { background: var(--purple-bg); border-radius: 20rpx; padding: 18rpx; margin-bottom: 14rpx; color: var(--text-secondary); font-size: 24rpx; line-height: 1.45; }
++.ai-thread { display: flex; flex-direction: column; gap: 12rpx; margin-bottom: 14rpx; max-height: 560rpx; overflow: hidden; }
++.chat-row { display: flex; }
++.chat-row.user { justify-content: flex-end; }
++.chat-row.assistant { justify-content: flex-start; }
++.chat-bubble { max-width: 92%; border-radius: 22rpx; padding: 16rpx 18rpx; box-sizing: border-box; }
++.chat-row.user .chat-bubble { background: var(--teal); color: #fff; border-bottom-right-radius: 8rpx; }
++.chat-row.assistant .chat-bubble { background: var(--bg-elevated); color: var(--text); border-bottom-left-radius: 8rpx; }
++.chat-text { display: block; font-size: 24rpx; line-height: 1.5; }
++.agent-panel { margin-top: 14rpx; display: flex; flex-direction: column; gap: 12rpx; }
++.agent-stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8rpx; }
++.agent-stage { border-radius: 16rpx; padding: 10rpx 8rpx; background: #fff; border: 1rpx solid var(--border-light); }
++.agent-stage.success { background: var(--green-bg); border-color: rgba(35,169,120,.18); }
++.agent-stage.error, .agent-stage.failed { background: var(--red-bg); border-color: rgba(239,68,68,.18); }
++.stage-name { display: block; font-size: 20rpx; font-weight: 900; color: var(--text); text-align: center; }
++.stage-status { display: block; margin-top: 4rpx; font-size: 18rpx; color: var(--text-muted); text-align: center; }
++.agent-recipes { display: flex; flex-direction: column; gap: 8rpx; }
++.agent-recipe { background: #fff; border-radius: 18rpx; padding: 14rpx; display: flex; align-items: center; gap: 12rpx; border: 1rpx solid var(--border-light); }
++.agent-recipe-main { flex: 1; min-width: 0; }
++.agent-recipe-title { display: block; font-size: 25rpx; font-weight: 900; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
++.agent-recipe-meta { display: block; margin-top: 6rpx; font-size: 20rpx; color: var(--text-muted); }
++.agent-mini-btn { width: 78rpx; height: 52rpx; margin: 0; padding: 0; border-radius: var(--radius-full); background: var(--berry); color: #fff; font-size: 21rpx; font-weight: 900; border: none; display: flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0; }
++.agent-shopping { background: #fff; border-radius: 18rpx; padding: 12rpx 14rpx; display: flex; align-items: center; justify-content: space-between; gap: 12rpx; border: 1rpx solid var(--border-light); }
++.agent-shopping text { color: var(--text-secondary); font-size: 22rpx; }
++.agent-shopping button { width: 82rpx; height: 52rpx; margin: 0; padding: 0; border-radius: var(--radius-full); background: var(--teal); color: #fff; font-size: 21rpx; font-weight: 900; border: none; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+ .ai-input-row { display: flex; align-items: center; gap: 10rpx; }
+ .ai-icon { width: 42rpx; height: 42rpx; flex-shrink: 0; }
+ .ai-input { flex: 1; min-width: 0; height: 72rpx; background: var(--bg); border: 1px solid var(--border-light); border-radius: var(--radius-full); padding: 0 22rpx; font-size: 26rpx; color: var(--text); box-sizing: border-box; }
+ .ai-send { width: 96rpx; height: 72rpx; margin: 0; padding: 0; background: var(--berry); color: #fff; border: none; border-radius: var(--radius-full); font-size: 25rpx; font-weight: 800; line-height: 1; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex-shrink: 0; }
+-.ai-result { margin-top: 16rpx; }
+ .ai-intent-row { display: flex; flex-wrap: wrap; gap: 8rpx; margin-bottom: 12rpx; }
+ .ai-intent-chip { font-size: 22rpx; background: var(--purple-bg); color: var(--berry); padding: 7rpx 14rpx; border-radius: var(--radius-full); }
+-.ai-cot { display: flex; flex-direction: column; gap: 10rpx; }
+-.ai-cot-row { display: flex; align-items: flex-start; gap: 10rpx; }
+-.ai-cot-num { width: 32rpx; height: 32rpx; background: var(--berry); color: #fff; border-radius: 50%; font-size: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+-.ai-cot-text { font-size: 24rpx; color: var(--text-secondary); flex: 1; line-height: 1.45; }
+ .ph { color: var(--text-placeholder); }
+ .bottom-safe { height: 132rpx; }
+ </style>
+diff --git a/bsapp/src/pages/list-export/list-export.vue b/bsapp/src/pages/list-export/list-export.vue
+index e6ab6fe..04f1049 100644
+--- a/bsapp/src/pages/list-export/list-export.vue
++++ b/bsapp/src/pages/list-export/list-export.vue
+@@ -152,12 +152,8 @@ onLoad(async (options) => {
+           const merged = await ApiService.mergeShoppingList(ids)
+           editingList.value = dedupeIngredients(merged)
+         } catch (e) {
+-          errorNotice.value = '后端清单合并暂未连通，已根据食谱生成本地演示清单。'
+-          editingList.value = dedupeIngredients([
+-            { name: '牛肉', amount: '300g', nameEn: 'Beef' },
+-            { name: '西兰花', amount: '200g', nameEn: 'Broccoli' },
+-            { name: '蒜蓉', amount: '10g', nameEn: 'Minced Garlic' }
+-          ])
++          errorNotice.value = '后端清单合并暂未连通，未使用本地演示清单。'
++          editingList.value = []
+         }
+       } else if (parsed.length > 0 && parsed[0].name) {
+         recipes.value = [{ title: 'AI推荐', recipeId: 'r_ai' }]
+@@ -165,12 +161,9 @@ onLoad(async (options) => {
+       }
+     }
+   } catch (e) {
+-    editingList.value = dedupeIngredients([
+-      { name: '牛肉', amount: '300g', nameEn: 'Beef' },
+-      { name: '蒜蓉', amount: '10g', nameEn: 'Minced Garlic' }
+-    ])
++    errorNotice.value = '清单参数解析失败，未使用本地演示清单。'
++    editingList.value = []
+   }
+-  if (recipes.value.length === 0) recipes.value = [{ title: '示例菜谱', recipeId: 'r_101' }]
+   isLoading.value = false
+ })
+ 
+diff --git a/bsapp/src/pages/profile/profile.vue b/bsapp/src/pages/profile/profile.vue
+index 334f94f..20e9288 100644
+--- a/bsapp/src/pages/profile/profile.vue
++++ b/bsapp/src/pages/profile/profile.vue
+@@ -21,6 +21,10 @@
+         </view>
+       </view>
+ 
++      <view v-if="errorNotice" class="notice-card">
++        <text>{{ errorNotice }}</text>
++      </view>
++
+       <view class="dashboard-grid" v-if="nutrition">
+         <view class="metric-card">
+           <text class="metric-label">{{ $t('healthScore') }}</text>
+@@ -104,6 +108,7 @@ const authStore = useAuthStore()
+ 
+ const profile = ref(null)
+ const nutrition = ref(null)
++const errorNotice = ref('')
+ 
+ const displayName = computed(() => settingsStore.displayName || $t('defaultName'))
+ const goalLabel = computed(() => {
+@@ -115,8 +120,19 @@ const deficits = computed(() => nutrition.value?.deficits || [])
+ 
+ onShow(async () => { await loadProfile() })
+ async function loadProfile() {
+-  profile.value = await ApiService.getUserProfile()
+-  nutrition.value = await ApiService.getNutritionStatus()
++  errorNotice.value = ''
++  try {
++    profile.value = await ApiService.getUserProfile()
++  } catch (e) {
++    profile.value = null
++    errorNotice.value = e.message || '用户画像加载失败'
++  }
++  try {
++    nutrition.value = await ApiService.getNutritionStatus()
++  } catch (e) {
++    nutrition.value = null
++    errorNotice.value = errorNotice.value || (e.message || '营养数据加载失败')
++  }
+ }
+ watch(currentLang, () => { loadProfile() })
+ 
+@@ -222,6 +238,15 @@ async function handleLogout() {
+   padding: 8rpx 18rpx;
+   border-radius: var(--radius-full);
+ }
++.notice-card {
++  margin-top: 20rpx;
++  background: var(--amber-bg);
++  color: var(--text-secondary);
++  border-radius: var(--radius);
++  padding: 18rpx 20rpx;
++  font-size: 24rpx;
++  line-height: 1.45;
++}
+ .dashboard-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16rpx; margin-top: 20rpx; }
+ .metric-card {
+   background: var(--bg-card);
+diff --git a/bsapp/src/pages/recipe-detail/recipe-detail.vue b/bsapp/src/pages/recipe-detail/recipe-detail.vue
+index af7428e..f0677d6 100644
+--- a/bsapp/src/pages/recipe-detail/recipe-detail.vue
++++ b/bsapp/src/pages/recipe-detail/recipe-detail.vue
+@@ -117,9 +117,16 @@ const isLiked = ref(false)
+ const feedback = ref('')
+ 
+ async function loadDetail() {
+-  detail.value = await ApiService.getRecipeDetail(recipeId.value)
+-  uni.setNavigationBarTitle({ title: detail.value?.title || title.value })
+-  isLoading.value = false
++  isLoading.value = true
++  try {
++    detail.value = await ApiService.getRecipeDetail(recipeId.value)
++    uni.setNavigationBarTitle({ title: detail.value?.title || title.value })
++  } catch (e) {
++    detail.value = null
++    uni.showToast({ title: e.message || '菜谱详情加载失败', icon: 'none' })
++  } finally {
++    isLoading.value = false
++  }
+ }
+ onLoad(async (options) => {
+   recipeId.value = options.recipeId || 'r_101'
+@@ -130,11 +137,15 @@ watch(currentLang, () => { loadDetail() })
+ function setRating(n) { rating.value = n }
+ async function submitFeedback() {
+   if (rating.value > 0) {
+-    const result = await ApiService.submitFeedback(recipeId.value, rating.value)
+-    const points = result?.reward_points || 1
+-    uni.showToast({ title: $t('thanksFeedback') + '+' + points + $t('rewardPoints'), icon: 'success' })
+-    rating.value = 0
+-    feedback.value = ''
++    try {
++      const result = await ApiService.submitFeedback(recipeId.value, rating.value)
++      const points = result?.reward_points || 1
++      uni.showToast({ title: $t('thanksFeedback') + '+' + points + $t('rewardPoints'), icon: 'success' })
++      rating.value = 0
++      feedback.value = ''
++    } catch (e) {
++      uni.showToast({ title: e.message || '反馈提交失败', icon: 'none' })
++    }
+   } else {
+     uni.showToast({ title: $t('clickToRate'), icon: 'none' })
+   }
+@@ -159,10 +170,14 @@ function ingredientGlyph(item) {
+   return '菜'
+ }
+ async function generateShoppingList() {
+-  await ApiService.mergeShoppingList([recipeId.value])
+-  const recipes = [{ recipeId: recipeId.value, title: detail.value?.title || '', matchScore: 1.0 }]
+-  const data = encodeURIComponent(JSON.stringify(recipes))
+-  uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${data}` })
++  try {
++    await ApiService.mergeShoppingList([recipeId.value])
++    const recipes = [{ recipeId: recipeId.value, title: detail.value?.title || '', matchScore: 1.0 }]
++    const data = encodeURIComponent(JSON.stringify(recipes))
++    uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${data}` })
++  } catch (e) {
++    uni.showToast({ title: e.message || '购物清单生成失败', icon: 'none' })
++  }
+ }
+ function showShare() {
+   uni.showActionSheet({
+diff --git a/bsapp/src/store/history.js b/bsapp/src/store/history.js
+index 78e0008..1241edd 100644
+--- a/bsapp/src/store/history.js
++++ b/bsapp/src/store/history.js
+@@ -19,11 +19,13 @@ export const useHistoryStore = defineStore('history', () => {
+   function addEntry(entry) {
+     items.value.unshift({
+       type: entry.type || 'unknown',
+-      title: entry.title || '',
+-      detail: entry.detail || '',
+-      recipeId: entry.recipeId || '',
+-      createdAt: entry.createdAt || new Date().toISOString()
+-    })
++      title: entry.title || '',
++      detail: entry.detail || '',
++      recipeId: entry.recipeId || '',
++      recipes: entry.recipes || [],
++      shoppingList: entry.shoppingList || [],
++      createdAt: entry.createdAt || new Date().toISOString()
++    })
+     if (items.value.length > MAX_RECORDS) {
+       items.value.splice(MAX_RECORDS)
+     }
+diff --git a/tests/test_agent.py b/tests/test_agent.py
+index d673e4b..990eaba 100644
+--- a/tests/test_agent.py
++++ b/tests/test_agent.py
+@@ -1,4 +1,5 @@
+ from app.services.agent import _parse_intent_regex
++import pytest
+ 
+ 
+ def test_parse_intent_fat_loss():
+@@ -24,3 +25,16 @@ def test_parse_intent_default():
+     intent = _parse_intent_regex("随便吃点东西")
+     assert intent["goal"] == "balanced"
+     assert intent["time_limit"] == 30
++
++
++@pytest.mark.asyncio(loop_scope="session")
++async def test_agent_execute_returns_reply_text(client):
++    resp = await client.post("/v1/agent/execute", json={
++        "input": "牛肉南瓜减脂30分钟",
++        "mode": "recommend"
++    })
++    assert resp.status_code == 200
++    data = resp.json()
++    assert data["status"] == "success"
++    assert data["data"]["reply"]
++    assert "recipes" in data["data"]

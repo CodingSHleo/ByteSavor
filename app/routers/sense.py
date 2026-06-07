@@ -1,16 +1,11 @@
+import logging
+
 from fastapi import APIRouter
 from app.schemas import SenseRequest, SuccessResponse, ErrorResponse
 from app.services import vlm
 
 router = APIRouter()
-
-MOCK = {
-    "ingredients": [
-        {"name": "西兰花", "confidence": 0.98, "freshness": "high", "state": "新鲜"},
-        {"name": "牛肉", "confidence": 0.95, "freshness": "normal", "state": "冷藏"},
-    ],
-    "portion_estimation": {"total_weight": 320},
-}
+logger = logging.getLogger("sense")
 
 
 @router.post("/v1/sense/analyze", tags=["Sense"])
@@ -20,9 +15,11 @@ async def analyze_ingredients(req: SenseRequest):
 
     result = await vlm.analyze_food(req.image_url)
     if result is None:
-        import logging
-        logging.getLogger("sense").warning("vlm returned None, using mock")
-        result = MOCK
+        logger.warning("vlm returned None; returning explicit unavailable error")
+        return ErrorResponse(error={
+            "code": "VLM_UNAVAILABLE",
+            "message": "视觉模型暂不可用，未使用本地模拟识别结果",
+        })
     elif not result.get("ingredients"):
         return SuccessResponse(data={
             "ingredients": [],

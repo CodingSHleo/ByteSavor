@@ -117,9 +117,16 @@ const isLiked = ref(false)
 const feedback = ref('')
 
 async function loadDetail() {
-  detail.value = await ApiService.getRecipeDetail(recipeId.value)
-  uni.setNavigationBarTitle({ title: detail.value?.title || title.value })
-  isLoading.value = false
+  isLoading.value = true
+  try {
+    detail.value = await ApiService.getRecipeDetail(recipeId.value)
+    uni.setNavigationBarTitle({ title: detail.value?.title || title.value })
+  } catch (e) {
+    detail.value = null
+    uni.showToast({ title: e.message || '菜谱详情加载失败', icon: 'none' })
+  } finally {
+    isLoading.value = false
+  }
 }
 onLoad(async (options) => {
   recipeId.value = options.recipeId || 'r_101'
@@ -130,11 +137,15 @@ watch(currentLang, () => { loadDetail() })
 function setRating(n) { rating.value = n }
 async function submitFeedback() {
   if (rating.value > 0) {
-    const result = await ApiService.submitFeedback(recipeId.value, rating.value)
-    const points = result?.reward_points || 1
-    uni.showToast({ title: $t('thanksFeedback') + '+' + points + $t('rewardPoints'), icon: 'success' })
-    rating.value = 0
-    feedback.value = ''
+    try {
+      const result = await ApiService.submitFeedback(recipeId.value, rating.value)
+      const points = result?.reward_points || 1
+      uni.showToast({ title: $t('thanksFeedback') + '+' + points + $t('rewardPoints'), icon: 'success' })
+      rating.value = 0
+      feedback.value = ''
+    } catch (e) {
+      uni.showToast({ title: e.message || '反馈提交失败', icon: 'none' })
+    }
   } else {
     uni.showToast({ title: $t('clickToRate'), icon: 'none' })
   }
@@ -159,10 +170,14 @@ function ingredientGlyph(item) {
   return '菜'
 }
 async function generateShoppingList() {
-  await ApiService.mergeShoppingList([recipeId.value])
-  const recipes = [{ recipeId: recipeId.value, title: detail.value?.title || '', matchScore: 1.0 }]
-  const data = encodeURIComponent(JSON.stringify(recipes))
-  uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${data}` })
+  try {
+    await ApiService.mergeShoppingList([recipeId.value])
+    const recipes = [{ recipeId: recipeId.value, title: detail.value?.title || '', matchScore: 1.0 }]
+    const data = encodeURIComponent(JSON.stringify(recipes))
+    uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${data}` })
+  } catch (e) {
+    uni.showToast({ title: e.message || '购物清单生成失败', icon: 'none' })
+  }
 }
 function showShare() {
   uni.showActionSheet({

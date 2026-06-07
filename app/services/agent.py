@@ -101,15 +101,41 @@ async def execute(
     })
 
     has_error = any(s["status"] in {"error", "failed"} for s in stages)
+    reply = _build_reply(intent, recipes, shop_list, has_error)
     return {
         "trace_id": trace_id,
         "stages": stages,
+        "reply": reply,
         "parsed_intent": intent,
         "ingredients": [{"name": i, "from": "text" if i in intent["ingredients"] else "vlm"} for i in ingredients],
         "recipes": recipes,
         "shopping_list": shop_list,
         "degraded": has_error,
     }
+
+
+def _build_reply(intent: dict, recipes: list[dict], shop_list: list[dict], degraded: bool) -> str:
+    goal_map = {"fat_loss": "减脂", "muscle_gain": "增肌", "balanced": "均衡", "healthy": "健康"}
+    goal = goal_map.get(intent.get("goal"), intent.get("goal") or "均衡")
+    time_limit = intent.get("time_limit", 30)
+    ingredients = "、".join(intent.get("ingredients") or [])
+    prefix = f"我按{goal}目标和{time_limit}分钟限制整理好了"
+    if ingredients:
+        prefix += f"，重点使用{ingredients}"
+    if recipes:
+        top = recipes[0]
+        title = top.get("title", "推荐菜谱")
+        score = int((top.get("match_score") or 0) * 100)
+        text = f"{prefix}。优先推荐「{title}」，匹配度约{score}%。"
+        if len(recipes) > 1:
+            text += f" 另外还有{len(recipes) - 1}个备选。"
+    else:
+        text = f"{prefix}，但暂时没有找到合适菜谱。"
+    if shop_list:
+        text += f" 我也合并了{len(shop_list)}项购物清单，后续可以直接导出。"
+    if degraded:
+        text += " 部分阶段降级执行，建议检查后端日志。"
+    return text
 
 
 def _parse_intent_regex(text: str) -> dict:

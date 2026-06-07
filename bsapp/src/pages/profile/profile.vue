@@ -21,6 +21,10 @@
         </view>
       </view>
 
+      <view v-if="errorNotice" class="notice-card">
+        <text>{{ errorNotice }}</text>
+      </view>
+
       <view class="dashboard-grid" v-if="nutrition">
         <view class="metric-card">
           <text class="metric-label">{{ $t('healthScore') }}</text>
@@ -104,6 +108,7 @@ const authStore = useAuthStore()
 
 const profile = ref(null)
 const nutrition = ref(null)
+const errorNotice = ref('')
 
 const displayName = computed(() => settingsStore.displayName || $t('defaultName'))
 const goalLabel = computed(() => {
@@ -115,8 +120,19 @@ const deficits = computed(() => nutrition.value?.deficits || [])
 
 onShow(async () => { await loadProfile() })
 async function loadProfile() {
-  profile.value = await ApiService.getUserProfile()
-  nutrition.value = await ApiService.getNutritionStatus()
+  errorNotice.value = ''
+  try {
+    profile.value = await ApiService.getUserProfile()
+  } catch (e) {
+    profile.value = null
+    errorNotice.value = e.message || '用户画像加载失败'
+  }
+  try {
+    nutrition.value = await ApiService.getNutritionStatus()
+  } catch (e) {
+    nutrition.value = null
+    errorNotice.value = errorNotice.value || (e.message || '营养数据加载失败')
+  }
 }
 watch(currentLang, () => { loadProfile() })
 
@@ -221,6 +237,15 @@ async function handleLogout() {
   font-size: 23rpx;
   padding: 8rpx 18rpx;
   border-radius: var(--radius-full);
+}
+.notice-card {
+  margin-top: 20rpx;
+  background: var(--amber-bg);
+  color: var(--text-secondary);
+  border-radius: var(--radius);
+  padding: 18rpx 20rpx;
+  font-size: 24rpx;
+  line-height: 1.45;
 }
 .dashboard-grid { display: grid; grid-template-columns: 1.1fr 0.9fr; gap: 16rpx; margin-top: 20rpx; }
 .metric-card {

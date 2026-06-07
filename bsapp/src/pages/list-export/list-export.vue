@@ -152,12 +152,8 @@ onLoad(async (options) => {
           const merged = await ApiService.mergeShoppingList(ids)
           editingList.value = dedupeIngredients(merged)
         } catch (e) {
-          errorNotice.value = '后端清单合并暂未连通，已根据食谱生成本地演示清单。'
-          editingList.value = dedupeIngredients([
-            { name: '牛肉', amount: '300g', nameEn: 'Beef' },
-            { name: '西兰花', amount: '200g', nameEn: 'Broccoli' },
-            { name: '蒜蓉', amount: '10g', nameEn: 'Minced Garlic' }
-          ])
+          errorNotice.value = '后端清单合并暂未连通，未使用本地演示清单。'
+          editingList.value = []
         }
       } else if (parsed.length > 0 && parsed[0].name) {
         recipes.value = [{ title: 'AI推荐', recipeId: 'r_ai' }]
@@ -165,12 +161,9 @@ onLoad(async (options) => {
       }
     }
   } catch (e) {
-    editingList.value = dedupeIngredients([
-      { name: '牛肉', amount: '300g', nameEn: 'Beef' },
-      { name: '蒜蓉', amount: '10g', nameEn: 'Minced Garlic' }
-    ])
+    errorNotice.value = '清单参数解析失败，未使用本地演示清单。'
+    editingList.value = []
   }
-  if (recipes.value.length === 0) recipes.value = [{ title: '示例菜谱', recipeId: 'r_101' }]
   isLoading.value = false
 })
 

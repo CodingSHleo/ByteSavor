@@ -138,23 +138,46 @@
         <text class="section-sub">输入目标直接走 Agent</text>
       </view>
       <view class="ai-card">
+        <view v-if="agentMessages.length === 0" class="ai-empty">
+          <text>告诉我你的目标、食材和时间，我会展示推理过程并给出可导出的食谱。</text>
+        </view>
+        <view v-else class="ai-thread">
+          <view v-for="msg in agentMessages" :key="msg.id" class="chat-row" :class="msg.role">
+            <view class="chat-bubble">
+              <text class="chat-text">{{ msg.text }}</text>
+              <view v-if="msg.result" class="agent-panel">
+                <view class="agent-stages">
+                  <view v-for="stage in msg.result.stages || []" :key="stage.stage" class="agent-stage" :class="stage.status">
+                    <text class="stage-name">{{ stageLabel(stage.stage) }}</text>
+                    <text class="stage-status">{{ stageStatusLabel(stage.status) }}</text>
+                  </view>
+                </view>
+                <view v-if="msg.result.parsed_intent" class="ai-intent-row">
+                  <text class="ai-intent-chip">{{ msg.result.parsed_intent.time_limit || msg.result.parsed_intent.time || 30 }}min</text>
+                  <text class="ai-intent-chip">{{ goalLabel(msg.result.parsed_intent.goal) }}</text>
+                  <text v-for="item in intentIngredients(msg.result)" :key="item" class="ai-intent-chip">{{ item }}</text>
+                </view>
+                <view v-if="msg.result.recipes && msg.result.recipes.length" class="agent-recipes">
+                  <view v-for="recipe in msg.result.recipes.slice(0, 2)" :key="recipe.recipe_id || recipe.recipeId" class="agent-recipe">
+                    <view class="agent-recipe-main" @tap="goRecipeDetail(recipe)">
+                      <text class="agent-recipe-title">{{ recipe.title }}</text>
+                      <text class="agent-recipe-meta">{{ matchPercent(recipe) }}% 匹配 · {{ recipe.cookTime || recipe.cook_time || '--' }}min · {{ recipe.calories || '--' }}kcal</text>
+                    </view>
+                    <button class="agent-mini-btn" @tap.stop="saveAgentRecipe(recipe, msg.result)">记录</button>
+                  </view>
+                </view>
+                <view v-if="msg.result.shopping_list && msg.result.shopping_list.length" class="agent-shopping">
+                  <text>已合并 {{ msg.result.shopping_list.length }} 项清单</text>
+                  <button @tap.stop="exportAgentList(msg.result)">导出</button>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
         <view class="ai-input-row">
           <image src="/static/icons/icon_ai.svg" class="ai-icon" mode="widthFix" />
           <input class="ai-input" v-model="agentMessage" :placeholder="$t('aiPlaceholder')" placeholder-class="ph" @confirm="sendAgentMessage" />
           <button class="ai-send" @tap="sendAgentMessage">{{ $t('send') }}</button>
-        </view>
-        <view v-if="agentResult" class="ai-result">
-          <view v-if="agentResult.parsed_intent" class="ai-intent-row">
-            <text class="ai-intent-chip">{{ agentResult.parsed_intent.time_limit || agentResult.parsed_intent.time || 30 }}min</text>
-            <text class="ai-intent-chip">{{ goalLabel(agentResult.parsed_intent.goal) }}</text>
-            <text v-for="item in (agentResult.parsed_intent.ingredients || agentResult.parsed_intent.core_items || [])" :key="item" class="ai-intent-chip">{{ item }}</text>
-          </view>
-          <view v-if="agentResult.cot_reasoning && agentResult.cot_reasoning.length > 0" class="ai-cot">
-            <view v-for="(step, idx) in agentResult.cot_reasoning.slice(0,3)" :key="idx" class="ai-cot-row">
-              <text class="ai-cot-num">{{ idx + 1 }}</text>
-              <text class="ai-cot-text">{{ step }}</text>
-            </view>
-          </view>
         </view>
       </view>
 
@@ -182,6 +205,7 @@ const isLoading = ref(false)
 const refreshing = ref(false)
 const agentMessage = ref('')
 const agentResult = ref(null)
+const agentMessages = ref([])
 const apiNotice = ref('')
 const byteFlow = [
   { key: 'B', label: '食材感知' },
@@ -275,18 +299,60 @@ async function onRefresh() { refreshing.value = true; await loadNutrition(); awa
 async function refreshRecommendations() { await generateRecommendations(); historyStore.addEntry({ type: 'recommendation', title: $t('refreshTitle'), detail: t('refreshDetail',{n:ingredients.value.length}) }) }
 async function sendAgentMessage() {
   const m = agentMessage.value.trim(); if (!m) return
+  const userMsg = { id: 'u_' + Date.now(), role: 'user', text: m }
+  agentMessages.value.push(userMsg)
   isLoading.value = true
   try {
     const r = await ApiService.agentExecute(m)
     agentResult.value = r
     if (r.recipes && r.recipes.length) recipes.value = r.recipes
     if (r.parsed_intent?.ingredients) ingredients.value = r.parsed_intent.ingredients.map(i => typeof i === 'string' ? { name: i } : i)
+    agentMessages.value.push({
+      id: 'a_' + Date.now(),
+      role: 'assistant',
+      text: r.reply || '我已完成分析，并整理了推荐食谱。',
+      result: r
+    })
+    saveAgentSession(r)
     agentMessage.value = ''
   } catch (e) {
     apiNotice.value = 'AI Agent 暂未连通，请稍后重试或检查后端服务。'
+    agentMessages.value.push({ id: 'e_' + Date.now(), role: 'assistant', text: e.message || apiNotice.value })
   } finally {
     isLoading.value = false
   }
+}
+function intentIngredients(result) {
+  const intent = result?.parsed_intent || {}
+  return (intent.ingredients || intent.core_items || []).map(i => typeof i === 'string' ? i : i.name).filter(Boolean)
+}
+function stageLabel(stage) { return ({ sense: '感知', decision: '推荐', task: '清单' })[stage] || stage }
+function stageStatusLabel(status) { return ({ success: '完成', skipped: '跳过', empty: '空', error: '异常', failed: '失败' })[status] || status }
+function saveAgentSession(result) {
+  const first = result.recipes?.[0]
+  historyStore.addEntry({
+    type: 'agent_recipe',
+    title: first?.title || 'AI 助手推荐',
+    detail: result.reply || `生成 ${result.recipes?.length || 0} 个推荐`,
+    recipeId: first?.recipe_id || first?.recipeId || '',
+    recipes: result.recipes || [],
+    shoppingList: result.shopping_list || []
+  })
+}
+function saveAgentRecipe(recipe, result) {
+  historyStore.addEntry({
+    type: 'agent_recipe',
+    title: recipe.title,
+    detail: `AI 推荐 · ${matchPercent(recipe)}% 匹配`,
+    recipeId: recipe.recipe_id || recipe.recipeId || '',
+    recipes: [recipe],
+    shoppingList: result.shopping_list || []
+  })
+  uni.showToast({ title: '已记录到历史', icon: 'success' })
+}
+function exportAgentList(result) {
+  const payload = result.recipes?.length ? result.recipes : recipes.value
+  uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(payload))}` })
 }
 function goalLabel(g) { const m = { fat_loss:'减脂', muscle_gain:'增肌', maintain:'保持', balanced:'均衡', healthy:'健康' }; return m[g]||g }
 function matchPercent(r) { return ((r?.matchScore || r?.match_score || 0) * 100).toFixed(0) }
@@ -305,49 +371,86 @@ onShow(() => {
 </script>
 
 <style scoped>
-.home-page { min-height: 100vh; background: var(--bg); overflow-x: hidden; }
-.home-top { padding: calc(22rpx + var(--status-bar-height, 0px)) 28rpx 18rpx; }
+.home-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(35,169,120,.12), transparent 32%),
+    linear-gradient(180deg, #F8FCFA 0%, var(--bg) 42%);
+  overflow-x: hidden;
+}
+.home-top { padding: calc(24rpx + var(--status-bar-height, 0px)) 28rpx 18rpx; position: relative; }
 .user-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22rpx; }
-.user-left { display: flex; align-items: center; gap: 16rpx; }
-.avatar { width: 72rpx; height: 72rpx; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm); }
-.greeting { display: block; font-size: 32rpx; font-weight: 800; color: var(--text); }
+.user-left { display: flex; align-items: center; gap: 16rpx; min-width: 0; flex: 1; }
+.user-left > view { min-width: 0; }
+.avatar { width: 74rpx; height: 74rpx; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm), var(--hairline); }
+.greeting { display: block; max-width: 500rpx; font-size: 33rpx; font-weight: 900; color: var(--text); letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .date-text { display: block; font-size: 23rpx; color: var(--text-muted); margin-top: 2rpx; }
-.streak-pill { height: 56rpx; padding: 0 18rpx; border-radius: var(--radius-full); background: #fff; display: flex; align-items: center; gap: 6rpx; color: var(--teal); font-size: 24rpx; font-weight: 700; box-shadow: var(--shadow-sm); }
+.streak-pill { height: 58rpx; padding: 0 18rpx; border-radius: var(--radius-full); background: rgba(255,255,255,.88); display: flex; align-items: center; gap: 6rpx; color: var(--teal); font-size: 24rpx; font-weight: 800; box-shadow: var(--shadow-sm), var(--hairline); backdrop-filter: blur(12rpx); }
 .streak-icon { width: 26rpx; height: 26rpx; }
 
-.status-card { background: #fff; border-radius: var(--radius-lg); padding: 26rpx; box-shadow: var(--shadow-md); }
+.status-card {
+  background:
+    radial-gradient(circle at 88% 18%, rgba(88,207,160,.24), transparent 28%),
+    linear-gradient(145deg, rgba(255,255,255,.96), rgba(248,252,250,.92));
+  border-radius: var(--radius-xl);
+  padding: 28rpx;
+  box-shadow: var(--shadow-lg), var(--hairline);
+  position: relative;
+  overflow: hidden;
+  animation: soft-pop .36s var(--ease) both;
+}
+.status-card::after {
+  content: "";
+  position: absolute;
+  top: -80rpx;
+  right: -70rpx;
+  width: 220rpx;
+  height: 220rpx;
+  border-radius: 50%;
+  background: rgba(35,169,120,.08);
+  pointer-events: none;
+}
 .status-main { display: flex; justify-content: space-between; align-items: center; gap: 20rpx; }
-.eyebrow { display: block; font-size: 24rpx; color: var(--text-secondary); margin-bottom: 8rpx; }
+.eyebrow { display: block; font-size: 23rpx; color: var(--text-secondary); margin-bottom: 8rpx; font-weight: 800; }
 .score-line { display: flex; align-items: flex-end; }
-.score { font-size: 68rpx; line-height: 1; font-weight: 900; color: var(--text); }
+.score { font-size: 76rpx; line-height: .96; font-weight: 950; color: var(--text); }
 .score-unit { font-size: 28rpx; color: var(--text-muted); margin-left: 4rpx; margin-bottom: 6rpx; }
 .status-copy { display: block; margin-top: 10rpx; font-size: 24rpx; color: var(--text-secondary); line-height: 1.45; max-width: 390rpx; }
-.score-ring { width: 150rpx; height: 150rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.score-ring-inner { width: 98rpx; height: 98rpx; border-radius: 50%; background: #fff; display: flex; align-items: center; justify-content: center; color: var(--teal); font-size: 24rpx; font-weight: 900; box-shadow: inset 0 0 0 1px var(--border-light); }
+.score-ring { width: 154rpx; height: 154rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 16rpx 30rpx rgba(35,169,120,.12); animation: float-breathe 3.8s ease-in-out infinite; position: relative; z-index: 1; }
+.score-ring-inner { width: 102rpx; height: 102rpx; border-radius: 50%; background: rgba(255,255,255,.96); display: flex; align-items: center; justify-content: center; color: var(--teal); font-size: 24rpx; font-weight: 950; box-shadow: inset 0 0 0 1px var(--border-light), var(--shadow-xs); }
 .macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-top: 22rpx; }
-.macro-card { border-radius: 18rpx; padding: 16rpx 14rpx; }
+.macro-card { border-radius: 20rpx; padding: 17rpx 15rpx; box-shadow: inset 0 0 0 1rpx rgba(255,255,255,.52); }
 .macro-card.protein { background: var(--green-bg); }
 .macro-card.carbs { background: var(--amber-bg); }
 .macro-card.fat { background: var(--purple-bg); }
 .macro-value { display: block; font-size: 30rpx; font-weight: 900; color: var(--text); }
 .macro-label { display: block; margin-top: 4rpx; font-size: 22rpx; color: var(--text-muted); }
 
-.home-body { padding: 0 28rpx; height: calc(100vh - 360rpx - var(--status-bar-height, 0px)); }
+.home-body { padding: 0 28rpx; height: calc(100vh - 370rpx - var(--status-bar-height, 0px)); }
 .action-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 16rpx; margin-bottom: 24rpx; }
-.scan-card, .byte-card, .ingredient-card, .meal-card, .mini-card, .ai-card, .empty-card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow-sm); }
-.scan-card { min-height: 148rpx; padding: 22rpx; display: flex; align-items: center; gap: 16rpx; }
-.scan-icon-wrap { width: 68rpx; height: 68rpx; border-radius: 20rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+.scan-card, .byte-card, .ingredient-card, .meal-card, .mini-card, .ai-card, .empty-card { background: rgba(255,255,255,.94); border-radius: var(--radius-md); box-shadow: var(--shadow-sm), var(--hairline); }
+.scan-card { min-height: 150rpx; padding: 23rpx; display: flex; align-items: center; gap: 16rpx; position: relative; overflow: hidden; }
+.scan-card::after, .ai-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 0%, rgba(255,255,255,.62) 42%, transparent 70%);
+  transform: translateX(-120%);
+  animation: shimmer-sweep 5.8s ease-in-out infinite;
+  pointer-events: none;
+}
+.scan-icon-wrap { width: 70rpx; height: 70rpx; border-radius: 22rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.08); }
 .scan-icon-wrap text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--teal); font-size: 24rpx; font-weight: 900; opacity: .28; }
 .scan-icon { width: 42rpx; height: 42rpx; position: relative; z-index: 1; }
 .scan-text { flex: 1; min-width: 0; }
 .scan-title { display: block; font-size: 28rpx; font-weight: 800; color: var(--text); }
 .scan-desc { display: block; font-size: 22rpx; color: var(--text-muted); margin-top: 6rpx; line-height: 1.4; }
 .chevron { color: var(--text-muted); font-size: 38rpx; }
-.byte-card { padding: 22rpx; }
+.byte-card { padding: 22rpx; background: linear-gradient(160deg, #FFFFFF 0%, #F4FBF7 100%); }
 .byte-title { display: block; font-size: 30rpx; font-weight: 900; color: var(--text); }
 .byte-desc { display: block; margin-top: 8rpx; color: var(--text-secondary); font-size: 22rpx; min-height: 56rpx; }
 .byte-track { height: 10rpx; border-radius: 10rpx; background: var(--border-light); overflow: hidden; margin-top: 14rpx; }
-.byte-fill { height: 100%; border-radius: 10rpx; background: var(--teal); transition: width .35s var(--ease); }
+.byte-fill { height: 100%; border-radius: 10rpx; background: linear-gradient(90deg, var(--teal), var(--teal-light)); transition: width .35s var(--ease); transform-origin: left center; animation: bar-grow .5s var(--ease) both; }
 .notice-card {
   display: flex;
   align-items: center;
@@ -366,11 +469,11 @@ onShow(() => {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 8rpx;
-  background: #fff;
-  border-radius: var(--radius);
+  background: rgba(255,255,255,.92);
+  border-radius: var(--radius-md);
   padding: 14rpx;
   margin-bottom: 22rpx;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm), var(--hairline);
 }
 .byte-flow-step {
   min-height: 92rpx;
@@ -383,7 +486,7 @@ onShow(() => {
   gap: 6rpx;
   color: var(--text-muted);
 }
-.byte-flow-step.active { background: var(--teal-bg); color: var(--accent); }
+.byte-flow-step.active { background: linear-gradient(180deg, var(--teal-bg), #F4FCF8); color: var(--accent); box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.10); }
 .flow-dot {
   width: 34rpx;
   height: 34rpx;
@@ -398,7 +501,7 @@ onShow(() => {
 .byte-flow-step text { font-size: 19rpx; font-weight: 800; }
 
 .section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 24rpx 2rpx 14rpx; }
-.section-head text:first-child { font-size: 31rpx; font-weight: 900; color: var(--text); }
+.section-head text:first-child { font-size: 31rpx; font-weight: 950; color: var(--text); }
 .section-link { font-size: 24rpx; color: var(--teal); font-weight: 700; }
 .section-sub { font-size: 22rpx; color: var(--text-muted); }
 .ai-section-head {
@@ -411,7 +514,7 @@ onShow(() => {
 }
 .ingredient-card { padding: 20rpx; }
 .ingredient-list { display: flex; flex-wrap: wrap; gap: 12rpx; }
-.ingredient-chip { padding: 12rpx 16rpx; border-radius: var(--radius-full); display: flex; align-items: center; gap: 8rpx; }
+.ingredient-chip { padding: 12rpx 16rpx; border-radius: var(--radius-full); display: flex; align-items: center; gap: 8rpx; box-shadow: inset 0 0 0 1rpx rgba(255,255,255,.55); animation: soft-pop .28s var(--ease) both; }
 .ingredient-chip.fresh-high { background: var(--green-bg); color: var(--teal); }
 .ingredient-chip.fresh-normal { background: var(--amber-bg); color: #9A651B; }
 .ingredient-chip.fresh-low { background: var(--red-bg); color: var(--red); }
@@ -420,34 +523,54 @@ onShow(() => {
 .empty-row { min-height: 88rpx; display: flex; align-items: center; gap: 14rpx; color: var(--text-muted); font-size: 25rpx; line-height: 1.45; }
 .empty-icon { width: 48rpx; height: 48rpx; }
 
-.meal-card { padding: 20rpx; display: flex; align-items: center; gap: 18rpx; }
-.meal-visual { width: 82rpx; height: 82rpx; border-radius: 24rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 38rpx; }
+.meal-card { padding: 20rpx; display: flex; align-items: center; gap: 18rpx; background: linear-gradient(145deg, #FFFFFF, #F8FCFA); }
+.meal-visual { width: 84rpx; height: 84rpx; border-radius: 25rpx; background: linear-gradient(150deg, var(--teal-bg), #FFFFFF); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 38rpx; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.08); }
 .meal-info { flex: 1; min-width: 0; }
 .meal-title { display: block; font-size: 29rpx; font-weight: 900; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meal-meta { display: block; font-size: 23rpx; color: var(--text-muted); margin-top: 6rpx; }
 .reason-row { display: flex; gap: 8rpx; flex-wrap: wrap; margin-top: 10rpx; }
 .reason-chip { font-size: 20rpx; color: var(--text-secondary); background: var(--bg); border-radius: var(--radius-full); padding: 4rpx 10rpx; }
-.match-badge { min-width: 66rpx; height: 54rpx; border-radius: 18rpx; background: var(--green-bg); color: var(--teal); font-size: 25rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+.match-badge { min-width: 68rpx; height: 56rpx; border-radius: 19rpx; background: var(--green-bg); color: var(--teal); font-size: 25rpx; font-weight: 950; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.12); }
 .empty-card { padding: 26rpx; color: var(--text-muted); font-size: 25rpx; }
 
 .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 24rpx; }
-.mini-card { padding: 22rpx; min-height: 142rpx; }
+.mini-card { padding: 22rpx; min-height: 142rpx; background: linear-gradient(180deg, #FFFFFF, #F9FCFA); }
 .mini-icon { width: 42rpx; height: 42rpx; margin-bottom: 14rpx; }
 .mini-title { display: block; font-size: 27rpx; font-weight: 850; color: var(--text); }
 .mini-desc { display: block; margin-top: 6rpx; font-size: 22rpx; color: var(--text-muted); }
 
-.ai-card { padding: 18rpx; }
+.ai-card { padding: 18rpx; position: relative; overflow: hidden; background: linear-gradient(150deg, #FFFFFF 0%, #FBFAFF 100%); }
+.ai-empty { background: linear-gradient(135deg, var(--purple-bg), #FFFFFF); border-radius: 22rpx; padding: 20rpx; margin-bottom: 14rpx; color: var(--text-secondary); font-size: 24rpx; line-height: 1.45; box-shadow: inset 0 0 0 1rpx rgba(141,122,230,.08); }
+.ai-thread { display: flex; flex-direction: column; gap: 12rpx; margin-bottom: 14rpx; max-height: 560rpx; overflow: hidden; }
+.chat-row { display: flex; }
+.chat-row.user { justify-content: flex-end; }
+.chat-row.assistant { justify-content: flex-start; }
+.chat-bubble { max-width: 92%; border-radius: 24rpx; padding: 17rpx 19rpx; box-sizing: border-box; animation: soft-pop .24s var(--ease) both; }
+.chat-row.user .chat-bubble { background: linear-gradient(135deg, var(--teal), var(--teal-light)); color: #fff; border-bottom-right-radius: 8rpx; box-shadow: 0 12rpx 24rpx rgba(35,169,120,.16); }
+.chat-row.assistant .chat-bubble { background: rgba(248,252,250,.96); color: var(--text); border-bottom-left-radius: 8rpx; box-shadow: var(--shadow-xs), var(--hairline); }
+.chat-text { display: block; font-size: 24rpx; line-height: 1.5; }
+.agent-panel { margin-top: 14rpx; display: flex; flex-direction: column; gap: 12rpx; }
+.agent-stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8rpx; }
+.agent-stage { border-radius: 17rpx; padding: 11rpx 8rpx; background: #fff; border: 1rpx solid var(--border-light); box-shadow: var(--shadow-xs); }
+.agent-stage.success { background: var(--green-bg); border-color: rgba(35,169,120,.18); }
+.agent-stage.error, .agent-stage.failed { background: var(--red-bg); border-color: rgba(239,68,68,.18); }
+.stage-name { display: block; font-size: 20rpx; font-weight: 900; color: var(--text); text-align: center; }
+.stage-status { display: block; margin-top: 4rpx; font-size: 18rpx; color: var(--text-muted); text-align: center; }
+.agent-recipes { display: flex; flex-direction: column; gap: 8rpx; }
+.agent-recipe { background: #fff; border-radius: 19rpx; padding: 14rpx; display: flex; align-items: center; gap: 12rpx; border: 1rpx solid var(--border-light); box-shadow: var(--shadow-xs); }
+.agent-recipe-main { flex: 1; min-width: 0; }
+.agent-recipe-title { display: block; font-size: 25rpx; font-weight: 900; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-recipe-meta { display: block; margin-top: 6rpx; font-size: 20rpx; color: var(--text-muted); }
+.agent-mini-btn { width: 78rpx; height: 52rpx; margin: 0; padding: 0; border-radius: var(--radius-full); background: var(--berry); color: #fff; font-size: 21rpx; font-weight: 900; border: none; display: flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0; }
+.agent-shopping { background: #fff; border-radius: 19rpx; padding: 12rpx 14rpx; display: flex; align-items: center; justify-content: space-between; gap: 12rpx; border: 1rpx solid var(--border-light); box-shadow: var(--shadow-xs); }
+.agent-shopping text { color: var(--text-secondary); font-size: 22rpx; }
+.agent-shopping button { width: 82rpx; height: 52rpx; margin: 0; padding: 0; border-radius: var(--radius-full); background: var(--teal); color: #fff; font-size: 21rpx; font-weight: 900; border: none; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .ai-input-row { display: flex; align-items: center; gap: 10rpx; }
 .ai-icon { width: 42rpx; height: 42rpx; flex-shrink: 0; }
-.ai-input { flex: 1; min-width: 0; height: 72rpx; background: var(--bg); border: 1px solid var(--border-light); border-radius: var(--radius-full); padding: 0 22rpx; font-size: 26rpx; color: var(--text); box-sizing: border-box; }
-.ai-send { width: 96rpx; height: 72rpx; margin: 0; padding: 0; background: var(--berry); color: #fff; border: none; border-radius: var(--radius-full); font-size: 25rpx; font-weight: 800; line-height: 1; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex-shrink: 0; }
-.ai-result { margin-top: 16rpx; }
+.ai-input { flex: 1; min-width: 0; height: 74rpx; background: #fff; border: 1px solid var(--border-light); border-radius: var(--radius-full); padding: 0 22rpx; font-size: 26rpx; color: var(--text); box-sizing: border-box; box-shadow: inset 0 0 0 1rpx rgba(19,35,29,.02); }
+.ai-send { width: 98rpx; height: 74rpx; margin: 0; padding: 0; background: linear-gradient(135deg, var(--berry), #A996FF); color: #fff; border: none; border-radius: var(--radius-full); font-size: 25rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex-shrink: 0; box-shadow: 0 12rpx 24rpx rgba(141,122,230,.20); }
 .ai-intent-row { display: flex; flex-wrap: wrap; gap: 8rpx; margin-bottom: 12rpx; }
 .ai-intent-chip { font-size: 22rpx; background: var(--purple-bg); color: var(--berry); padding: 7rpx 14rpx; border-radius: var(--radius-full); }
-.ai-cot { display: flex; flex-direction: column; gap: 10rpx; }
-.ai-cot-row { display: flex; align-items: flex-start; gap: 10rpx; }
-.ai-cot-num { width: 32rpx; height: 32rpx; background: var(--berry); color: #fff; border-radius: 50%; font-size: 20rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.ai-cot-text { font-size: 24rpx; color: var(--text-secondary); flex: 1; line-height: 1.45; }
 .ph { color: var(--text-placeholder); }
 .bottom-safe { height: 132rpx; }
 </style>

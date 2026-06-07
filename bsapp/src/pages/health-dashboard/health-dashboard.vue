@@ -254,16 +254,22 @@ function goBack() { uni.navigateBack() }
 </script>
 
 <style scoped>
-.hd-page { min-height: 100vh; background: var(--bg); padding: 28rpx; }
+.hd-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 88% 0%, rgba(35,169,120,.13), transparent 30%),
+    linear-gradient(180deg, #FAFCFB 0%, var(--bg) 44%);
+  padding: 28rpx;
+}
 .loading-page { display: flex; align-items: center; justify-content: center; height: 100vh; color: var(--text-muted); font-size: 28rpx; }
 .hd-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22rpx; }
-.hd-title { font-size: 42rpx; font-weight: 900; color: var(--text); }
+.hd-title { font-size: 44rpx; line-height: 1.12; font-weight: 950; color: var(--text); }
 .hd-date { color: var(--text-muted); font-size: 24rpx; }
 .summary-grid { display: grid; grid-template-columns: 1.25fr .875fr .875fr; gap: 14rpx; margin-bottom: 20rpx; }
-.summary-card { background: #fff; border-radius: var(--radius); padding: 20rpx; box-shadow: var(--shadow-sm); min-height: 150rpx; }
-.summary-card.main { background: var(--ink-green); color: #fff; }
+.summary-card { background: rgba(255,255,255,.95); border-radius: var(--radius-md); padding: 20rpx; box-shadow: var(--shadow-sm), var(--hairline); min-height: 150rpx; animation: soft-pop .28s var(--ease) both; }
+.summary-card.main { background: radial-gradient(circle at 88% 12%, rgba(88,207,160,.24), transparent 34%), linear-gradient(145deg, var(--ink-green), #214F40); color: #fff; box-shadow: 0 22rpx 46rpx rgba(23,59,46,.18); }
 .summary-label { display: block; font-size: 22rpx; color: inherit; opacity: .72; }
-.summary-value { display: block; margin-top: 8rpx; font-size: 48rpx; font-weight: 900; line-height: 1; }
+.summary-value { display: block; margin-top: 8rpx; font-size: 50rpx; font-weight: 950; line-height: 1; }
 .summary-foot { display: block; margin-top: 10rpx; color: var(--text-muted); font-size: 20rpx; }
 .summary-card.main .summary-foot { color: rgba(255,255,255,.68); }
 .summary-tag { margin-top: 12rpx; display: inline-flex; border-radius: var(--radius-full); padding: 5rpx 12rpx; font-size: 20rpx; font-weight: 800; }
@@ -285,11 +291,11 @@ function goBack() { uni.navigateBack() }
 }
 .notice-card image { width: 30rpx; height: 30rpx; flex-shrink: 0; }
 .explain-card {
-  background: #fff;
-  border-radius: var(--radius);
+  background: rgba(255,255,255,.94);
+  border-radius: var(--radius-md);
   padding: 22rpx;
   margin-bottom: 20rpx;
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-sm), var(--hairline);
   display: flex;
   flex-direction: column;
   gap: 18rpx;
@@ -309,13 +315,13 @@ function goBack() { uni.navigateBack() }
 }
 .explain-title { display: block; font-size: 25rpx; font-weight: 900; color: var(--text); }
 .explain-copy { display: block; margin-top: 4rpx; font-size: 22rpx; color: var(--text-secondary); line-height: 1.45; }
-.chart-card, .card { background: #fff; border-radius: var(--radius); padding: 24rpx; margin-bottom: 20rpx; box-shadow: var(--shadow-sm); }
+.chart-card, .card { background: rgba(255,255,255,.95); border-radius: var(--radius-md); padding: 24rpx; margin-bottom: 20rpx; box-shadow: var(--shadow-sm), var(--hairline); animation: soft-pop .3s var(--ease) both; }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20rpx; }
-.card-head text:first-child { font-size: 31rpx; font-weight: 900; color: var(--text); }
+.card-head text:first-child { font-size: 31rpx; font-weight: 950; color: var(--text); }
 .card-head text:last-child { font-size: 23rpx; color: var(--text-muted); font-weight: 700; }
 .chart-body { display: flex; align-items: center; gap: 28rpx; }
-.donut { width: 180rpx; height: 180rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.donut-inner { width: 118rpx; height: 118rpx; border-radius: 50%; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1px var(--border-light); }
+.donut { width: 184rpx; height: 184rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 18rpx 34rpx rgba(35,169,120,.12); animation: float-breathe 4s ease-in-out infinite; }
+.donut-inner { width: 120rpx; height: 120rpx; border-radius: 50%; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1px var(--border-light), var(--shadow-xs); }
 .donut-inner text:first-child { font-size: 30rpx; font-weight: 900; color: var(--text); }
 .donut-inner text:last-child { font-size: 20rpx; color: var(--text-muted); margin-top: 2rpx; }
 .legend-list { flex: 1; display: flex; flex-direction: column; gap: 14rpx; }
@@ -329,20 +335,20 @@ function goBack() { uni.navigateBack() }
 .gap-label { font-size: 27rpx; font-weight: 800; color: var(--text); }
 .gap-pct { font-size: 25rpx; font-weight: 900; color: var(--text-secondary); }
 .bar { height: 10rpx; background: var(--border-light); border-radius: 10rpx; overflow: hidden; }
-.bar-fill { height: 100%; border-radius: 10rpx; transition: width .4s ease; }
+.bar-fill { height: 100%; border-radius: 10rpx; transition: width .4s ease; transform-origin: left center; animation: bar-grow .55s var(--ease) both; }
 .gap-foot { display: flex; justify-content: space-between; margin-top: 6rpx; }
 .gap-foot text { font-size: 21rpx; color: var(--text-muted); }
 .micro-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12rpx; }
-.micro-tile { background: var(--bg-elevated); border-radius: 18rpx; padding: 16rpx; min-width: 0; }
+.micro-tile { background: linear-gradient(180deg, var(--bg-elevated), #FFFFFF); border-radius: 20rpx; padding: 16rpx; min-width: 0; box-shadow: inset 0 0 0 1rpx rgba(19,35,29,.035); }
 .micro-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8rpx; }
 .micro-name { font-size: 23rpx; font-weight: 900; color: var(--text); }
 .micro-value { font-size: 22rpx; font-weight: 900; color: var(--text-secondary); }
 .micro-bar { height: 8rpx; background: var(--border-light); border-radius: 8rpx; overflow: hidden; margin-top: 12rpx; }
-.micro-bar view { height: 100%; border-radius: 8rpx; }
+.micro-bar view { height: 100%; border-radius: 8rpx; transform-origin: left center; animation: bar-grow .5s var(--ease) both; }
 .micro-note { display: block; margin-top: 10rpx; font-size: 20rpx; color: var(--text-muted); line-height: 1.35; }
 .micro-empty { padding: 28rpx 0; text-align: center; color: var(--text-muted); font-size: 24rpx; }
 .recipe-row { display: flex; align-items: center; gap: 16rpx; }
-.recipe-icon { width: 74rpx; height: 74rpx; border-radius: 22rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; }
+.recipe-icon { width: 76rpx; height: 76rpx; border-radius: 23rpx; background: linear-gradient(145deg, var(--teal-bg), #FFFFFF); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.08); }
 .recipe-icon image { width: 44rpx; height: 44rpx; }
 .recipe-info { flex: 1; }
 .recipe-title { display: block; font-size: 29rpx; font-weight: 900; color: var(--text); }
@@ -356,5 +362,5 @@ function goBack() { uni.navigateBack() }
 .insight-label { flex: 1; color: var(--text); font-size: 26rpx; font-weight: 800; }
 .insight-value { color: var(--text-secondary); font-size: 25rpx; }
 .hd-actions { display: flex; gap: 16rpx; margin-top: 8rpx; }
-.hd-actions button { flex: 1; height: 88rpx; border-radius: var(--radius); font-size: 28rpx; font-weight: 900; }
+.hd-actions button { flex: 1; height: 90rpx; border-radius: var(--radius-md); font-size: 28rpx; font-weight: 950; box-shadow: var(--shadow-sm); }
 </style>
