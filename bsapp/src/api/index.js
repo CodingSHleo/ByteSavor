@@ -2,8 +2,14 @@ import { currentLang } from '@/utils/i18n'
 
 // API 基础配置 —— 可通过 storage 或编译时变量覆盖
 function getBaseUrl() {
-  try { return uni.getStorageSync('api_base_url') || 'http://172.26.9.112:8000' }
-  catch (e) { return 'http://127.0.0.1:8000' }
+  try {
+    const stored = uni.getStorageSync('api_base_url')
+    if (stored) return stored
+    if (typeof window !== 'undefined' && window.location?.hostname) {
+      return `http://${window.location.hostname}:8000`
+    }
+    return 'http://127.0.0.1:8000'
+  } catch (e) { return 'http://127.0.0.1:8000' }
 }
 
 const HEADERS = {
@@ -529,8 +535,10 @@ export const ApiService = {
         data: { openid }
       })
       if (res.status === 'success') return res.data
+      throw new Error(res.error?.message || '登录失败')
     } catch (e) {
       console.error('API Error - login:', e)
+      if (e?.message) throw e
     }
     throw new Error('登录失败，请检查网络或后端服务')
   },
@@ -544,8 +552,10 @@ export const ApiService = {
         data: { openid }
       })
       if (res.status === 'success') return res.data
+      throw new Error(res.error?.message || '注册失败')
     } catch (e) {
       console.error('API Error - register:', e)
+      if (e?.message) throw e
     }
     throw new Error('后端服务不可用，暂时无法注册')
   },

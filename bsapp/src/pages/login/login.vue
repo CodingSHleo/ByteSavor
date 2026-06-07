@@ -39,7 +39,7 @@
         <input
           class="input-field"
           v-model="openid"
-          placeholder="输入 demo 即可体验"
+          placeholder="输入已注册的微信号/OpenID"
           placeholder-class="ph"
         />
       </view>
@@ -60,7 +60,7 @@
 
       <view class="demo-tip">
         <image src="/static/icons/icon_flash.svg" mode="aspectFit" />
-        <text>输入 demo 即可登录，无需注册</text>
+        <text>首次使用请先注册，已有账号可直接登录</text>
       </view>
     </view>
   </view>

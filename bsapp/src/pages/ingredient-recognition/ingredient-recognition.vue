@@ -119,7 +119,10 @@ function triggerFileInput(capture) {
   input.accept = 'image/*'
   if (capture) input.setAttribute('capture', 'environment')
   input.onchange = handleNativeFile
+  input.style.display = 'none'
+  document.body.appendChild(input)  // 挂到DOM防移动端回收
   input.click()
+  setTimeout(() => { if (input.parentNode) input.parentNode.removeChild(input) }, 60000)
 }
 
 function takePhoto() {

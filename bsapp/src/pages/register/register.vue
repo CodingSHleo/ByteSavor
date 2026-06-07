@@ -70,7 +70,7 @@ async function doRegister() {
     uni.showToast({ title: res.is_new ? '欢迎加入！' : '欢迎回来', icon: 'success' })
     setTimeout(() => uni.switchTab({ url: '/pages/home/home' }), 600)
   } catch (e) {
-    error.value = '网络异常，请重试'
+    error.value = e.message || '网络异常，请重试'
   } finally {
     loading.value = false
   }

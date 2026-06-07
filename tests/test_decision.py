@@ -1,9 +1,8 @@
 import pytest
 
-pytestmark = pytest.mark.asyncio
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-@pytest.mark.asyncio
 async def test_meal_plan_with_ingredients(client):
     resp = await client.post("/v1/decision/meal-plan", json={
         "ingredients": ["牛肉", "西兰花"],
@@ -20,7 +19,6 @@ async def test_meal_plan_with_ingredients(client):
         assert "reasons" in r
 
 
-@pytest.mark.asyncio
 async def test_meal_plan_empty_ingredients(client):
     resp = await client.post("/v1/decision/meal-plan", json={
         "ingredients": [],
@@ -31,14 +29,12 @@ async def test_meal_plan_empty_ingredients(client):
     assert len(resp.json()["data"]["recipes"]) > 0
 
 
-@pytest.mark.asyncio
 async def test_recipe_detail_found(client):
     resp = await client.get("/v1/recipes/r_001")
     assert resp.status_code == 200
     assert "香辣" in resp.json()["data"]["title"]
 
 
-@pytest.mark.asyncio
 async def test_recipe_detail_not_found(client):
     resp = await client.get("/v1/recipes/r_999")
     assert resp.json()["status"] == "error"

@@ -21,6 +21,7 @@ export const useHistoryStore = defineStore('history', () => {
       type: entry.type || 'unknown',
       title: entry.title || '',
       detail: entry.detail || '',
+      recipeId: entry.recipeId || '',
       createdAt: entry.createdAt || new Date().toISOString()
     })
     if (items.value.length > MAX_RECORDS) {

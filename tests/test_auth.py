@@ -1,12 +1,11 @@
 import pytest
-import time
+import uuid
 
-pytestmark = pytest.mark.asyncio
+pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 
-@pytest.mark.asyncio
 async def test_register_new_user(client):
-    uid = f"wx_test_{int(time.time()*1000)}"
+    uid = f"wx_test_{uuid.uuid4().hex}"
     resp = await client.post("/v1/auth/register", json={"openid": uid})
     assert resp.status_code == 200
     data = resp.json()
@@ -15,30 +14,26 @@ async def test_register_new_user(client):
     assert "token" in data["data"]
 
 
-@pytest.mark.asyncio
 async def test_register_existing_user(client):
-    uid = f"wx_exist_{int(time.time()*1000)}"
+    uid = f"wx_exist_{uuid.uuid4().hex}"
     r1 = await client.post("/v1/auth/register", json={"openid": uid})
     assert r1.json()["data"]["is_new"] is True
     r2 = await client.post("/v1/auth/register", json={"openid": uid})
     assert r2.json()["data"]["is_new"] is False
 
 
-@pytest.mark.asyncio
 async def test_login_not_found(client):
-    resp = await client.post("/v1/auth/login", json={"openid": f"nobody_{int(time.time())}"})
+    resp = await client.post("/v1/auth/login", json={"openid": f"nobody_{uuid.uuid4().hex}"})
     assert resp.json()["status"] == "error"
 
 
-@pytest.mark.asyncio
 async def test_profile_no_token(client):
     resp = await client.get("/v1/user/profile")
     assert resp.status_code == 401
 
 
-@pytest.mark.asyncio
 async def test_profile_with_token(client):
-    r = await client.post("/v1/auth/register", json={"openid": "wx_prof_test"})
+    r = await client.post("/v1/auth/register", json={"openid": f"wx_prof_{uuid.uuid4().hex}"})
     token = r.json()["data"]["token"]
     resp = await client.get("/v1/user/profile", headers={"Authorization": f"Bearer {token}"})
     assert resp.status_code == 200

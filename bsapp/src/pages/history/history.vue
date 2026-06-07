@@ -20,7 +20,7 @@
     </view>
 
     <view v-else class="timeline">
-      <view v-for="(item, idx) in items" :key="idx" class="hist-card">
+      <view v-for="(item, idx) in items" :key="idx" class="hist-card" @tap="goDetail(item)">
         <view class="hist-avatar">
           <image :src="iconFor(item.type)" mode="aspectFit" />
         </view>
@@ -56,6 +56,12 @@ onShow(async () => {
 
 function formatTime(dateStr) {
   return historyStore.formatTime(dateStr)
+}
+
+function goDetail(item) {
+  if (item.recipeId) {
+    uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${item.recipeId}&title=${encodeURIComponent(item.title)}` })
+  }
 }
 
 function iconFor(type) {
