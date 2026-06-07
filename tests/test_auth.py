@@ -1,11 +1,13 @@
 import pytest
+import time
 
 pytestmark = pytest.mark.asyncio
 
 
 @pytest.mark.asyncio
 async def test_register_new_user(client):
-    resp = await client.post("/v1/auth/register", json={"openid": "wx_test_pytest"})
+    uid = f"wx_test_{int(time.time()*1000)}"
+    resp = await client.post("/v1/auth/register", json={"openid": uid})
     assert resp.status_code == 200
     data = resp.json()
     assert data["status"] == "success"
@@ -15,14 +17,16 @@ async def test_register_new_user(client):
 
 @pytest.mark.asyncio
 async def test_register_existing_user(client):
-    await client.post("/v1/auth/register", json={"openid": "wx_test_pytest"})
-    resp = await client.post("/v1/auth/register", json={"openid": "wx_test_pytest"})
-    assert resp.json()["data"]["is_new"] is False
+    uid = f"wx_exist_{int(time.time()*1000)}"
+    r1 = await client.post("/v1/auth/register", json={"openid": uid})
+    assert r1.json()["data"]["is_new"] is True
+    r2 = await client.post("/v1/auth/register", json={"openid": uid})
+    assert r2.json()["data"]["is_new"] is False
 
 
 @pytest.mark.asyncio
 async def test_login_not_found(client):
-    resp = await client.post("/v1/auth/login", json={"openid": "nobody_xyz"})
+    resp = await client.post("/v1/auth/login", json={"openid": f"nobody_{int(time.time())}"})
     assert resp.json()["status"] == "error"
 
 

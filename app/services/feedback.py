@@ -16,21 +16,24 @@ async def submit_feedback(db: AsyncSession, user_id: str, recipe_id: str, rating
 
     points = rating * 2
 
-    # 根据评分微调偏好
-    r = await db.execute(select(Recipe).where(Recipe.id == recipe_id))
-    recipe = r.scalar_one_or_none()
-    if recipe:
-        profile = await get_profile(db, user_id)
-        prefs = list(profile.get("preferences", []) if profile else [])
-        tags = [t for t in recipe.tags if not t.startswith("quick")]
+    # 偏好微调（非阻塞，失败不影响反馈写入）
+    try:
+        r = await db.execute(select(Recipe).where(Recipe.id == recipe_id))
+        recipe = r.scalar_one_or_none()
+        if recipe:
+            profile = await get_profile(db, user_id)
+            prefs = list(profile.get("preferences", []) if profile else [])
+            tags = [t for t in recipe.tags if not t.startswith("quick")]
 
-        if rating >= 4:
-            added = [t for t in tags if t not in prefs]
-            if added:
-                prefs.extend(added[:2])
-        elif rating <= 2:
-            prefs = [p for p in prefs if p not in tags]
+            if rating >= 4:
+                added = [t for t in tags if t not in prefs]
+                if added:
+                    prefs.extend(added[:2])
+            elif rating <= 2:
+                prefs = [p for p in prefs if p not in tags]
 
-        await update_profile(db, user_id, preferences=prefs[:8])
+            await update_profile(db, user_id, preferences=prefs[:8])
+    except Exception:
+        pass  # 偏好更新不是关键路径
 
     return {"acknowledged": True, "reward_points": points}
