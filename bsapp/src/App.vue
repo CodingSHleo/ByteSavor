@@ -38,7 +38,7 @@ onLaunch(async () => {
 
   /* 食材色系 */
   --tomato:        #E74C3C;
-  --avocado:       #34C759;
+  --avocado:       #059669;
   --cheese:        #F0A500;
   --berry:         #8E5EA2;
   --ocean:         #4A90D9;
