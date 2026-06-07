@@ -7,3 +7,6 @@ venv/
 .vscode/
 .claude/
 bsapp/node_modules/
+*.zip
+bsapp/dist/
+bsapp/node_modules/
