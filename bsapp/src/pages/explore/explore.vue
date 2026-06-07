@@ -10,6 +10,17 @@
       <input class="search-input" v-model="searchText" :placeholder="$t('searchPlaceholder')" placeholder-class="ph" />
     </view>
 
+    <view class="recipe-stats">
+      <view><text>{{ recipes.length }}</text><text>真实菜谱</text></view>
+      <view><text>{{ highProteinCount }}</text><text>高蛋白</text></view>
+      <view><text>{{ microRichCount }}</text><text>微量亮点</text></view>
+    </view>
+
+    <view v-if="errorNotice" class="notice-card">
+      <image src="/static/icons/icon_flash.svg" mode="aspectFit" />
+      <text>{{ errorNotice }}</text>
+    </view>
+
     <scroll-view scroll-x class="cat-scroll" :show-scrollbar="false">
       <view v-for="c in categories" :key="c.key" class="cat-tag" :class="{ active: activeCategory === c.key }" @tap="activeCategory = c.key">
         <image class="cat-icon" :src="`/static/icons/${c.icon}.svg`" />
@@ -32,12 +43,20 @@
             <view class="meta-item"><image class="meta-icon" src="/static/icons/icon_fire.svg" /><text>{{ item.calories }}{{ $t('kcal') }}</text></view>
             <view class="meta-item"><image class="meta-icon" src="/static/icons/icon_chart.svg" /><text>{{ item.difficulty }}</text></view>
           </view>
+          <view class="micro-row">
+            <text v-for="micro in (item.micro_highlights || []).slice(0, 3)" :key="micro">{{ micro }}</text>
+          </view>
         </view>
         <text class="feed-arrow">›</text>
       </view>
     </view>
 
-    <view v-if="filteredRecipes.length === 0" class="empty">
+    <view v-if="isLoading" class="empty">
+      <image class="empty-icon" src="/static/icons/icon_plate.svg" />
+      <text>正在从后端加载菜谱...</text>
+    </view>
+
+    <view v-else-if="filteredRecipes.length === 0" class="empty">
       <image class="empty-icon" src="/static/icons/icon_plate.svg" />
       <text>{{ $t('noRecipesFound') }}</text>
     </view>
@@ -46,12 +65,16 @@
 
 <script setup>
 import { ref, computed } from 'vue'
-import { getExploreRecipes } from '@/api/index'
+import { onLoad } from '@dcloudio/uni-app'
+import { ApiService } from '@/api/index'
 import { t } from '@/utils/i18n'
 
 const $t = key => t(key)
 const searchText = ref('')
 const activeCategory = ref('all')
+const recipes = ref([])
+const isLoading = ref(true)
+const errorNotice = ref('')
 
 const categories = [
   { key: 'all', label: $t('allCategories'), icon: 'icon_tag' },
@@ -64,7 +87,7 @@ const categories = [
 ]
 
 const filteredRecipes = computed(() => {
-  let list = getExploreRecipes()
+  let list = recipes.value
   if (activeCategory.value !== 'all') list = list.filter(r => r.category === activeCategory.value)
   if (searchText.value.trim()) {
     const kw = searchText.value.trim().toLowerCase()
@@ -72,10 +95,23 @@ const filteredRecipes = computed(() => {
   }
   return list
 })
+const highProteinCount = computed(() => recipes.value.filter(r => r.category === 'high_protein' || (r.tags || []).includes('high_protein')).length)
+const microRichCount = computed(() => recipes.value.filter(r => (r.micro_highlights || []).length > 0).length)
+
+onLoad(async () => {
+  try {
+    recipes.value = await ApiService.getRecipes()
+  } catch (e) {
+    errorNotice.value = '后端菜谱接口暂不可用，未使用本地 mock 数据。'
+    recipes.value = []
+  } finally {
+    isLoading.value = false
+  }
+})
 
 function tagBg(cat) { const m = { high_protein: 'var(--red-bg)', low_fat: 'var(--green-bg)', quick: 'var(--amber-bg)', vegetarian: 'var(--green-bg)', seafood: 'var(--blue-bg)', comfort: 'var(--purple-bg)' }; return m[cat] || 'var(--border-light)' }
 function tagFg(cat) { const m = { high_protein: 'var(--tomato)', low_fat: 'var(--teal)', quick: '#9A651B', vegetarian: 'var(--teal)', seafood: 'var(--blue)', comfort: 'var(--berry)' }; return m[cat] || 'var(--text-secondary)' }
-function catLabel(cat) { const m = { high_protein: $t('highProtein'), low_fat: $t('lowFat'), quick: $t('quickMeals'), vegetarian: $t('vegetarian'), seafood: $t('seafood'), comfort: $t('comfortFood') }; return m[cat] || cat }
+function catLabel(cat) { const m = { high_protein: $t('highProtein'), low_fat: $t('lowFat'), quick: $t('quickMeals'), vegetarian: $t('vegetarian'), seafood: $t('seafood'), comfort: $t('comfortFood'), balanced: '均衡' }; return m[cat] || cat }
 function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${item.recipeId}&title=${encodeURIComponent(item.title)}` }) }
 </script>
 
@@ -88,6 +124,12 @@ function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-det
 .search-icon { width: 36rpx; height: 36rpx; margin-right: 10rpx; }
 .search-input { flex: 1; font-size: 26rpx; color: var(--text); height: 100%; }
 .ph { color: var(--text-placeholder); }
+.recipe-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-bottom: 16rpx; }
+.recipe-stats view { background: #fff; border-radius: var(--radius); padding: 16rpx; box-shadow: var(--shadow-sm); }
+.recipe-stats text:first-child { display: block; color: var(--text); font-size: 32rpx; font-weight: 900; line-height: 1; }
+.recipe-stats text:last-child { display: block; margin-top: 8rpx; color: var(--text-muted); font-size: 20rpx; }
+.notice-card { display: flex; align-items: center; gap: 12rpx; background: var(--amber-bg); color: #9A651B; border-radius: var(--radius); padding: 16rpx 18rpx; margin-bottom: 18rpx; font-size: 23rpx; line-height: 1.45; box-shadow: var(--shadow-sm); }
+.notice-card image { width: 30rpx; height: 30rpx; flex-shrink: 0; }
 .cat-scroll { white-space: nowrap; margin-bottom: 20rpx; }
 .cat-tag { display: inline-flex; align-items: center; gap: 8rpx; padding: 13rpx 22rpx; border-radius: var(--radius-full); font-size: 24rpx; font-weight: 800; margin-right: 12rpx; background: #fff; color: var(--text-secondary); box-shadow: var(--shadow-sm); transition: all var(--fast) ease; }
 .cat-tag.active { background: var(--ink-green); color: #fff; transform: translateY(-2rpx); }
@@ -108,6 +150,8 @@ function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-det
 .feed-meta { display: flex; gap: 14rpx; flex-wrap: wrap; }
 .meta-item { display: flex; align-items: center; gap: 5rpx; color: var(--text-muted); font-size: 21rpx; }
 .meta-icon { width: 22rpx; height: 22rpx; }
+.micro-row { display: flex; flex-wrap: wrap; gap: 8rpx; }
+.micro-row text { background: var(--blue-bg); color: var(--blue); border-radius: var(--radius-full); padding: 5rpx 11rpx; font-size: 19rpx; font-weight: 800; }
 .feed-arrow { font-size: 34rpx; color: var(--text-muted); margin-left: 6rpx; }
 .empty { display: flex; flex-direction: column; align-items: center; padding-top: 120rpx; color: var(--text-muted); font-size: 26rpx; }
 .empty-icon { width: 78rpx; height: 78rpx; margin-bottom: 16rpx; }

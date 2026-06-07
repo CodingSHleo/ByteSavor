@@ -78,6 +78,7 @@
         </view>
         <view class="ingredient-icon">
           <image :src="ingredientIcon(item)" mode="aspectFit" />
+          <text>{{ ingredientGlyph(item) }}</text>
         </view>
         <view class="item-info">
           <text class="item-name">{{ item.name || '-' }}</text>
@@ -244,10 +245,17 @@ function exportMarkdown() {
 }
 function ingredientIcon(item) {
   const name = `${item?.name || ''}${item?.nameEn || ''}`.toLowerCase()
-  if (name.includes('牛') || name.includes('肉') || name.includes('beef') || name.includes('chicken')) return '/static/icons/icon_muscle.svg'
+  if (name.includes('牛') || name.includes('肉') || name.includes('鸡') || name.includes('beef') || name.includes('chicken')) return '/static/icons/icon_muscle.svg'
   if (name.includes('鱼') || name.includes('虾') || name.includes('fish') || name.includes('seafood')) return '/static/icons/icon_fish.svg'
   if (name.includes('油') || name.includes('oil') || name.includes('olive')) return '/static/icons/icon_olive.svg'
   return '/static/icons/icon_leaf.svg'
+}
+function ingredientGlyph(item) {
+  const name = `${item?.name || ''}${item?.nameEn || ''}`.toLowerCase()
+  if (name.includes('牛') || name.includes('肉') || name.includes('鸡') || name.includes('beef') || name.includes('chicken')) return '肉'
+  if (name.includes('鱼') || name.includes('虾') || name.includes('fish') || name.includes('seafood')) return '鱼'
+  if (name.includes('油') || name.includes('oil') || name.includes('olive')) return '油'
+  return '菜'
 }
 function shareToSocial() {
   uni.showActionSheet({
@@ -332,8 +340,9 @@ function goBack() { uni.navigateBack() }
 .list-item.checked .item-name, .list-item.checked .item-amount { color: var(--text-muted); text-decoration: line-through; }
 .check { width: 42rpx; height: 42rpx; border-radius: 50%; border: 2rpx solid var(--border); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22rpx; font-weight: 900; flex-shrink: 0; }
 .list-item.checked .check { background: var(--teal); border-color: var(--teal); }
-.ingredient-icon { width: 52rpx; height: 52rpx; border-radius: 16rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.ingredient-icon image { width: 30rpx; height: 30rpx; }
+.ingredient-icon { width: 52rpx; height: 52rpx; border-radius: 16rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+.ingredient-icon image { width: 30rpx; height: 30rpx; position: relative; z-index: 1; }
+.ingredient-icon text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18rpx; font-weight: 900; color: var(--teal); opacity: .22; }
 .item-info { flex: 1; min-width: 0; }
 .item-name { font-weight: 900; font-size: 28rpx; color: var(--text); display: block; }
 .item-amount { font-size: 24rpx; color: var(--text-secondary); margin-top: 4rpx; display: block; }

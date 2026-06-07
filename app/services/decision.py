@@ -3,6 +3,7 @@ import time
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.recipe import Recipe
+from app.services.recipe_presenter import recipe_brief
 
 logger = logging.getLogger("decision")
 
@@ -67,7 +68,7 @@ def _rank(recipes: list[Recipe], ingredients: list[str], taste: str, goal: str, 
         s_pref, codes_pref = _calc_pref(r, prefs)
         s = s_ing * 0.5 + s_tag * 0.3 + s_pref * 0.2
         if s > 0.25:
-            scored.append({"recipe_id": r.id, "title": r.title, "match_score": round(s, 2), "_codes": codes_ing + codes_tag + codes_pref})
+            scored.append({**recipe_brief(r), "match_score": round(s, 2), "_codes": codes_ing + codes_tag + codes_pref})
     scored.sort(key=lambda x: x["match_score"], reverse=True)
     return scored
 
@@ -84,7 +85,7 @@ def _explore_rank(recipes: list[Recipe], taste: str, goal: str, prefs: list[str]
             codes.append(("QUICK", {"time": r.cook_time}))
             s += 0.05
         if s > 0.3:
-            scored.append({"recipe_id": r.id, "title": r.title, "match_score": round(min(s, 1.0), 2), "_codes": codes})
+            scored.append({**recipe_brief(r), "match_score": round(min(s, 1.0), 2), "_codes": codes})
     scored.sort(key=lambda x: x["match_score"], reverse=True)
     return scored
 
@@ -120,7 +121,7 @@ def _fallback(recipes: list[Recipe], taste: str, goal: str) -> list[dict]:
     all_ids = {s["recipe_id"] for s in scored}
     for r in recipes:
         if r.id not in all_ids:
-            scored.append({"recipe_id": r.id, "title": r.title, "match_score": 0.15, "_codes": [("NEAR_FIT", {"title": r.title})]})
+            scored.append({**recipe_brief(r), "match_score": 0.15, "_codes": [("NEAR_FIT", {"title": r.title})]})
     for s in scored:
         s["_codes"].append(("NEAR_FIT", {"title": s["title"]}))
         s["match_score"] = round(s["match_score"] * 0.5, 2)

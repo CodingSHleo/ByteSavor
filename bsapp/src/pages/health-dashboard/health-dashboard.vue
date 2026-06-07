@@ -85,6 +85,26 @@
       </view>
     </view>
 
+    <view class="card">
+      <view class="card-head">
+        <text>微量营养素</text>
+        <text>来自推荐菜谱</text>
+      </view>
+      <view v-if="micronutrientTiles.length > 0" class="micro-grid">
+        <view v-for="m in micronutrientTiles" :key="m.key" class="micro-tile">
+          <view class="micro-top">
+            <text class="micro-name">{{ m.label }}</text>
+            <text class="micro-value">{{ m.value }}{{ m.unit }}</text>
+          </view>
+          <view class="micro-bar"><view :style="{ width: m.progress + '%', background: m.color }"></view></view>
+          <text class="micro-note">{{ m.note }}</text>
+        </view>
+      </view>
+      <view v-else class="micro-empty">
+        <text>暂无后端微量营养素数据</text>
+      </view>
+    </view>
+
     <view class="card" v-if="recommendedRecipe">
       <view class="card-head">
         <text>{{ $t('recommendedRecipe') }}</text>
@@ -156,7 +176,7 @@ const ratingClass = computed(() => {
   if (score.value >= 50) return 'medium'
   return 'bad'
 })
-const matchPercent = computed(() => recommendedRecipe.value ? ((recommendedRecipe.value.matchScore || 0) * 100).toFixed(0) : 0)
+const matchPercent = computed(() => recommendedRecipe.value ? ((recommendedRecipe.value.matchScore || recommendedRecipe.value.match_score || 0) * 100).toFixed(0) : 0)
 const todayDate = computed(() => {
   const d = new Date()
   return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`
@@ -181,6 +201,34 @@ const nutritionGaps = [
   { label: `${$t('vitamins')} C`, needed: `${$t('dailyTarget')} 90mg`, current: `${$t('currentIntake')} 45mg`, progress: 50, color: 'var(--amber)' },
   { label: $t('iron'), needed: `${$t('dailyTarget')} 18mg`, current: `${$t('currentIntake')} 8mg`, progress: 44, color: 'var(--berry)' }
 ]
+const microTargets = {
+  vitamin_c: { label: '维生素C', unit: 'mg', target: 90, color: 'var(--amber)', note: '抗氧化与免疫支持' },
+  iron: { label: '铁', unit: 'mg', target: 18, color: 'var(--berry)', note: '关注补铁与能量状态' },
+  calcium: { label: '钙', unit: 'mg', target: 800, color: 'var(--blue)', note: '骨骼与肌肉支持' },
+  fiber: { label: '膳食纤维', unit: 'g', target: 30, color: 'var(--teal)', note: '饱腹感与肠道友好' },
+  potassium: { label: '钾', unit: 'mg', target: 2000, color: 'var(--tomato)', note: '电解质与心血管支持' },
+  omega3: { label: 'Omega-3', unit: 'g', target: 1.1, color: 'var(--ink-green)', note: '优先来自鱼虾海产' }
+}
+const micronutrientTotals = computed(() => {
+  const totals = {}
+  recommendations.value.forEach(recipe => {
+    const micro = recipe.micronutrients || {}
+    Object.keys(microTargets).forEach(key => {
+      totals[key] = (totals[key] || 0) + Number(micro[key] || 0)
+    })
+  })
+  return totals
+})
+const micronutrientTiles = computed(() => Object.entries(microTargets).map(([key, meta]) => {
+  const raw = micronutrientTotals.value[key] || 0
+  const value = key === 'omega3' || key === 'iron' ? Number(raw.toFixed(1)) : Math.round(raw)
+  return {
+    key,
+    ...meta,
+    value,
+    progress: Math.min(100, Math.round((raw / meta.target) * 100))
+  }
+}).filter(item => item.value > 0))
 
 onLoad(async (options) => {
   try { if (options?.ingredients) ingredients.value = JSON.parse(decodeURIComponent(options.ingredients)) } catch (e) {}
@@ -189,18 +237,11 @@ onLoad(async (options) => {
     nutrition.value = await ApiService.getNutritionStatus()
     const names = ingredients.value.map(i => i.name)
     recommendations.value = await ApiService.generateMealPlan(names)
-    if (recommendations.value.length > 0) {
-      recommendedRecipe.value = recommendations.value[0]
-    } else if (ingredients.value.length > 0) {
-      recommendedRecipe.value = { recipeId: 'r_health_01', title: ingredients.value.map(i => i.name).join('、'), matchScore: 0.92 }
-    }
+    recommendedRecipe.value = recommendations.value[0] || null
   } catch (e) {
-    errorNotice.value = '后端健康数据暂未连通，当前看板使用本地演示数据。'
-    nutrition.value = { score: 65, deficits: ['vitamin_c', 'fiber', 'iron'] }
+    errorNotice.value = '后端健康数据暂未连通，未使用本地 mock 数据。'
     recommendations.value = []
-    recommendedRecipe.value = ingredients.value.length > 0
-      ? { recipeId: 'r_health_01', title: ingredients.value.map(i => i.name).join('、'), matchScore: 0.92 }
-      : { recipeId: 'r_health_01', title: '香辣牛肉西兰花', matchScore: 0.93 }
+    recommendedRecipe.value = null
   } finally {
     isLoading.value = false
   }
@@ -291,6 +332,15 @@ function goBack() { uni.navigateBack() }
 .bar-fill { height: 100%; border-radius: 10rpx; transition: width .4s ease; }
 .gap-foot { display: flex; justify-content: space-between; margin-top: 6rpx; }
 .gap-foot text { font-size: 21rpx; color: var(--text-muted); }
+.micro-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12rpx; }
+.micro-tile { background: var(--bg-elevated); border-radius: 18rpx; padding: 16rpx; min-width: 0; }
+.micro-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8rpx; }
+.micro-name { font-size: 23rpx; font-weight: 900; color: var(--text); }
+.micro-value { font-size: 22rpx; font-weight: 900; color: var(--text-secondary); }
+.micro-bar { height: 8rpx; background: var(--border-light); border-radius: 8rpx; overflow: hidden; margin-top: 12rpx; }
+.micro-bar view { height: 100%; border-radius: 8rpx; }
+.micro-note { display: block; margin-top: 10rpx; font-size: 20rpx; color: var(--text-muted); line-height: 1.35; }
+.micro-empty { padding: 28rpx 0; text-align: center; color: var(--text-muted); font-size: 24rpx; }
 .recipe-row { display: flex; align-items: center; gap: 16rpx; }
 .recipe-icon { width: 74rpx; height: 74rpx; border-radius: 22rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; }
 .recipe-icon image { width: 44rpx; height: 44rpx; }

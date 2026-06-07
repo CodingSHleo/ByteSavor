@@ -401,6 +401,12 @@ function mockResponse(data) {
 // ==================== API 方法 ====================
 
 export const ApiService = {
+  async getRecipes() {
+    const res = await request({ url: '/v1/recipes' })
+    if (res.status === 'success') return L(res.data.recipes || [])
+    throw new Error(res.error?.message || '获取菜谱失败')
+  },
+
   // 食材识别
   async analyzeIngredient(imageUrl) {
     try {
@@ -445,35 +451,23 @@ export const ApiService = {
 
   // 获取营养状态
   async getNutritionStatus() {
-    try {
-      const res = await request({ url: '/v1/nutrition/status' })
-      if (res.status === 'success') return res.data
-    } catch (e) {
-      console.error('API Error - getNutritionStatus:', e)
-    }
-    return L(MOCK_NUTRITION_STATUS)
+    const res = await request({ url: '/v1/nutrition/status' })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '获取营养状态失败')
   },
 
   // 生成餐食方案
   async generateMealPlan(ingredients) {
-    try {
-      const res = await request({
-        url: '/v1/decision/meal-plan',
-        method: 'POST',
-        data: {
-          ingredients: ingredients,
-          constraints: { time_limit: 30, taste: '', goal: 'balanced' }
-        }
-      })
-      if (res.status === 'success') {
-        return res.data.recipes
+    const res = await request({
+      url: '/v1/decision/meal-plan',
+      method: 'POST',
+      data: {
+        ingredients: ingredients,
+        constraints: { time_limit: 30, taste: '', goal: 'balanced' }
       }
-    } catch (e) {
-      console.error('API Error - generateMealPlan:', e)
-    }
-    // 根据食材数量返回1-4个菜谱
-    const n = Math.min(ingredients.length + 1, MOCK_RECIPES.length)
-    return L(MOCK_RECIPES.slice(0, n))
+    })
+    if (res.status === 'success') return L(res.data.recipes || [])
+    throw new Error(res.error?.message || '生成推荐失败')
   },
 
   // 获取菜谱详情

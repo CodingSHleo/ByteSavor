@@ -6,6 +6,7 @@ from app.schemas import DecisionRequest, SuccessResponse, ErrorResponse
 from app.models.recipe import Recipe
 from app.services.decision import match_recipes
 from app.services.nutrition import calc_gap
+from app.services.recipe_presenter import category, micro_highlights, micronutrients, recipe_brief
 from app.core.database import get_db
 from app.core import cache
 from app.middleware.auth import get_optional_user
@@ -46,6 +47,13 @@ async def generate_meal_plan(
     return SuccessResponse(data=result)
 
 
+@router.get("/v1/recipes", tags=["Decision"])
+async def list_recipes(db: AsyncSession = Depends(get_db)):
+    r = await db.execute(select(Recipe).order_by(Recipe.id))
+    recipes = [recipe_brief(recipe) for recipe in r.scalars().all()]
+    return SuccessResponse(data={"recipes": recipes, "total": len(recipes)})
+
+
 @router.get("/v1/recipes/{recipe_id}", tags=["Decision"])
 async def get_recipe_detail(recipe_id: str = Path(...), db: AsyncSession = Depends(get_db)):
     r = await db.execute(select(Recipe).where(Recipe.id == recipe_id))
@@ -61,6 +69,11 @@ async def get_recipe_detail(recipe_id: str = Path(...), db: AsyncSession = Depen
         "protein": recipe.protein,
         "cook_time": recipe.cook_time,
         "difficulty": recipe.difficulty,
+        "category": category(recipe.tags),
+        "tags": recipe.tags or [],
+        "macros": {"protein": recipe.protein, "carbs": recipe.carbs, "fat": recipe.fat},
+        "micronutrients": micronutrients(recipe),
+        "micro_highlights": micro_highlights(micronutrients(recipe)),
         "story": getattr(recipe, 'story', '') or '',
         "culture_tags": getattr(recipe, 'culture_tags', []) or [],
     })

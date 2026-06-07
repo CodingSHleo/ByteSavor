@@ -53,6 +53,7 @@
         <view class="scan-card" @tap="goIngredientRecognition">
           <view class="scan-icon-wrap">
             <image src="/static/icons/icon_scan.svg" class="scan-icon" mode="aspectFit" />
+            <text>扫</text>
           </view>
           <view class="scan-text">
             <text class="scan-title">拍照识别食材</text>
@@ -252,9 +253,10 @@ async function loadIngredients() {
 async function loadNutrition() {
   try {
     const d = await ApiService.getNutritionStatus()
-    nutritionScore.value = d.score || 65
+    nutritionScore.value = d.score || 0
   } catch (e) {
-    apiNotice.value = '后端营养服务暂不可用，当前显示本地演示数据。'
+    apiNotice.value = '后端营养服务暂不可用，未使用本地 mock 数据。'
+    nutritionScore.value = 0
   }
 }
 async function generateRecommendations() {
@@ -263,7 +265,8 @@ async function generateRecommendations() {
     const n = ingredients.value.map(i => i.name)
     recipes.value = await ApiService.generateMealPlan(n)
   } catch (e) {
-    apiNotice.value = '推荐服务暂不可用，已保留默认菜谱用于界面预览。'
+    apiNotice.value = '推荐服务暂不可用，未使用本地 mock 菜谱。'
+    recipes.value = []
   } finally {
     isLoading.value = false
   }
@@ -331,8 +334,9 @@ onShow(() => {
 .action-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 16rpx; margin-bottom: 24rpx; }
 .scan-card, .byte-card, .ingredient-card, .meal-card, .mini-card, .ai-card, .empty-card { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow-sm); }
 .scan-card { min-height: 148rpx; padding: 22rpx; display: flex; align-items: center; gap: 16rpx; }
-.scan-icon-wrap { width: 68rpx; height: 68rpx; border-radius: 20rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.scan-icon { width: 42rpx; height: 42rpx; }
+.scan-icon-wrap { width: 68rpx; height: 68rpx; border-radius: 20rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+.scan-icon-wrap text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--teal); font-size: 24rpx; font-weight: 900; opacity: .28; }
+.scan-icon { width: 42rpx; height: 42rpx; position: relative; z-index: 1; }
 .scan-text { flex: 1; min-width: 0; }
 .scan-title { display: block; font-size: 28rpx; font-weight: 800; color: var(--text); }
 .scan-desc { display: block; font-size: 22rpx; color: var(--text-muted); margin-top: 6rpx; line-height: 1.4; }

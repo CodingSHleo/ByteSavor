@@ -10,6 +10,7 @@
       <view v-else class="scan-empty">
         <view class="scan-icon-wrap">
           <image class="scan-icon" src="/static/icons/icon_scan.svg" mode="aspectFit" />
+          <text>扫</text>
         </view>
         <text class="scan-title">添加一张食材照片</text>
         <text class="scan-sub">支持冰箱、菜板、餐盘等场景</text>
@@ -21,11 +22,17 @@
 
     <view class="ir-actions">
       <button class="ir-btn secondary" @tap="pickFromGallery">
-        <image class="btn-small-icon" src="/static/icons/icon_export.svg" mode="aspectFit" />
+        <view class="btn-icon-shell">
+          <image class="btn-small-icon" src="/static/icons/icon_export.svg" mode="aspectFit" />
+          <text>相</text>
+        </view>
         <text>{{ $t('selectFromGallery') }}</text>
       </button>
       <button class="ir-btn primary" @tap="takePhoto">
-        <image class="btn-small-icon" src="/static/icons/icon_camera.svg" mode="aspectFit" />
+        <view class="btn-icon-shell">
+          <image class="btn-small-icon" src="/static/icons/icon_camera.svg" mode="aspectFit" />
+          <text>拍</text>
+        </view>
         <text>{{ $t('takePhoto') }}</text>
       </button>
     </view>
@@ -286,8 +293,9 @@ function freshnessClass(f) { return f === 'high' ? 'fresh-high' : f === 'low' ? 
 .scan-panel { height: 520rpx; background: linear-gradient(135deg, #E8F8F0, #FFFFFF); border-radius: var(--radius-xl); overflow: hidden; position: relative; margin-bottom: 18rpx; box-shadow: var(--shadow-md); }
 .scan-image { width: 100%; height: 100%; }
 .scan-empty { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.scan-icon-wrap { width: 116rpx; height: 116rpx; border-radius: 32rpx; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); }
-.scan-icon { width: 66rpx; height: 66rpx; }
+.scan-icon-wrap { width: 116rpx; height: 116rpx; border-radius: 32rpx; background: #fff; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-sm); position: relative; }
+.scan-icon-wrap text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--teal); font-size: 34rpx; font-weight: 900; opacity: .24; }
+.scan-icon { width: 66rpx; height: 66rpx; position: relative; z-index: 1; }
 .scan-title { margin-top: 26rpx; font-size: 31rpx; font-weight: 900; color: var(--text); }
 .scan-sub { margin-top: 8rpx; font-size: 24rpx; color: var(--text-muted); }
 .scan-corners view { position: absolute; width: 46rpx; height: 46rpx; border-color: rgba(35,169,120,.55); }
@@ -299,7 +307,9 @@ function freshnessClass(f) { return f === 'high' ? 'fresh-high' : f === 'low' ? 
 .ir-btn { flex: 1; height: 88rpx; margin: 0; padding: 0 18rpx; border: none; border-radius: var(--radius); font-size: 27rpx; font-weight: 800; line-height: 1; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .ir-btn.primary { background: var(--teal); color: #fff; }
 .ir-btn.secondary { background: #fff; color: var(--teal); box-shadow: var(--shadow-sm); }
-.btn-small-icon { width: 36rpx; height: 36rpx; margin-right: 10rpx; }
+.btn-icon-shell { width: 40rpx; height: 40rpx; margin-right: 10rpx; position: relative; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.btn-small-icon { width: 36rpx; height: 36rpx; position: relative; z-index: 1; }
+.btn-icon-shell text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18rpx; font-weight: 900; opacity: .22; }
 .stage-card { background: #fff; border-radius: var(--radius); padding: 18rpx; display: grid; grid-template-columns: repeat(3, 1fr); gap: 8rpx; box-shadow: var(--shadow-sm); margin-bottom: 18rpx; }
 .stage-item { display: flex; align-items: center; justify-content: center; gap: 8rpx; color: var(--text-muted); font-size: 22rpx; }
 .stage-dot { width: 34rpx; height: 34rpx; border-radius: 50%; background: var(--border-light); display: flex; align-items: center; justify-content: center; font-size: 18rpx; font-weight: 900; }

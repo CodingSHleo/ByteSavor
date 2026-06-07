@@ -43,7 +43,10 @@
       <view class="card-head"><text>{{ $t('ingredients') }}</text><text>{{ detail.ingredients.length }} 项</text></view>
       <view class="ing-list">
         <view v-for="(ing, idx) in detail.ingredients" :key="idx" class="ing-row">
-          <text class="ing-dot"></text>
+          <view class="ing-icon">
+            <image :src="ingredientIcon(ing)" mode="aspectFit" />
+            <text>{{ ingredientGlyph(ing) }}</text>
+          </view>
           <text class="ing-name">{{ ing.name }}</text>
           <text class="ing-amount">{{ ing.amount }}</text>
         </view>
@@ -141,6 +144,20 @@ function toggleLike() {
   uni.showToast({ title: isLiked.value ? $t('likedRecipe') : $t('unlikedRecipe'), icon: 'none' })
 }
 function saveRecipe() { uni.showToast({ title: $t('savedToMyRecipes'), icon: 'success' }) }
+function ingredientIcon(item) {
+  const name = `${item?.name || ''}${item?.nameEn || ''}`.toLowerCase()
+  if (name.includes('牛') || name.includes('肉') || name.includes('鸡') || name.includes('beef') || name.includes('chicken')) return '/static/icons/icon_muscle.svg'
+  if (name.includes('鱼') || name.includes('虾') || name.includes('fish') || name.includes('seafood')) return '/static/icons/icon_fish.svg'
+  if (name.includes('油') || name.includes('oil') || name.includes('olive')) return '/static/icons/icon_olive.svg'
+  return '/static/icons/icon_leaf.svg'
+}
+function ingredientGlyph(item) {
+  const name = `${item?.name || ''}${item?.nameEn || ''}`.toLowerCase()
+  if (name.includes('牛') || name.includes('肉') || name.includes('鸡') || name.includes('beef') || name.includes('chicken')) return '肉'
+  if (name.includes('鱼') || name.includes('虾') || name.includes('fish') || name.includes('seafood')) return '鱼'
+  if (name.includes('油') || name.includes('oil') || name.includes('olive')) return '油'
+  return '菜'
+}
 async function generateShoppingList() {
   await ApiService.mergeShoppingList([recipeId.value])
   const recipes = [{ recipeId: recipeId.value, title: detail.value?.title || '', matchScore: 1.0 }]
@@ -184,7 +201,9 @@ function showShare() {
 .card-head text:last-child { font-size: 22rpx; color: var(--text-muted); font-weight: 700; }
 .ing-row { display: flex; align-items: center; padding: 13rpx 0; border-bottom: 1rpx solid var(--border-light); }
 .ing-row:last-child { border-bottom: none; }
-.ing-dot { width: 14rpx; height: 14rpx; border-radius: 50%; background: var(--teal); margin-right: 12rpx; }
+.ing-icon { width: 48rpx; height: 48rpx; border-radius: 15rpx; background: var(--teal-bg); margin-right: 12rpx; display: flex; align-items: center; justify-content: center; flex-shrink: 0; position: relative; }
+.ing-icon image { width: 28rpx; height: 28rpx; position: relative; z-index: 1; }
+.ing-icon text { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 18rpx; font-weight: 900; color: var(--teal); opacity: .22; }
 .ing-name { flex: 1; font-size: 27rpx; color: var(--text); font-weight: 800; }
 .ing-amount { font-size: 25rpx; color: var(--text-secondary); }
 .step-row { display: flex; align-items: flex-start; gap: 14rpx; margin-bottom: 18rpx; }

@@ -17,6 +17,9 @@ async def test_meal_plan_with_ingredients(client):
         assert "recipe_id" in r
         assert "match_score" in r
         assert "reasons" in r
+        assert "category" in r
+        assert "micro_highlights" in r
+        assert "micronutrients" in r
 
 
 async def test_meal_plan_empty_ingredients(client):
@@ -39,3 +42,21 @@ async def test_recipe_detail_not_found(client):
     resp = await client.get("/v1/recipes/r_999")
     assert resp.json()["status"] == "error"
     assert resp.json()["error"]["code"] == "NOT_FOUND"
+
+
+async def test_recipe_explore_list_uses_seed_data_with_micronutrients(client):
+    resp = await client.get("/v1/recipes")
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "success"
+
+    recipes = data["data"]["recipes"]
+    assert len(recipes) >= 10
+    first = recipes[0]
+    assert first["recipe_id"].startswith("r_")
+    assert first["title"]
+    assert first["category"]
+    assert isinstance(first["micro_highlights"], list)
+    assert len(first["micro_highlights"]) > 0
+    assert {"protein", "carbs", "fat"}.issubset(first["macros"].keys())
+    assert {"vitamin_c", "iron", "calcium", "fiber"}.issubset(first["micronutrients"].keys())

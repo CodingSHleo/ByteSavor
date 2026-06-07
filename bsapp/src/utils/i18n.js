@@ -183,7 +183,7 @@ const translations = {
     ingredientNutrition: '食材营养',
     aboutAppContent: 'ByteSavor V3.0\n智能食谱推荐应用\n\n© 2026 字节品鉴者',
     dietPreferences: '饮食偏好',
-    preferenceDesc: '您的当前偏好：辣味, 高蛋白\n\n修改偏好功能将在后续版本中实现。',
+    preferenceDesc: '前往「设置」→「饮食偏好」修改口味和健康目标。',
     viewDetails: '查看详情',
     backToScan: '返回拍照',
     saveFavorite: '收藏食谱',
