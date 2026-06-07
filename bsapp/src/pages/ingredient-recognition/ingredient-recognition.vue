@@ -9,7 +9,7 @@
       <image v-if="selectedImage" :src="selectedImage" class="scan-image" mode="aspectFill" />
       <view v-else class="scan-empty">
         <view class="scan-icon-wrap">
-          <image class="scan-icon" src="/static/icons/icon_scan.svg" mode="widthFix" />
+          <image class="scan-icon" src="/static/icons/icon_scan.svg" mode="aspectFit" />
         </view>
         <text class="scan-title">添加一张食材照片</text>
         <text class="scan-sub">支持冰箱、菜板、餐盘等场景</text>
@@ -21,11 +21,11 @@
 
     <view class="ir-actions">
       <button class="ir-btn secondary" @tap="pickFromGallery">
-        <image class="btn-small-icon" src="/static/icons/icon_export.svg" mode="widthFix" />
+        <image class="btn-small-icon" src="/static/icons/icon_export.svg" mode="aspectFit" />
         <text>{{ $t('selectFromGallery') }}</text>
       </button>
       <button class="ir-btn primary" @tap="takePhoto">
-        <image class="btn-small-icon" src="/static/icons/icon_camera.svg" mode="widthFix" />
+        <image class="btn-small-icon" src="/static/icons/icon_camera.svg" mode="aspectFit" />
         <text>{{ $t('takePhoto') }}</text>
       </button>
     </view>
@@ -71,7 +71,7 @@
           <text v-if="item.features" class="ing-features">{{ item.features }}</text>
           <text v-else class="ing-features">{{ item.state || '等待确认' }}</text>
         </view>
-        <image class="edit-icon" @tap="editIngredient(item, idx)" src="/static/icons/icon_edit.svg" mode="widthFix" />
+        <image class="edit-icon" @tap="editIngredient(item, idx)" src="/static/icons/icon_edit.svg" mode="aspectFit" />
       </view>
 
       <button class="btn-confirm" @tap="confirmAndNavigate">
@@ -296,7 +296,7 @@ function freshnessClass(f) { return f === 'high' ? 'fresh-high' : f === 'low' ? 
 .scan-corners view:nth-child(3) { left: 28rpx; bottom: 28rpx; border-left: 4rpx solid; border-bottom: 4rpx solid; border-radius: 0 0 0 12rpx; }
 .scan-corners view:nth-child(4) { right: 28rpx; bottom: 28rpx; border-right: 4rpx solid; border-bottom: 4rpx solid; border-radius: 0 0 12rpx 0; }
 .ir-actions { display: flex; gap: 16rpx; margin-bottom: 18rpx; }
-.ir-btn { flex: 1; height: 88rpx; border: none; border-radius: var(--radius); font-size: 27rpx; font-weight: 800; display: flex; align-items: center; justify-content: center; }
+.ir-btn { flex: 1; height: 88rpx; margin: 0; padding: 0 18rpx; border: none; border-radius: var(--radius); font-size: 27rpx; font-weight: 800; line-height: 1; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
 .ir-btn.primary { background: var(--teal); color: #fff; }
 .ir-btn.secondary { background: #fff; color: var(--teal); box-shadow: var(--shadow-sm); }
 .btn-small-icon { width: 36rpx; height: 36rpx; margin-right: 10rpx; }

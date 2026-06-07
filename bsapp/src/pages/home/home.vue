@@ -52,7 +52,7 @@
       <view class="action-grid">
         <view class="scan-card" @tap="goIngredientRecognition">
           <view class="scan-icon-wrap">
-            <image src="/static/icons/icon_scan.svg" class="scan-icon" mode="widthFix" />
+            <image src="/static/icons/icon_scan.svg" class="scan-icon" mode="aspectFit" />
           </view>
           <view class="scan-text">
             <text class="scan-title">拍照识别食材</text>

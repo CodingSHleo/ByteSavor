@@ -3,7 +3,10 @@
     <view class="hero-card">
       <view class="hero-visual">
         <image v-if="detail?.imageUrl" :src="detail.imageUrl" class="hero-image" mode="aspectFill" />
-        <image v-else class="hero-icon" src="/static/icons/icon_plate.svg" mode="widthFix" />
+        <view v-else class="hero-icon-shell">
+          <image class="hero-icon" src="/static/icons/icon_plate.svg" mode="aspectFit" />
+          <text class="hero-icon-fallback">食</text>
+        </view>
       </view>
       <view class="hero-info">
         <text class="hero-title">{{ detail?.title || title }}</text>
@@ -22,16 +25,16 @@
     </button>
 
     <view class="action-row">
-      <view class="action-btn" @tap="toggleLike">
-        <image :src="isLiked ? '/static/icons/icon_heart.svg' : '/static/icons/icon_heart_outline.svg'" class="action-icon" mode="widthFix" />
-        <text>{{ $t('like') }}</text>
+      <view class="action-btn" :class="{ liked: isLiked }" @tap="toggleLike">
+        <image :src="isLiked ? '/static/icons/icon_heart.svg' : '/static/icons/icon_heart_outline.svg'" class="action-icon" mode="aspectFit" />
+        <text>{{ isLiked ? '已收藏' : $t('like') }}</text>
       </view>
       <view class="action-btn" @tap="showShare">
-        <image class="action-icon" src="/static/icons/icon_share.svg" mode="widthFix" />
+        <image class="action-icon" src="/static/icons/icon_share.svg" mode="aspectFit" />
         <text>{{ $t('share') }}</text>
       </view>
       <view class="action-btn" @tap="saveRecipe">
-        <image class="action-icon" src="/static/icons/icon_bookmark.svg" mode="widthFix" />
+        <image class="action-icon" src="/static/icons/icon_bookmark.svg" mode="aspectFit" />
         <text>{{ $t('saveBookmark') }}</text>
       </view>
     </view>
@@ -161,7 +164,9 @@ function showShare() {
 .hero-card { background: #fff; border-radius: var(--radius-lg); padding: 22rpx; box-shadow: var(--shadow-md); display: flex; gap: 20rpx; margin-bottom: 18rpx; }
 .hero-visual { width: 150rpx; height: 150rpx; border-radius: 34rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; overflow: hidden; }
 .hero-image { width: 100%; height: 100%; }
-.hero-icon { width: 78rpx; height: 78rpx; }
+.hero-icon-shell { width: 92rpx; height: 92rpx; position: relative; display: flex; align-items: center; justify-content: center; }
+.hero-icon { width: 78rpx; height: 78rpx; position: relative; z-index: 1; }
+.hero-icon-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: var(--teal); font-size: 38rpx; font-weight: 900; opacity: .18; }
 .hero-info { flex: 1; min-width: 0; }
 .hero-title { display: block; font-size: 36rpx; font-weight: 900; color: var(--text); line-height: 1.25; }
 .hero-sub { display: block; margin-top: 8rpx; font-size: 24rpx; color: var(--text-secondary); }
@@ -171,6 +176,7 @@ function showShare() {
 .btn-small-icon { width: 40rpx; height: 40rpx; margin-right: 10rpx; filter: brightness(0) invert(1); }
 .action-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-bottom: 20rpx; }
 .action-btn { background: #fff; border-radius: var(--radius); padding: 16rpx 10rpx; display: flex; flex-direction: column; align-items: center; gap: 8rpx; color: var(--text-secondary); font-size: 22rpx; box-shadow: var(--shadow-sm); }
+.action-btn.liked { background: var(--red-bg); color: var(--danger); font-weight: 900; }
 .action-icon { width: 42rpx; height: 42rpx; }
 .card { background: #fff; border-radius: var(--radius); padding: 24rpx; margin-bottom: 20rpx; box-shadow: var(--shadow-sm); }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18rpx; }

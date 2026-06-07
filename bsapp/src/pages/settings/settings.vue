@@ -118,6 +118,21 @@
       </view>
     </view>
 
+    <view class="settings-group">
+      <text class="section-title">饮食偏好</text>
+      <view class="card">
+        <text class="row-title" style="margin-bottom:16rpx">健康目标</text>
+        <view style="display:flex;gap:16rpx;margin-bottom:24rpx">
+          <view v-for="g in goals" :key="g.key" @tap="setGoal(g.key)" :style="{padding:'12rpx 28rpx',borderRadius:'20rpx',fontSize:'26rpx',background:currentGoal===g.key?'#059669':'#f3f4f6',color:currentGoal===g.key?'#fff':'#374151'}">{{ g.label }}</view>
+        </view>
+        <text class="row-title" style="margin-bottom:16rpx">口味偏好（多选）</text>
+        <view style="display:flex;flex-wrap:wrap;gap:14rpx;margin-bottom:24rpx">
+          <view v-for="p in prefOptions" :key="p.key" @tap="togglePref(p.key)" :style="{padding:'10rpx 24rpx',borderRadius:'20rpx',fontSize:'24rpx',background:currentPrefs.includes(p.key)?'#059669':'#f3f4f6',color:currentPrefs.includes(p.key)?'#fff':'#374151'}">{{ p.label }}</view>
+        </view>
+        <button @tap="savePreferences" style="width:100%;height:72rpx;background:#059669;color:#fff;border:none;border-radius:16rpx;font-size:28rpx">保存偏好</button>
+      </view>
+    </view>
+
     <button class="btn-logout" @tap="handleLogout">{{ $t('logout') }}</button>
     <view class="bottom-space"></view>
   </view>
@@ -149,7 +164,35 @@ onShow(() => {
   recipeNotif.value = settingsStore.recipeNotifications
   nutritionNotif.value = settingsStore.nutritionNotifications
   wifiOnly.value = settingsStore.wifiSyncOnly
+  loadPreferences()
 })
+
+const currentGoal = ref('balanced')
+const currentPrefs = ref([])
+const goals = [{ key: 'fat_loss', label: '减脂' }, { key: 'muscle_gain', label: '增肌' }, { key: 'balanced', label: '均衡' }]
+const prefOptions = [
+  { key: 'spicy', label: '辣' }, { key: 'light', label: '清淡' }, { key: 'high_protein', label: '高蛋白' },
+  { key: 'low_carb', label: '低碳水' }, { key: 'vegetarian', label: '素食' }
+]
+
+async function loadPreferences() {
+  try {
+    const p = await ApiService.getUserProfile()
+    if (p) { currentGoal.value = p.goal || 'balanced'; currentPrefs.value = p.preferences || [] }
+  } catch (e) { /* 未登录时用默认值 */ }
+}
+function setGoal(g) { currentGoal.value = g }
+function togglePref(p) {
+  const idx = currentPrefs.value.indexOf(p)
+  if (idx >= 0) currentPrefs.value.splice(idx, 1)
+  else currentPrefs.value.push(p)
+}
+async function savePreferences() {
+  try {
+    await ApiService.updateProfile(currentGoal.value, currentPrefs.value)
+    uni.showToast({ title: '偏好已保存', icon: 'success' })
+  } catch (e) { uni.showToast({ title: '保存失败', icon: 'none' }) }
+}
 
 function changeLang(lang) {
   if (lang === language.value) return

@@ -435,6 +435,14 @@ export const ApiService = {
     return L(MOCK_USER_PROFILE)
   },
 
+  async updateProfile(goal, preferences) {
+    try {
+      const res = await request({ url: '/v1/user/profile', method: 'PUT', data: { goal, preferences } })
+      if (res.status === 'success') return res.data
+    } catch (e) { console.error('API Error - updateProfile:', e) }
+    return null
+  },
+
   // 获取营养状态
   async getNutritionStatus() {
     try {

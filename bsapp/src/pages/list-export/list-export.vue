@@ -60,7 +60,11 @@
 
     <view class="section list-section">
       <view class="section-header">
-        <text class="section-label">{{ $t('mergedList') }}</text>
+        <view class="section-title-row">
+          <image class="section-title-icon" src="/static/icons/icon_cart.svg" mode="aspectFit" />
+          <text class="section-label">{{ $t('mergedList') }}</text>
+          <text class="section-count">{{ editingList.length }} 项</text>
+        </view>
         <text class="section-action" @tap="addItem">+ {{ $t('add') }}</text>
       </view>
 
@@ -71,6 +75,9 @@
       <view v-for="(item, idx) in editingList" :key="idx" class="list-item" :class="{ checked: checkedItems[idx] }">
         <view class="check" @tap="toggleChecked(idx)">
           <text v-if="checkedItems[idx]">✓</text>
+        </view>
+        <view class="ingredient-icon">
+          <image :src="ingredientIcon(item)" mode="aspectFit" />
         </view>
         <view class="item-info">
           <text class="item-name">{{ item.name || '-' }}</text>
@@ -190,8 +197,31 @@ function generateText() {
   text += '\n由 ByteSavor AI 智能生成'
   return text
 }
-function copyToClipboard() {
-  uni.setClipboardData({ data: generateText(), success: () => uni.showToast({ title: $t('copied'), icon: 'success' }) })
+async function writeClipboard(text) {
+  try {
+    await new Promise((resolve, reject) => {
+      uni.setClipboardData({
+        data: text,
+        success: resolve,
+        fail: reject
+      })
+    })
+    return true
+  } catch (e) {
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+    throw e
+  }
+}
+async function copyToClipboard() {
+  try {
+    await writeClipboard(generateText())
+    uni.showToast({ title: $t('copied'), icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: '复制失败，请检查浏览器权限', icon: 'none' })
+  }
 }
 function exportMarkdown() {
   let md = '# ByteSavor 购物清单\n\n## 关联食谱\n'
@@ -205,10 +235,19 @@ function exportMarkdown() {
     confirmText: $t('copyToClipboard'),
     success: (res) => {
       if (res.confirm) {
-        uni.setClipboardData({ data: md, success: () => uni.showToast({ title: $t('copied'), icon: 'success' }) })
+        writeClipboard(md)
+          .then(() => uni.showToast({ title: $t('copied'), icon: 'success' }))
+          .catch(() => uni.showToast({ title: '复制失败，请检查浏览器权限', icon: 'none' }))
       }
     }
   })
+}
+function ingredientIcon(item) {
+  const name = `${item?.name || ''}${item?.nameEn || ''}`.toLowerCase()
+  if (name.includes('牛') || name.includes('肉') || name.includes('beef') || name.includes('chicken')) return '/static/icons/icon_muscle.svg'
+  if (name.includes('鱼') || name.includes('虾') || name.includes('fish') || name.includes('seafood')) return '/static/icons/icon_fish.svg'
+  if (name.includes('油') || name.includes('oil') || name.includes('olive')) return '/static/icons/icon_olive.svg'
+  return '/static/icons/icon_leaf.svg'
 }
 function shareToSocial() {
   uni.showActionSheet({
@@ -279,7 +318,10 @@ function goBack() { uni.navigateBack() }
 .auto-copy { display: block; margin-top: 4rpx; font-size: 18rpx; color: var(--text-secondary); line-height: 1.35; }
 .section { margin-bottom: 22rpx; }
 .section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14rpx; }
+.section-title-row { display: flex; align-items: center; min-width: 0; gap: 10rpx; }
+.section-title-icon { width: 34rpx; height: 34rpx; flex-shrink: 0; }
 .section-label { font-size: 30rpx; font-weight: 900; color: var(--text); }
+.section-count { font-size: 22rpx; color: var(--text-muted); background: var(--bg-elevated); border-radius: var(--radius-full); padding: 5rpx 12rpx; flex-shrink: 0; }
 .section-action { font-size: 25rpx; color: var(--teal); font-weight: 900; }
 .recipe-tags { display: flex; flex-wrap: wrap; gap: 10rpx; }
 .recipe-tag { background: #fff; color: var(--teal); font-size: 23rpx; padding: 9rpx 16rpx; border-radius: var(--radius-full); box-shadow: var(--shadow-sm); }
@@ -290,6 +332,8 @@ function goBack() { uni.navigateBack() }
 .list-item.checked .item-name, .list-item.checked .item-amount { color: var(--text-muted); text-decoration: line-through; }
 .check { width: 42rpx; height: 42rpx; border-radius: 50%; border: 2rpx solid var(--border); display: flex; align-items: center; justify-content: center; color: #fff; font-size: 22rpx; font-weight: 900; flex-shrink: 0; }
 .list-item.checked .check { background: var(--teal); border-color: var(--teal); }
+.ingredient-icon { width: 52rpx; height: 52rpx; border-radius: 16rpx; background: var(--teal-bg); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.ingredient-icon image { width: 30rpx; height: 30rpx; }
 .item-info { flex: 1; min-width: 0; }
 .item-name { font-weight: 900; font-size: 28rpx; color: var(--text); display: block; }
 .item-amount { font-size: 24rpx; color: var(--text-secondary); margin-top: 4rpx; display: block; }
