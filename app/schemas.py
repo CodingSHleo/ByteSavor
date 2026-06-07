@@ -54,6 +54,7 @@ class ShoppingItem(BaseModel):
 
 class MergeRequest(BaseModel):
     recipes: List[str]
+    people: int = 2
 
 # ---------- Agent & Feedback ----------
 class AgentRequest(BaseModel):
