@@ -348,7 +348,7 @@ function request(options) {
         ...HEADERS,
         'Authorization': token ? `Bearer ${token}` : ''
       },
-      timeout: 15000,
+      timeout: 60000,
       success: (res) => {
         if (res.statusCode === 200 || res.statusCode === 201) {
           resolve(res.data)
