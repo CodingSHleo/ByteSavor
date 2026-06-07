@@ -15,19 +15,33 @@
         </view>
       </view>
 
-      <view class="status-card" @tap="goHealthDashboard">
-        <view class="status-main">
+      <view class="hero-panel" @tap="goHealthDashboard">
+        <view class="hero-copy">
+          <text class="hero-label">ByteSavor AI 今日建议</text>
+          <text class="hero-title">{{ statusCopy }}</text>
+          <view class="hero-actions">
+            <button class="hero-primary" @tap.stop="goIngredientRecognition">拍照识别</button>
+            <button class="hero-secondary" @tap.stop="refreshRecommendations">生成推荐</button>
+          </view>
+        </view>
+        <view class="hero-orb">
+          <text class="orb-label">实时缺口</text>
+          <view class="score-ring" :style="{ background: ringGradient }">
+            <view class="score-ring-inner">
+              <text>{{ nutritionScore }}</text>
+              <text>score</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="status-strip">
+        <view class="score-mini">
           <view>
-            <text class="eyebrow">今日营养状态</text>
+            <text class="eyebrow">今日营养</text>
             <view class="score-line">
               <text class="score">{{ nutritionScore }}</text>
               <text class="score-unit">/100</text>
-            </view>
-            <text class="status-copy">{{ statusCopy }}</text>
-          </view>
-          <view class="score-ring" :style="{ background: ringGradient }">
-            <view class="score-ring-inner">
-              <text>{{ nutritionScore }}%</text>
             </view>
           </view>
         </view>
@@ -49,8 +63,8 @@
     </view>
 
     <scroll-view class="home-body" scroll-y refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
-      <view class="action-grid">
-        <view class="scan-card" @tap="goIngredientRecognition">
+      <view class="quick-actions">
+        <view class="quick-action scan-card" @tap="goIngredientRecognition">
           <view class="scan-icon-wrap">
             <image src="/static/icons/icon_scan.svg" class="scan-icon" mode="aspectFit" />
             <text>扫</text>
@@ -61,9 +75,21 @@
           </view>
           <text class="chevron">›</text>
         </view>
+        <view class="quick-action ask-card" @tap="agentMessage = agentMessage || '牛肉南瓜减脂30分钟'">
+          <view class="ask-icon">AI</view>
+          <view>
+            <text class="ask-title">问 AI 助手</text>
+            <text class="ask-desc">目标、时间、食材都可以直接说</text>
+          </view>
+        </view>
         <view class="byte-card">
-          <text class="byte-title">B-Y-T-E</text>
-          <text class="byte-desc">{{ byteStageText }}</text>
+          <view class="byte-card-head">
+            <view>
+              <text class="byte-title">B-Y-T-E</text>
+              <text class="byte-desc">{{ byteStageText }}</text>
+            </view>
+            <text class="byte-percent">{{ byteProgress }}%</text>
+          </view>
           <view class="byte-track">
             <view class="byte-fill" :style="{ width: byteProgress + '%' }"></view>
           </view>
@@ -108,13 +134,17 @@
           <text>{{ topRecipe.imageEmoji || '食' }}</text>
         </view>
         <view class="meal-info">
+          <text class="meal-kicker">AI NEXT MEAL</text>
           <text class="meal-title">{{ topRecipe.title }}</text>
           <text class="meal-meta">{{ topRecipe.cookTime || '--' }} min · {{ topRecipe.calories || '--' }} kcal</text>
           <view class="reason-row">
             <text v-for="reason in recipeReasons" :key="reason" class="reason-chip">{{ reason }}</text>
           </view>
         </view>
-        <view class="match-badge">{{ matchPercent(topRecipe) }}%</view>
+        <view class="match-badge">
+          <text>{{ matchPercent(topRecipe) }}%</text>
+          <text>match</text>
+        </view>
       </view>
       <view v-else class="empty-card">
         <text>暂无推荐，识别食材后生成更准确的菜谱</text>
@@ -139,7 +169,11 @@
       </view>
       <view class="ai-card">
         <view v-if="agentMessages.length === 0" class="ai-empty">
-          <text>告诉我你的目标、食材和时间，我会展示推理过程并给出可导出的食谱。</text>
+          <view class="ai-empty-mark">AI</view>
+          <view class="ai-empty-copy">
+            <text class="ai-empty-title">让 Agent 直接规划下一餐</text>
+            <text class="ai-empty-desc">输入“牛肉南瓜减脂30分钟”，我会展示理解、推荐和清单合并过程。</text>
+          </view>
         </view>
         <view v-else class="ai-thread">
           <view v-for="msg in agentMessages" :key="msg.id" class="chat-row" :class="msg.role">
@@ -378,59 +412,87 @@ onShow(() => {
     linear-gradient(180deg, #F8FCFA 0%, var(--bg) 42%);
   overflow-x: hidden;
 }
-.home-top { padding: calc(24rpx + var(--status-bar-height, 0px)) 28rpx 18rpx; position: relative; }
-.user-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22rpx; }
+.home-top { padding: calc(22rpx + var(--status-bar-height, 0px)) 30rpx 16rpx; position: relative; }
+.user-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20rpx; }
 .user-left { display: flex; align-items: center; gap: 16rpx; min-width: 0; flex: 1; }
 .user-left > view { min-width: 0; }
-.avatar { width: 74rpx; height: 74rpx; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm), var(--hairline); }
-.greeting { display: block; max-width: 500rpx; font-size: 33rpx; font-weight: 900; color: var(--text); letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.date-text { display: block; font-size: 23rpx; color: var(--text-muted); margin-top: 2rpx; }
-.streak-pill { height: 58rpx; padding: 0 18rpx; border-radius: var(--radius-full); background: rgba(255,255,255,.88); display: flex; align-items: center; gap: 6rpx; color: var(--teal); font-size: 24rpx; font-weight: 800; box-shadow: var(--shadow-sm), var(--hairline); backdrop-filter: blur(12rpx); }
+.avatar { width: 64rpx; height: 64rpx; border-radius: 50%; background: #fff; box-shadow: var(--shadow-sm), var(--hairline); }
+.greeting { display: block; max-width: 430rpx; font-size: 29rpx; font-weight: 850; color: var(--text); letter-spacing: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.date-text { display: block; font-size: 21rpx; color: var(--text-muted); margin-top: 0; }
+.streak-pill { height: 52rpx; padding: 0 17rpx; border-radius: var(--radius-full); background: rgba(255,255,255,.88); display: flex; align-items: center; gap: 6rpx; color: var(--teal); font-size: 23rpx; font-weight: 850; box-shadow: var(--shadow-sm), var(--hairline); backdrop-filter: blur(12rpx); }
 .streak-icon { width: 26rpx; height: 26rpx; }
 
-.status-card {
+.hero-panel {
+  min-height: 274rpx;
   background:
-    radial-gradient(circle at 88% 18%, rgba(88,207,160,.24), transparent 28%),
-    linear-gradient(145deg, rgba(255,255,255,.96), rgba(248,252,250,.92));
-  border-radius: var(--radius-xl);
-  padding: 28rpx;
-  box-shadow: var(--shadow-lg), var(--hairline);
+    radial-gradient(circle at 86% 18%, rgba(88,207,160,.34), transparent 29%),
+    radial-gradient(circle at 12% 88%, rgba(242,183,91,.16), transparent 26%),
+    linear-gradient(145deg, #173B2E 0%, #1F5744 100%);
+  border-radius: 40rpx;
+  padding: 30rpx 30rpx 28rpx;
+  box-shadow: 0 28rpx 70rpx rgba(23,59,46,.22);
   position: relative;
   overflow: hidden;
+  color: #fff;
+  display: flex;
+  justify-content: space-between;
+  gap: 20rpx;
   animation: soft-pop .36s var(--ease) both;
 }
-.status-card::after {
+.hero-panel::after {
   content: "";
   position: absolute;
-  top: -80rpx;
-  right: -70rpx;
-  width: 220rpx;
-  height: 220rpx;
+  top: -72rpx;
+  right: -64rpx;
+  width: 240rpx;
+  height: 240rpx;
   border-radius: 50%;
-  background: rgba(35,169,120,.08);
+  background: rgba(255,255,255,.08);
   pointer-events: none;
 }
+.hero-copy { flex: 1; min-width: 0; position: relative; z-index: 1; }
+.hero-label { display: block; font-size: 21rpx; color: rgba(255,255,255,.72); font-weight: 850; }
+.hero-title { display: block; margin-top: 14rpx; max-width: 400rpx; font-size: 33rpx; line-height: 1.28; font-weight: 950; color: #fff; }
+.hero-actions { display: flex; gap: 12rpx; margin-top: 24rpx; }
+.hero-actions button { height: 62rpx; margin: 0; padding: 0 20rpx; border: none; border-radius: var(--radius-full); font-size: 23rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.hero-primary { background: #fff; color: var(--ink-green); box-shadow: 0 12rpx 24rpx rgba(0,0,0,.10); }
+.hero-secondary { background: rgba(255,255,255,.14); color: #fff; box-shadow: inset 0 0 0 1rpx rgba(255,255,255,.22); }
+.hero-orb { width: 160rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; position: relative; z-index: 1; gap: 10rpx; }
+.orb-label { font-size: 18rpx; color: rgba(255,255,255,.72); font-weight: 850; letter-spacing: 0; }
+.status-strip {
+  margin-top: 16rpx;
+  background: rgba(255,255,255,.94);
+  border-radius: var(--radius-lg);
+  padding: 18rpx;
+  box-shadow: var(--shadow-sm), var(--hairline);
+  display: grid;
+  grid-template-columns: .78fr 1.22fr;
+  gap: 16rpx;
+}
+.score-mini { display: flex; align-items: center; min-width: 0; }
 .status-main { display: flex; justify-content: space-between; align-items: center; gap: 20rpx; }
 .eyebrow { display: block; font-size: 23rpx; color: var(--text-secondary); margin-bottom: 8rpx; font-weight: 800; }
 .score-line { display: flex; align-items: flex-end; }
-.score { font-size: 76rpx; line-height: .96; font-weight: 950; color: var(--text); }
+.score { font-size: 50rpx; line-height: .96; font-weight: 950; color: var(--text); }
 .score-unit { font-size: 28rpx; color: var(--text-muted); margin-left: 4rpx; margin-bottom: 6rpx; }
 .status-copy { display: block; margin-top: 10rpx; font-size: 24rpx; color: var(--text-secondary); line-height: 1.45; max-width: 390rpx; }
-.score-ring { width: 154rpx; height: 154rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 16rpx 30rpx rgba(35,169,120,.12); animation: float-breathe 3.8s ease-in-out infinite; position: relative; z-index: 1; }
-.score-ring-inner { width: 102rpx; height: 102rpx; border-radius: 50%; background: rgba(255,255,255,.96); display: flex; align-items: center; justify-content: center; color: var(--teal); font-size: 24rpx; font-weight: 950; box-shadow: inset 0 0 0 1px var(--border-light), var(--shadow-xs); }
-.macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-top: 22rpx; }
-.macro-card { border-radius: 20rpx; padding: 17rpx 15rpx; box-shadow: inset 0 0 0 1rpx rgba(255,255,255,.52); }
+.score-ring { width: 150rpx; height: 150rpx; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 16rpx 34rpx rgba(0,0,0,.16); animation: float-breathe 3.8s ease-in-out infinite; position: relative; z-index: 1; }
+.score-ring-inner { width: 98rpx; height: 98rpx; border-radius: 50%; background: rgba(255,255,255,.96); display: flex; flex-direction: column; align-items: center; justify-content: center; color: var(--teal); box-shadow: inset 0 0 0 1px var(--border-light), var(--shadow-xs); }
+.score-ring-inner text:first-child { font-size: 32rpx; line-height: 1; font-weight: 950; }
+.score-ring-inner text:last-child { margin-top: 4rpx; font-size: 17rpx; color: var(--text-muted); font-weight: 800; }
+.macro-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10rpx; margin-top: 0; }
+.macro-card { border-radius: 20rpx; padding: 15rpx 13rpx; box-shadow: inset 0 0 0 1rpx rgba(255,255,255,.52); transition: transform var(--normal) var(--ease); }
 .macro-card.protein { background: var(--green-bg); }
 .macro-card.carbs { background: var(--amber-bg); }
 .macro-card.fat { background: var(--purple-bg); }
 .macro-value { display: block; font-size: 30rpx; font-weight: 900; color: var(--text); }
 .macro-label { display: block; margin-top: 4rpx; font-size: 22rpx; color: var(--text-muted); }
 
-.home-body { padding: 0 28rpx; height: calc(100vh - 370rpx - var(--status-bar-height, 0px)); }
-.action-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 16rpx; margin-bottom: 24rpx; }
+.home-body { padding: 0 30rpx; height: calc(100vh - 492rpx - var(--status-bar-height, 0px)); }
+.quick-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 14rpx; margin-bottom: 20rpx; }
 .scan-card, .byte-card, .ingredient-card, .meal-card, .mini-card, .ai-card, .empty-card { background: rgba(255,255,255,.94); border-radius: var(--radius-md); box-shadow: var(--shadow-sm), var(--hairline); }
-.scan-card { min-height: 150rpx; padding: 23rpx; display: flex; align-items: center; gap: 16rpx; position: relative; overflow: hidden; }
-.scan-card::after, .ai-card::after {
+.quick-action { min-height: 146rpx; padding: 20rpx; display: flex; align-items: center; gap: 14rpx; position: relative; overflow: hidden; background: #fff; border-radius: var(--radius-md); box-shadow: var(--shadow-sm), var(--hairline); }
+.scan-card::after, .ai-card::after, .ask-card::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -446,10 +508,17 @@ onShow(() => {
 .scan-title { display: block; font-size: 28rpx; font-weight: 800; color: var(--text); }
 .scan-desc { display: block; font-size: 22rpx; color: var(--text-muted); margin-top: 6rpx; line-height: 1.4; }
 .chevron { color: var(--text-muted); font-size: 38rpx; }
-.byte-card { padding: 22rpx; background: linear-gradient(160deg, #FFFFFF 0%, #F4FBF7 100%); }
+.ask-card { background: linear-gradient(145deg, #FFFFFF, #F8F6FF); }
+.ask-icon { width: 70rpx; height: 70rpx; border-radius: 22rpx; background: var(--purple-bg); color: var(--berry); display: flex; align-items: center; justify-content: center; font-size: 24rpx; font-weight: 950; flex-shrink: 0; box-shadow: inset 0 0 0 1rpx rgba(141,122,230,.10); }
+.ask-title { display: block; font-size: 28rpx; font-weight: 900; color: var(--text); }
+.ask-desc { display: block; margin-top: 6rpx; font-size: 21rpx; line-height: 1.35; color: var(--text-muted); }
+.byte-card { grid-column: 1 / -1; padding: 20rpx 22rpx; background: linear-gradient(160deg, #FFFFFF 0%, #F4FBF7 100%); position: relative; overflow: hidden; }
+.byte-card::after { content: ""; position: absolute; right: -44rpx; top: -52rpx; width: 150rpx; height: 150rpx; border-radius: 50%; background: rgba(35,169,120,.08); pointer-events: none; }
+.byte-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; position: relative; z-index: 1; }
 .byte-title { display: block; font-size: 30rpx; font-weight: 900; color: var(--text); }
-.byte-desc { display: block; margin-top: 8rpx; color: var(--text-secondary); font-size: 22rpx; min-height: 56rpx; }
-.byte-track { height: 10rpx; border-radius: 10rpx; background: var(--border-light); overflow: hidden; margin-top: 14rpx; }
+.byte-desc { display: block; margin-top: 8rpx; color: var(--text-secondary); font-size: 22rpx; min-height: auto; }
+.byte-percent { color: var(--teal); font-size: 25rpx; font-weight: 950; }
+.byte-track { height: 10rpx; border-radius: 10rpx; background: var(--border-light); overflow: hidden; margin-top: 14rpx; position: relative; z-index: 1; }
 .byte-fill { height: 100%; border-radius: 10rpx; background: linear-gradient(90deg, var(--teal), var(--teal-light)); transition: width .35s var(--ease); transform-origin: left center; animation: bar-grow .5s var(--ease) both; }
 .notice-card {
   display: flex;
@@ -523,14 +592,18 @@ onShow(() => {
 .empty-row { min-height: 88rpx; display: flex; align-items: center; gap: 14rpx; color: var(--text-muted); font-size: 25rpx; line-height: 1.45; }
 .empty-icon { width: 48rpx; height: 48rpx; }
 
-.meal-card { padding: 20rpx; display: flex; align-items: center; gap: 18rpx; background: linear-gradient(145deg, #FFFFFF, #F8FCFA); }
-.meal-visual { width: 84rpx; height: 84rpx; border-radius: 25rpx; background: linear-gradient(150deg, var(--teal-bg), #FFFFFF); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 38rpx; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.08); }
+.meal-card { padding: 20rpx; display: flex; align-items: center; gap: 18rpx; background: linear-gradient(145deg, #FFFFFF, #F8FCFA); position: relative; overflow: hidden; }
+.meal-card::before { content: ""; position: absolute; left: 0; top: 22rpx; bottom: 22rpx; width: 6rpx; border-radius: 0 999rpx 999rpx 0; background: linear-gradient(180deg, var(--teal), var(--amber)); }
+.meal-visual { width: 84rpx; height: 84rpx; border-radius: 25rpx; background: linear-gradient(150deg, var(--teal-bg), #FFFFFF); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 38rpx; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.08); margin-left: 6rpx; }
 .meal-info { flex: 1; min-width: 0; }
+.meal-kicker { display: block; color: var(--teal); font-size: 17rpx; font-weight: 950; margin-bottom: 2rpx; }
 .meal-title { display: block; font-size: 29rpx; font-weight: 900; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .meal-meta { display: block; font-size: 23rpx; color: var(--text-muted); margin-top: 6rpx; }
 .reason-row { display: flex; gap: 8rpx; flex-wrap: wrap; margin-top: 10rpx; }
 .reason-chip { font-size: 20rpx; color: var(--text-secondary); background: var(--bg); border-radius: var(--radius-full); padding: 4rpx 10rpx; }
-.match-badge { min-width: 68rpx; height: 56rpx; border-radius: 19rpx; background: var(--green-bg); color: var(--teal); font-size: 25rpx; font-weight: 950; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.12); }
+.match-badge { min-width: 74rpx; height: 66rpx; border-radius: 21rpx; background: var(--green-bg); color: var(--teal); font-weight: 950; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.12); }
+.match-badge text:first-child { font-size: 25rpx; line-height: 1; }
+.match-badge text:last-child { margin-top: 5rpx; font-size: 15rpx; color: var(--text-muted); }
 .empty-card { padding: 26rpx; color: var(--text-muted); font-size: 25rpx; }
 
 .mini-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16rpx; margin-top: 24rpx; }
@@ -540,6 +613,7 @@ onShow(() => {
 .mini-desc { display: block; margin-top: 6rpx; font-size: 22rpx; color: var(--text-muted); }
 
 .ai-card { padding: 18rpx; position: relative; overflow: hidden; background: linear-gradient(150deg, #FFFFFF 0%, #FBFAFF 100%); }
+.ai-card::before { content: ""; position: absolute; top: -80rpx; right: -70rpx; width: 180rpx; height: 180rpx; border-radius: 50%; background: rgba(141,122,230,.08); pointer-events: none; }
 .ai-empty { background: linear-gradient(135deg, var(--purple-bg), #FFFFFF); border-radius: 22rpx; padding: 20rpx; margin-bottom: 14rpx; color: var(--text-secondary); font-size: 24rpx; line-height: 1.45; box-shadow: inset 0 0 0 1rpx rgba(141,122,230,.08); }
 .ai-thread { display: flex; flex-direction: column; gap: 12rpx; margin-bottom: 14rpx; max-height: 560rpx; overflow: hidden; }
 .chat-row { display: flex; }
@@ -565,7 +639,7 @@ onShow(() => {
 .agent-shopping { background: #fff; border-radius: 19rpx; padding: 12rpx 14rpx; display: flex; align-items: center; justify-content: space-between; gap: 12rpx; border: 1rpx solid var(--border-light); box-shadow: var(--shadow-xs); }
 .agent-shopping text { color: var(--text-secondary); font-size: 22rpx; }
 .agent-shopping button { width: 82rpx; height: 52rpx; margin: 0; padding: 0; border-radius: var(--radius-full); background: var(--teal); color: #fff; font-size: 21rpx; font-weight: 900; border: none; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.ai-input-row { display: flex; align-items: center; gap: 10rpx; }
+.ai-input-row { display: flex; align-items: center; gap: 10rpx; position: relative; z-index: 1; }
 .ai-icon { width: 42rpx; height: 42rpx; flex-shrink: 0; }
 .ai-input { flex: 1; min-width: 0; height: 74rpx; background: #fff; border: 1px solid var(--border-light); border-radius: var(--radius-full); padding: 0 22rpx; font-size: 26rpx; color: var(--text); box-sizing: border-box; box-shadow: inset 0 0 0 1rpx rgba(19,35,29,.02); }
 .ai-send { width: 98rpx; height: 74rpx; margin: 0; padding: 0; background: linear-gradient(135deg, var(--berry), #A996FF); color: #fff; border: none; border-radius: var(--radius-full); font-size: 25rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex-shrink: 0; box-shadow: 0 12rpx 24rpx rgba(141,122,230,.20); }

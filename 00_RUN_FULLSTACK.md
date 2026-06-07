@@ -82,10 +82,23 @@ npm install
 npm run dev:h5
 ```
 
-Uni/Vite 会输出本地地址，通常是：
+`dev:h5` 已显式使用 `--host 0.0.0.0`，因此 `localhost`、`127.0.0.1` 和本机局域网地址都可以访问。Uni/Vite 会输出本地地址，通常是：
 
 ```text
 http://localhost:5173/
+http://127.0.0.1:5173/
+```
+
+当前推荐使用的前端源码目录是：
+
+```text
+/Users/liwenbin930/Desktop/bytesavor-backend/bsapp/src
+```
+
+镜像前端目录也已同步同一份 UI 源码：
+
+```text
+/Users/liwenbin930/Desktop/bytesavor-backend/frontend/bytesavorapptest5_31/bytesavorapptest5_31/bytesavor-uniapp/src
 ```
 
 前端默认请求：
@@ -154,7 +167,9 @@ JWT_SECRET=test-review-secret venv/bin/python -m pytest -q
 
 - 注册/登录 500：检查 `JWT_SECRET` 是否为空或仍是占位值。
 - 前端请求失败：确认后端在 `8000`，前端 API base 是 `http://127.0.0.1:8000`。
+- `127.0.0.1:5173` 打不开但 `localhost:5173` 能打开：确认 `package.json` 里的 `dev:h5` 是 `uni --host 0.0.0.0`，并重启前端。
 - 注册页显示网络异常：先在浏览器控制台执行 `localStorage.removeItem('api_base_url')`，刷新后重试。
 - 图片识别返回 mock：检查 `VLM_API_URL`、`VLM_API_KEY`、后端日志里的 `vlm_http` / `vlm_parse_failed`。
 - 推荐为空：确认 MySQL 里已 seed 菜谱，后端启动日志应包含 `seed loaded`。
 - H5 跨域：后端已放行 `localhost/127.0.0.1:5173/5174`。
+- H5 build 出现 Sass `legacy-js-api` 或 `@import` deprecation warning：这是当前 uni/vite/sass 工具链警告；只要 `DONE Build complete` 出现且退出码为 0，不代表应用构建失败。

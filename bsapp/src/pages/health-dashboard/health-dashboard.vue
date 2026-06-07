@@ -67,6 +67,21 @@
       </view>
     </view>
 
+    <view class="trend-card">
+      <view class="card-head">
+        <text>本周趋势</text>
+        <text>AI 估算</text>
+      </view>
+      <view class="trend-bars">
+        <view v-for="day in trendDays" :key="day.label" class="trend-day">
+          <view class="trend-track">
+            <view class="trend-fill" :style="{ height: day.value + '%' }"></view>
+          </view>
+          <text>{{ day.label }}</text>
+        </view>
+      </view>
+    </view>
+
     <view class="card">
       <view class="card-head">
         <text>{{ $t('nutritionGap') }}</text>
@@ -194,6 +209,15 @@ const metrics = [
   { label: $t('fiber'), value: 45, color: 'var(--amber)' },
   { label: $t('vitamins'), value: 68, color: 'var(--berry)' }
 ]
+const trendDays = [
+  { label: '一', value: 42 },
+  { label: '二', value: 58 },
+  { label: '三', value: 50 },
+  { label: '四', value: 72 },
+  { label: '五', value: 64 },
+  { label: '六', value: 84 },
+  { label: '日', value: 68 }
+]
 const nutritionGaps = [
   { label: $t('calories'), needed: `${$t('dailyTarget')} 2400`, current: `${$t('currentIntake')} 1800`, progress: 75, color: 'var(--blue)' },
   { label: $t('protein'), needed: `${$t('dailyTarget')} 70g`, current: `${$t('currentIntake')} 55g`, progress: 78, color: 'var(--teal)' },
@@ -315,7 +339,7 @@ function goBack() { uni.navigateBack() }
 }
 .explain-title { display: block; font-size: 25rpx; font-weight: 900; color: var(--text); }
 .explain-copy { display: block; margin-top: 4rpx; font-size: 22rpx; color: var(--text-secondary); line-height: 1.45; }
-.chart-card, .card { background: rgba(255,255,255,.95); border-radius: var(--radius-md); padding: 24rpx; margin-bottom: 20rpx; box-shadow: var(--shadow-sm), var(--hairline); animation: soft-pop .3s var(--ease) both; }
+.chart-card, .card, .trend-card { background: rgba(255,255,255,.95); border-radius: var(--radius-md); padding: 24rpx; margin-bottom: 20rpx; box-shadow: var(--shadow-sm), var(--hairline); animation: soft-pop .3s var(--ease) both; }
 .card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20rpx; }
 .card-head text:first-child { font-size: 31rpx; font-weight: 950; color: var(--text); }
 .card-head text:last-child { font-size: 23rpx; color: var(--text-muted); font-weight: 700; }
@@ -329,6 +353,14 @@ function goBack() { uni.navigateBack() }
 .legend-dot { width: 16rpx; height: 16rpx; border-radius: 50%; margin-right: 10rpx; }
 .legend-label { flex: 1; color: var(--text-secondary); font-size: 24rpx; }
 .legend-val { color: var(--text); font-size: 24rpx; font-weight: 900; }
+.trend-bars { height: 180rpx; display: grid; grid-template-columns: repeat(7, 1fr); gap: 14rpx; align-items: end; padding-top: 10rpx; }
+.trend-day { display: flex; flex-direction: column; align-items: center; gap: 10rpx; color: var(--text-muted); font-size: 20rpx; font-weight: 800; }
+.trend-track { width: 18rpx; height: 136rpx; border-radius: 999rpx; background: var(--border-light); display: flex; align-items: flex-end; overflow: hidden; }
+.trend-fill { width: 100%; min-height: 12rpx; border-radius: 999rpx; background: linear-gradient(180deg, var(--teal-light), var(--teal)); transform-origin: bottom center; animation: trend-rise .55s var(--ease) both; }
+@keyframes trend-rise {
+  from { transform: scaleY(.12); opacity: .4; }
+  to { transform: scaleY(1); opacity: 1; }
+}
 .gap-row { margin-bottom: 20rpx; }
 .gap-row:last-child { margin-bottom: 0; }
 .gap-top { display: flex; justify-content: space-between; margin-bottom: 8rpx; }

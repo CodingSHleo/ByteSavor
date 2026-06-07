@@ -21,6 +21,20 @@
       <text>{{ errorNotice }}</text>
     </view>
 
+    <view v-if="featuredRecipe" class="featured-recipe" @tap="goDetail(featuredRecipe)">
+      <view class="featured-copy">
+        <text class="featured-label">今日精选</text>
+        <text class="featured-title">{{ featuredRecipe.title }}</text>
+        <text class="featured-meta">{{ featuredRecipe.cookTime }}分钟 · {{ featuredRecipe.calories }}千卡 · {{ catLabel(featuredRecipe.category) }}</text>
+        <view class="featured-micro">
+          <text v-for="micro in (featuredRecipe.micro_highlights || []).slice(0, 3)" :key="micro">{{ micro }}</text>
+        </view>
+      </view>
+      <view class="featured-visual" :class="featuredRecipe.category">
+        <text>{{ featuredRecipe.imageEmoji || '食' }}</text>
+      </view>
+    </view>
+
     <scroll-view scroll-x class="cat-scroll" :show-scrollbar="false">
       <view v-for="c in categories" :key="c.key" class="cat-tag" :class="{ active: activeCategory === c.key }" @tap="activeCategory = c.key">
         <image class="cat-icon" :src="`/static/icons/${c.icon}.svg`" />
@@ -97,6 +111,7 @@ const filteredRecipes = computed(() => {
 })
 const highProteinCount = computed(() => recipes.value.filter(r => r.category === 'high_protein' || (r.tags || []).includes('high_protein')).length)
 const microRichCount = computed(() => recipes.value.filter(r => (r.micro_highlights || []).length > 0).length)
+const featuredRecipe = computed(() => filteredRecipes.value[0] || recipes.value[0] || null)
 
 onLoad(async () => {
   try {
@@ -137,6 +152,39 @@ function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-det
 .recipe-stats text:last-child { display: block; margin-top: 8rpx; color: var(--text-muted); font-size: 20rpx; }
 .notice-card { display: flex; align-items: center; gap: 12rpx; background: var(--amber-bg); color: #9A651B; border-radius: var(--radius); padding: 16rpx 18rpx; margin-bottom: 18rpx; font-size: 23rpx; line-height: 1.45; box-shadow: var(--shadow-sm); }
 .notice-card image { width: 30rpx; height: 30rpx; flex-shrink: 0; }
+.featured-recipe {
+  min-height: 238rpx;
+  margin-bottom: 18rpx;
+  padding: 26rpx;
+  border-radius: 38rpx;
+  color: #fff;
+  background:
+    radial-gradient(circle at 88% 18%, rgba(255,255,255,.22), transparent 32%),
+    linear-gradient(145deg, #173B2E, #245445);
+  box-shadow: 0 24rpx 58rpx rgba(23,59,46,.20);
+  display: flex;
+  align-items: center;
+  gap: 18rpx;
+  overflow: hidden;
+  position: relative;
+  animation: soft-pop .34s var(--ease) both;
+}
+.featured-recipe::after {
+  content: "";
+  position: absolute;
+  inset: auto -58rpx -78rpx auto;
+  width: 220rpx;
+  height: 220rpx;
+  border-radius: 50%;
+  background: rgba(255,255,255,.08);
+}
+.featured-copy { flex: 1; min-width: 0; position: relative; z-index: 1; }
+.featured-label { display: block; font-size: 22rpx; font-weight: 850; color: rgba(255,255,255,.68); }
+.featured-title { display: block; margin-top: 10rpx; font-size: 36rpx; line-height: 1.2; font-weight: 950; color: #fff; }
+.featured-meta { display: block; margin-top: 10rpx; font-size: 22rpx; color: rgba(255,255,255,.74); }
+.featured-micro { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 16rpx; }
+.featured-micro text { padding: 6rpx 12rpx; border-radius: var(--radius-full); background: rgba(255,255,255,.14); color: #fff; font-size: 20rpx; font-weight: 850; }
+.featured-visual { width: 118rpx; height: 118rpx; border-radius: 34rpx; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 52rpx; background: rgba(255,255,255,.16); box-shadow: inset 0 0 0 1rpx rgba(255,255,255,.22); position: relative; z-index: 1; }
 .cat-scroll { white-space: nowrap; margin-bottom: 20rpx; }
 .cat-tag { display: inline-flex; align-items: center; gap: 8rpx; padding: 13rpx 22rpx; border-radius: var(--radius-full); font-size: 24rpx; font-weight: 850; margin-right: 12rpx; background: rgba(255,255,255,.92); color: var(--text-secondary); box-shadow: var(--shadow-xs), var(--hairline); transition: all var(--fast) ease; }
 .cat-tag.active { background: linear-gradient(135deg, var(--ink-green), #245445); color: #fff; transform: translateY(-2rpx); box-shadow: 0 14rpx 28rpx rgba(23,59,46,.16); }

@@ -335,14 +335,20 @@ input:focus, textarea:focus {
 .uni-tabbar, uni-tabbar {
   padding-bottom: constant(safe-area-inset-bottom);
   padding-bottom: env(safe-area-inset-bottom);
-  box-shadow: 0 -1px 8px rgba(0,0,0,0.04);
-  border-top: 1px solid var(--border) !important;
+  background: rgba(255,255,255,.94) !important;
+  border-top: 1px solid rgba(220,234,227,.76) !important;
+  box-shadow: 0 -16rpx 38rpx rgba(26, 73, 55, 0.07);
+  backdrop-filter: blur(18rpx);
+  -webkit-backdrop-filter: blur(18rpx);
 }
-/* 选中项微动效 */
+.uni-tabbar .uni-tabbar__item,
+uni-tabbar .uni-tabbar__item {
+  transition: transform var(--fast) var(--ease);
+}
 .uni-tabbar .uni-tabbar__item.uni-tabbar__item--active {
-  transition: transform var(--fast) ease;
+  transform: translateY(-2rpx);
 }
 .uni-tabbar .uni-tabbar__item.uni-tabbar__item--active .uni-tabbar__label {
-  font-weight: 700;
+  font-weight: 850;
 }
 </style>

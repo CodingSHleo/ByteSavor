@@ -15,6 +15,7 @@
         <text class="scan-title">添加一张食材照片</text>
         <text class="scan-sub">支持冰箱、菜板、餐盘等场景</text>
       </view>
+      <view class="scan-grid"></view>
       <view class="scan-corners">
         <view></view><view></view><view></view><view></view>
       </view>
@@ -318,6 +319,18 @@ function freshnessClass(f) { return f === 'high' ? 'fresh-high' : f === 'low' ? 
   background: linear-gradient(90deg, transparent, rgba(35,169,120,.72), transparent);
   box-shadow: 0 0 22rpx rgba(35,169,120,.24);
   animation: scan-line 2.8s ease-in-out infinite;
+}
+.scan-grid {
+  position: absolute;
+  inset: 34rpx;
+  border-radius: 34rpx;
+  opacity: .22;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(35,169,120,.20) 1rpx, transparent 1rpx),
+    linear-gradient(90deg, rgba(35,169,120,.20) 1rpx, transparent 1rpx);
+  background-size: 54rpx 54rpx;
+  mask-image: radial-gradient(circle at center, #000 0%, rgba(0,0,0,.55) 52%, transparent 78%);
 }
 @keyframes scan-line {
   0%, 100% { transform: translateY(0); opacity: .15; }
