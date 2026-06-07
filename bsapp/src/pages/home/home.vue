@@ -132,7 +132,7 @@
         </view>
       </view>
 
-      <view class="section-head">
+      <view class="section-head ai-section-head">
         <text>AI 助手</text>
         <text class="section-sub">输入目标直接走 Agent</text>
       </view>
@@ -395,6 +395,14 @@ onShow(() => {
 .section-head text:first-child { font-size: 31rpx; font-weight: 900; color: var(--text); }
 .section-link { font-size: 24rpx; color: var(--teal); font-weight: 700; }
 .section-sub { font-size: 22rpx; color: var(--text-muted); }
+.ai-section-head {
+  justify-content: flex-start;
+  align-items: baseline;
+  gap: 14rpx;
+}
+.ai-section-head .section-sub {
+  margin-left: 0;
+}
 .ingredient-card { padding: 20rpx; }
 .ingredient-list { display: flex; flex-wrap: wrap; gap: 12rpx; }
 .ingredient-chip { padding: 12rpx 16rpx; border-radius: var(--radius-full); display: flex; align-items: center; gap: 8rpx; }
@@ -425,8 +433,8 @@ onShow(() => {
 .ai-card { padding: 18rpx; }
 .ai-input-row { display: flex; align-items: center; gap: 10rpx; }
 .ai-icon { width: 42rpx; height: 42rpx; flex-shrink: 0; }
-.ai-input { flex: 1; height: 72rpx; background: var(--bg); border: 1px solid var(--border-light); border-radius: var(--radius-full); padding: 0 22rpx; font-size: 26rpx; color: var(--text); }
-.ai-send { width: 96rpx; height: 72rpx; background: var(--berry); color: #fff; border: none; border-radius: var(--radius-full); font-size: 25rpx; font-weight: 800; }
+.ai-input { flex: 1; min-width: 0; height: 72rpx; background: var(--bg); border: 1px solid var(--border-light); border-radius: var(--radius-full); padding: 0 22rpx; font-size: 26rpx; color: var(--text); box-sizing: border-box; }
+.ai-send { width: 96rpx; height: 72rpx; margin: 0; padding: 0; background: var(--berry); color: #fff; border: none; border-radius: var(--radius-full); font-size: 25rpx; font-weight: 800; line-height: 1; display: flex; align-items: center; justify-content: center; box-sizing: border-box; flex-shrink: 0; }
 .ai-result { margin-top: 16rpx; }
 .ai-intent-row { display: flex; flex-wrap: wrap; gap: 8rpx; margin-bottom: 12rpx; }
 .ai-intent-chip { font-size: 22rpx; background: var(--purple-bg); color: var(--berry); padding: 7rpx 14rpx; border-radius: var(--radius-full); }
