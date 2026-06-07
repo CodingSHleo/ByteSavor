@@ -6,3 +6,4 @@ venv/
 *.pdf
 .vscode/
 .claude/
+bsapp/node_modules/
