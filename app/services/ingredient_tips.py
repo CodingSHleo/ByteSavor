@@ -33,6 +33,7 @@ TIPS = {
     "蚝油": "选蚝汁含量高（配料表排第一）、粘稠度适中的",
     "料酒": "选以黄酒为基底的酿造料酒，去腥增香效果好",
     "醋": "选固态发酵、酸度≥5%的陈醋或香醋，口感醇厚",
+    "葱": "选葱白粗长、叶片翠绿不枯黄的，根部带泥更新鲜",
     "蒸鱼豉油": "选咸鲜适口、颜色清亮的，李锦记或海天均可",
     "豆瓣酱": "选红油透亮、豆瓣完整、发酵香浓郁的郫县豆瓣",
     "盐": "日常选加碘精制盐，腌制可选粗海盐",
@@ -43,9 +44,14 @@ FALLBACK = "选色泽正常、无异味、外观完整的"
 
 
 def get_tip(name: str) -> str:
-    for key, tip in TIPS.items():
-        if key in name or name in key:
-            return tip
+    # 精确匹配优先
+    if name in TIPS:
+        return TIPS[name]
+    # 包含匹配（长的 key 优先，避免"葱"匹配"洋葱"）
+    candidates = [(k, v) for k, v in TIPS.items() if k in name]
+    candidates.sort(key=lambda x: -len(x[0]))
+    if candidates:
+        return candidates[0][1]
     return FALLBACK
 
 
