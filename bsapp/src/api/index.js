@@ -2,7 +2,7 @@ import { currentLang } from '@/utils/i18n'
 
 // API 基础配置 —— 可通过 storage 或编译时变量覆盖
 function getBaseUrl() {
-  try { return uni.getStorageSync('api_base_url') || 'http://127.0.0.1:8000' }
+  try { return uni.getStorageSync('api_base_url') || 'http://172.26.9.112:8000' }
   catch (e) { return 'http://127.0.0.1:8000' }
 }
 
