@@ -8,6 +8,7 @@
       <text v-if="pwdError" class="lock-error">密码错误</text>
     </view>
   </view>
+  <slot v-else />
 </template>
 
 <script setup>
