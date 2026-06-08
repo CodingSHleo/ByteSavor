@@ -45,7 +45,7 @@ async def recommend(db: AsyncSession, ingredients: list[str], constraints: dict,
         "top": scored[0]["title"] if scored else "none",
     })
 
-    return scored[:5]
+    return scored[:8]
 
 
 # ---------- 1. 候选检索 ----------
