@@ -23,6 +23,13 @@
       </view>
     </view>
 
+    <view class="card" v-if="ingredients.length">
+      <text class="section-title">识别的食材</text>
+      <view class="ing-tags">
+        <text v-for="(ing, i) in ingredients" :key="i" class="ing-tag">{{ ing.name || ing }}</text>
+      </view>
+    </view>
+
     <view v-if="errorNotice" class="notice-card">
       <image src="/static/icons/icon_flash.svg" mode="aspectFit" />
       <text>{{ errorNotice }}</text>
@@ -125,7 +132,7 @@
         <text>{{ $t('recommendedRecipe') }}</text>
         <text>{{ matchPercent }}% 匹配</text>
       </view>
-      <view class="recipe-row">
+      <view class="recipe-row" @tap="goRecipeDetail(recommendedRecipe)">
         <view class="recipe-icon"><image src="/static/icons/icon_plate.svg" mode="widthFix" /></view>
         <view class="recipe-info">
           <text class="recipe-title">{{ recommendedRecipe.title }}</text>
@@ -271,6 +278,10 @@ onLoad(async (options) => {
   }
 })
 
+function goRecipeDetail(r) {
+  const rid = r.recipe_id || r.recipeId
+  if (rid) uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${rid}&title=${encodeURIComponent(r.title)}` })
+}
 function exportList() {
   uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(recommendations.value))}` })
 }

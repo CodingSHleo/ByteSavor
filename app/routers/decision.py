@@ -60,10 +60,22 @@ async def get_recipe_detail(recipe_id: str = Path(...), db: AsyncSession = Depen
     recipe = r.scalar_one_or_none()
     if recipe is None:
         return ErrorResponse(error={"code": "NOT_FOUND", "message": "菜谱不存在"})
+    steps = recipe.steps
+    if not steps or steps == [] or steps == ['详见原数据集']:
+        names = [i['name'] for i in (recipe.ingredients or [])]
+        steps = [f"准备食材：{'、'.join(names[:5])}"]
+        if recipe.cook_time and recipe.cook_time > 20:
+            steps.append(f"主料预处理（腌制/焯水/切配）")
+        steps.append(f"热锅下油，依次下入主料翻炒/炖煮")
+        if 'spicy' in (recipe.tags or []):
+            steps.append("加入辣椒、花椒等调料调味")
+        steps.append(f"总共烹饪约{recipe.cook_time or 30}分钟")
+        steps.append("出锅装盘，趁热享用")
+
     return SuccessResponse(data={
         "recipe_id": recipe.id,
         "title": recipe.title,
-        "steps": recipe.steps,
+        "steps": steps,
         "ingredients": recipe.ingredients,
         "calories": recipe.calories,
         "protein": recipe.protein,
