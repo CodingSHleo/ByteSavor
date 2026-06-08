@@ -672,7 +672,7 @@ onShow(() => {
 .ai-card { padding: 18rpx; position: relative; overflow: hidden; background: linear-gradient(150deg, #FFFFFF 0%, #FBFAFF 100%); }
 .ai-card::before { content: ""; position: absolute; top: -80rpx; right: -70rpx; width: 180rpx; height: 180rpx; border-radius: 50%; background: rgba(141,122,230,.08); pointer-events: none; }
 .ai-empty { background: linear-gradient(135deg, var(--purple-bg), #FFFFFF); border-radius: 22rpx; padding: 20rpx; margin-bottom: 14rpx; color: var(--text-secondary); font-size: 24rpx; line-height: 1.45; box-shadow: inset 0 0 0 1rpx rgba(141,122,230,.08); }
-.ai-thread { display: flex; flex-direction: column; gap: 12rpx; margin-bottom: 14rpx; max-height: 560rpx; overflow: hidden; }
+.ai-thread { display: flex; flex-direction: column; gap: 12rpx; margin-bottom: 14rpx; max-height: 560rpx; overflow-y: auto; }
 .chat-row { display: flex; }
 .chat-row.user { justify-content: flex-end; }
 .chat-row.assistant { justify-content: flex-start; }

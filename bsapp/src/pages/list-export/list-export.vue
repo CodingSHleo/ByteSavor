@@ -82,7 +82,7 @@
         </view>
         <view class="item-info">
           <text class="item-name">{{ item.name || '-' }}</text>
-          <text class="item-amount">{{ item.amount || '-' }}</text>
+          <text class="item-amount">{{ item.display || item.amount || '-' }}</text>
         </view>
         <view class="item-actions">
           <image class="action-icon" src="/static/icons/icon_edit.svg" @tap="editItem(idx)" mode="widthFix" />
@@ -135,7 +135,7 @@ function dedupeIngredients(list) {
     const key = (item.name || '').trim().toLowerCase()
     if (!key) return
     if (!map.has(key)) {
-      map.set(key, { ...item, name: item.name.trim(), amount: item.amount || '' })
+      map.set(key, { ...item, name: item.name.trim(), amount: item.display || item.amount || '' })
     }
   })
   return Array.from(map.values())
