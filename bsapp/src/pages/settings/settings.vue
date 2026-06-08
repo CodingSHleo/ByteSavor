@@ -121,6 +121,13 @@
     <view class="settings-group">
       <text class="section-title">饮食偏好</text>
       <view class="card">
+        <text class="row-title" style="margin-bottom:12rpx">自由输入（输入菜名或口味描述，AI解析）</text>
+        <view style="display:flex;gap:12rpx;margin-bottom:16rpx">
+          <input v-model="freeText" placeholder="比如：我喜欢川菜和粤菜，不喜欢太油腻的，经常吃牛肉和西兰花" style="flex:1;height:72rpx;background:#f9fafb;border-radius:16rpx;padding:0 16rpx;font-size:24rpx" />
+          <button @tap="parseFreeText" :disabled="parsing" style="width:140rpx;height:72rpx;background:#059669;color:#fff;border:none;border-radius:16rpx;font-size:24rpx">{{ parsing ? '解析中' : 'AI解析' }}</button>
+        </view>
+        <text v-if="parseResult" style="display:block;font-size:22rpx;color:#059669;margin-bottom:16rpx">{{ parseResult }}</text>
+        <view class="divider" style="margin:0 0 20rpx 0"></view>
         <text class="row-title" style="margin-bottom:16rpx">健康目标</text>
         <view style="display:flex;gap:16rpx;margin-bottom:24rpx">
           <view v-for="g in goals" :key="g.key" @tap="setGoal(g.key)" :style="{padding:'12rpx 28rpx',borderRadius:'20rpx',fontSize:'26rpx',background:currentGoal===g.key?'#059669':'#f3f4f6',color:currentGoal===g.key?'#fff':'#374151'}">{{ g.label }}</view>
@@ -169,6 +176,33 @@ onShow(() => {
 
 const currentGoal = ref('balanced')
 const currentPrefs = ref([])
+const freeText = ref('')
+const parsing = ref(false)
+const parseResult = ref('')
+
+async function parseFreeText() {
+  const t = freeText.value.trim(); if (!t) return
+  parsing.value = true; parseResult.value = ''
+  try {
+    const resp = await fetch('http://127.0.0.1:8000/v1/assistant/chat', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({message: `分析饮食偏好，返回JSON: {"goal":"fat_loss/muscle_gain/balanced","preferences":["标签1","标签2"]}。标签从:spicy,light,high_protein,low_carb,vegetarian,comfort_food,seafood中选。\n用户输入: ${t}`})
+    })
+    const d = await resp.json()
+    const reply = d.data?.reply || ''
+    // 提取JSON
+    let json = reply
+    if (reply.includes('```')) json = reply.split('```')[1].split('```')[0]
+    if (json.startsWith('json')) json = json.slice(4)
+    const parsed = JSON.parse(json)
+    if (parsed.goal) currentGoal.value = parsed.goal
+    if (parsed.preferences) currentPrefs.value = parsed.preferences
+    parseResult.value = `已解析: 目标=${currentGoal.value} 偏好=${currentPrefs.value.join(',')}`
+  } catch (e) {
+    parseResult.value = '解析失败，请手动选择'
+  }
+  parsing.value = false
+}
 const goals = [{ key: 'fat_loss', label: '减脂' }, { key: 'muscle_gain', label: '增肌' }, { key: 'balanced', label: '均衡' }]
 const prefOptions = [
   { key: 'spicy', label: '辣' }, { key: 'light', label: '清淡' }, { key: 'high_protein', label: '高蛋白' },
