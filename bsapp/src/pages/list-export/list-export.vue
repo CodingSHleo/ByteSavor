@@ -65,7 +65,8 @@
           <text class="section-label">{{ $t('mergedList') }}</text>
           <text class="section-count">{{ editingList.length }} 项</text>
         </view>
-        <text class="section-action" @tap="addItem">+ {{ $t('add') }}</text>
+        <text class="section-action" @tap="toggleAll">全选</text>
+        <text class="section-action" @tap="addItem" style="margin-left:20rpx">+ {{ $t('add') }}</text>
       </view>
 
       <view v-if="editingList.length === 0" class="le-empty">
@@ -169,6 +170,11 @@ onLoad(async (options) => {
 
 function addItem() { editingList.value.push({ name: '', amount: '' }) }
 function toggleChecked(idx) { checkedItems.value[idx] = !checkedItems.value[idx]; checkedItems.value = { ...checkedItems.value } }
+function toggleAll() {
+  const allChecked = editingList.value.length && editingList.value.every((_, i) => checkedItems.value[i])
+  if (allChecked) { checkedItems.value = {} }
+  else { const o = {}; editingList.value.forEach((_, i) => o[i] = true); checkedItems.value = o }
+}
 function editItem(idx) {
   const item = editingList.value[idx]
   uni.showModal({
