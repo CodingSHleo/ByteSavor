@@ -479,8 +479,8 @@ onShow(() => {
 .hero-title { display: block; margin-top: 14rpx; max-width: 400rpx; font-size: 33rpx; line-height: 1.28; font-weight: 950; color: #fff; }
 .hero-actions { display: flex; gap: 12rpx; margin-top: 24rpx; }
 .hero-actions button { height: 62rpx; margin: 0; padding: 0 20rpx; border: none; border-radius: var(--radius-full); font-size: 23rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; }
-.hero-primary { background: #fff; color: var(--ink-green); box-shadow: 0 12rpx 24rpx rgba(0,0,0,.10); }
-.hero-secondary { background: rgba(255,255,255,.14); color: #fff; box-shadow: inset 0 0 0 1rpx rgba(255,255,255,.22); }
+.hero-primary { background: var(--accent); color: #fff; font-weight: 700; box-shadow: 0 12rpx 24rpx rgba(0,0,0,.10); }
+.hero-secondary { background: rgba(255,255,255,.9); color: var(--accent); font-weight: 600; box-shadow: 0 0 0 1rpx var(--accent); }
 .hero-orb { width: 160rpx; display: flex; flex-direction: column; align-items: center; justify-content: center; flex-shrink: 0; position: relative; z-index: 1; gap: 10rpx; }
 .orb-label { font-size: 18rpx; color: rgba(255,255,255,.72); font-weight: 850; letter-spacing: 0; }
 .status-strip {
