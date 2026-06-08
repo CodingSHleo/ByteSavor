@@ -149,11 +149,7 @@ function goHistory() { uni.navigateTo({ url: '/pages/history/history' }) }
 function goSettings() { uni.navigateTo({ url: '/pages/settings/settings' }) }
 
 function showDietPrefs() {
-  uni.showModal({
-    title: $t('dietPreferences'),
-    content: $t('preferenceDesc'),
-    showCancel: false
-  })
+  uni.navigateTo({ url: '/pages/settings/settings' })
 }
 function showNotifications() {
   uni.showModal({
