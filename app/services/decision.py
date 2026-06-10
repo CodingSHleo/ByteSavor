@@ -16,10 +16,10 @@ async def recommend(db: AsyncSession, ingredients: list[str], constraints: dict,
     time_limit = constraints.get("time_limit", 999)
     is_explore = len(ingredients) == 0
 
-    # ---- 1. 候选检索 ----
-    recipes = await _retrieve(db)
+    # ---- 1. 候选检索 + SQL层硬过滤 ----
+    recipes = await _retrieve(db, time_limit)
 
-    # ---- 2. 硬过滤 ----
+    # ---- 2. 硬过滤（已在SQL完成，保留Python层做兜底） ----
     candidates = _hard_filter(recipes, time_limit)
 
     # ---- 3. 排序 ----
@@ -28,11 +28,13 @@ async def recommend(db: AsyncSession, ingredients: list[str], constraints: dict,
     else:
         scored = _rank(candidates, ingredients, taste, goal, user_prefs)
 
+    is_fallback = False
     # ---- 4. Fallback：无结果时放宽条件（在解释生成前） ----
     if not scored:
         if not candidates:
             candidates = recipes
         scored = _fallback(candidates, taste, goal)
+        is_fallback = True
 
     # ---- 5. 解释生成 ----
     for s in scored:
@@ -45,12 +47,18 @@ async def recommend(db: AsyncSession, ingredients: list[str], constraints: dict,
         "top": scored[0]["title"] if scored else "none",
     })
 
-    return scored[:8]
+    result = scored[:8]
+    for r in result:
+        r["fallback"] = is_fallback
+    return result
 
 
 # ---------- 1. 候选检索 ----------
-async def _retrieve(db: AsyncSession) -> list[Recipe]:
-    r = await db.execute(select(Recipe))
+async def _retrieve(db: AsyncSession, time_limit: int = 999) -> list[Recipe]:
+    q = select(Recipe)
+    if time_limit < 999:
+        q = q.where(Recipe.cook_time <= time_limit)
+    r = await db.execute(q)
     return list(r.scalars().all())
 
 
@@ -136,7 +144,10 @@ def _calc_ingredient(r: Recipe, user_ings: list[str]) -> tuple[float, list]:
     recipe_names = {i["name"].lower() for i in r.ingredients}
     user_set = {u.lower() for u in user_ings}
     exact = recipe_names & user_set
-    score = min(len(exact) / len(recipe_names), 1.0)
+    # 双向覆盖率: 菜谱侧60% + 用户侧40%
+    recipe_coverage = len(exact) / len(recipe_names) if recipe_names else 0
+    user_coverage = len(exact) / len(user_set) if user_set else 0
+    score = min(recipe_coverage * 0.6 + user_coverage * 0.4, 1.0)
     codes = [("ING_MATCH", {"ingredient": e}) for e in exact]
     return score, codes
 

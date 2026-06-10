@@ -6,6 +6,9 @@ from app.core.database import get_db
 from app.core.security import create_token
 
 router = APIRouter()
+# 安全说明: 当前 openid 由前端直传，适用于开发/演示环境。
+# 微信生产环境应改为: 前端传 code → 后端调 code2session → 换取 openid
+# 避免客户端伪造 openid 的账户接管风险。
 
 
 @router.post("/v1/auth/register", tags=["Auth"])

@@ -9,24 +9,27 @@ logger = logging.getLogger("agent")
 FOOD_NAMES = ["牛肉", "鸡肉", "猪肉", "鸡蛋", "番茄", "西红柿", "西兰花", "南瓜", "豆腐", "鱼", "虾", "土豆", "牛奶", "酸奶", "生菜", "黄瓜", "胡萝卜", "洋葱"]
 
 
-async def _get_intent(user_input: str) -> dict:
-    """三级降级: DeepSeek → Ollama本地 → 正则"""
-    # 1. DeepSeek
-    from app.services.llm_deepseek import parse_intent as ds_parse
-    result = await ds_parse(user_input)
-    if result:
-        logger.info("intent_deepseek", extra={"input": user_input[:60], "intent": result})
-        return result
-    # 2. Ollama 本地
-    from app.services.llm import parse_intent as ollama_parse
-    result = await ollama_parse(user_input)
-    if result:
-        logger.info("intent_ollama", extra={"input": user_input[:60], "intent": result})
-        return result
-    # 3. 正则降级
-    fallback = _parse_intent_regex(user_input)
-    logger.info("intent_regex", extra={"input": user_input[:60], "intent": fallback})
-    return fallback
+async def _get_intent(user_input: str, providers: list = None) -> dict:
+    """Provider 链降级: 按列表顺序尝试，直到某个返回非空结果"""
+    if providers is None:
+        from app.services.llm_deepseek import parse_intent as ds
+        from app.services.llm import parse_intent as ollama
+        providers = [("deepseek", ds), ("ollama", ollama), ("regex", None)]
+
+    for name, fn in providers:
+        try:
+            if fn is None:  # regex fallback
+                result = _parse_intent_regex(user_input)
+            else:
+                result = await fn(user_input)
+            if result:
+                logger.info("intent_%s", name, extra={"input": user_input[:60], "intent": result})
+                return result
+        except Exception:
+            logger.warning("intent_%s_failed", name)
+            continue
+
+    return _parse_intent_regex(user_input)
 
 
 async def execute(
