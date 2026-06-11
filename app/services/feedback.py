@@ -33,7 +33,10 @@ async def submit_feedback(db: AsyncSession, user_id: str, recipe_id: str, rating
                 prefs = [p for p in prefs if p not in tags]
 
             await update_profile(db, user_id, preferences=prefs[:8])
+            # P1-5修复: 同步更新会话偏好(E→B回路)
+            from app.services.session_prefs import add_session_prefs
+            add_session_prefs(user_id, tags[:3])
     except Exception:
-        pass  # 偏好更新不是关键路径
+        pass
 
     return {"acknowledged": True, "reward_points": points}

@@ -6,7 +6,7 @@ from app.services.providers import SenseProvider, DecisionProvider, TaskProvider
 
 logger = logging.getLogger("agent")
 
-FOOD_NAMES = ["牛肉", "鸡肉", "猪肉", "鸡蛋", "番茄", "西红柿", "西兰花", "南瓜", "豆腐", "鱼", "虾", "土豆", "牛奶", "酸奶", "生菜", "黄瓜", "胡萝卜", "洋葱"]
+from app.services.intent_keywords import FOOD_NAMES
 
 
 async def _get_intent(user_input: str, providers: list = None) -> dict:
@@ -46,7 +46,7 @@ async def execute(
     # ---- Sense 阶段 ----
     t0 = time.time()
     sense_result = None
-    stage_sense = {"stage": "sense", "status": "skipped", "latency_ms": 0}
+    stage_sense = {"stage": "sense", "status": "skipped", "latency_ms": 0, "retry_count": 0}
     if image_url and sense_fn:
         try:
             sense_result = await sense_fn(image_url)
@@ -54,7 +54,9 @@ async def execute(
             stage_sense["data"] = sense_result
         except Exception as e:
             stage_sense["status"] = "error"
-            stage_sense["error"] = str(e)
+            stage_sense["error_code"] = type(e).__name__
+            stage_sense["error"] = str(e)[:200]
+            stage_sense["retry_count"] = 1
             logger.warning("sense_failed", extra={"error": str(e), "trace_id": trace_id})
     stage_sense["latency_ms"] = round((time.time() - t0) * 1000)
     stages.append(stage_sense)
@@ -68,7 +70,7 @@ async def execute(
 
     constraints = {"time_limit": intent["time_limit"], "goal": intent["goal"], "taste": intent.get("taste", "")}
     recipes = []
-    stage_dec = {"stage": "decision", "status": "skipped", "latency_ms": 0}
+    stage_dec = {"stage": "decision", "status": "skipped", "latency_ms": 0, "retry_count": 0}
     if decide_fn:
         try:
             recipes = await decide_fn(ingredients, constraints, [])
@@ -76,7 +78,8 @@ async def execute(
             stage_dec["data"] = recipes
         except Exception as e:
             stage_dec["status"] = "error"
-            stage_dec["error"] = str(e)
+            stage_dec["error_code"] = type(e).__name__
+            stage_dec["error"] = str(e)[:200]
             logger.warning("decision_failed", extra={"error": str(e), "trace_id": trace_id})
     stage_dec["latency_ms"] = round((time.time() - t0) * 1000)
     stages.append(stage_dec)
@@ -84,7 +87,7 @@ async def execute(
     # ---- Task 阶段 ----
     t0 = time.time()
     shop_list = []
-    stage_task = {"stage": "task", "status": "skipped", "latency_ms": 0}
+    stage_task = {"stage": "task", "status": "skipped", "latency_ms": 0, "retry_count": 0}
     if task_fn and recipes:
         try:
             recipe_ids = [r["recipe_id"] for r in recipes[:3]]
@@ -93,7 +96,8 @@ async def execute(
             stage_task["data"] = shop_list
         except Exception as e:
             stage_task["status"] = "error"
-            stage_task["error"] = str(e)
+            stage_task["error_code"] = type(e).__name__
+            stage_task["error"] = str(e)[:200]
             logger.warning("task_failed", extra={"error": str(e), "trace_id": trace_id})
     stage_task["latency_ms"] = round((time.time() - t0) * 1000)
     stages.append(stage_task)
@@ -102,6 +106,11 @@ async def execute(
         "trace_id": trace_id, "input": user_input[:80],
         "stages": [(s["stage"], s["status"], s["latency_ms"]) for s in stages],
     })
+
+    # P1-5修复: 合并会话偏好(本次对话内评分立即生效)
+    from app.services.session_prefs import get_session_prefs
+    session_prefs = get_session_prefs(trace_id)
+    all_prefs = list(set(session_prefs))
 
     has_error = any(s["status"] in {"error", "failed"} for s in stages)
     reply = _build_reply(intent, recipes, shop_list, has_error)
