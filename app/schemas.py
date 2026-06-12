@@ -61,6 +61,7 @@ class AgentRequest(BaseModel):
     input: str
     mode: str = "full"
     image_url: str | None = None
+    conversation_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
 
 class FeedbackRequest(BaseModel):
     recipe_id: str

@@ -68,7 +68,11 @@ app/
 │   ├── llm.py           # Ollama LLM调用
 │   ├── llm_deepseek.py  # DeepSeek LLM调用
 │   ├── neo4j.py         # Neo4j连接器(桩)
-│   ├── langgraph_agent.py # LangGraph适配层
+│   ├── langgraph_agent.py # 真实 LangGraph Agent 兼容导出
+│   ├── ../agent/state.py  # Agent 显式状态
+│   ├── ../agent/planner.py # 动态工具规划
+│   ├── ../agent/tools.py  # Tool Registry
+│   └── ../agent/langgraph_runtime.py # StateGraph 条件边与循环
 │   └── vlm/             # VLM provider
 │       ├── base.py      # 抽象基类
 │       ├── openai.py    # OpenAI兼容provider
@@ -342,7 +346,10 @@ PPT 原计划用 PostgreSQL，实际选 MySQL。理由：团队都会 MySQL，JS
 
 ### 5.3 为什么顺序 Pipeline 而非 LangGraph
 
-`langgraph_agent.py` 已预留适配层。当前 LLM 能力（本地 1.5B 模型）不足以支撑 LangGraph 的条件分支。等推理能力到位后，改注入层即可切换，Agent 接口不变。
+`/v1/agent/execute` 已接入真实 LangGraph `StateGraph`。当前 Planner 使用确定性意图规则，
+通过条件边动态选择 Sense / Decision / Task / Nutrition / Quality / Guide；每次 Tool
+结果回写 state 后重新规划。同一 `conversation_id` 可在后续轮次复用食材和菜谱上下文。
+LLM action planner 与 Redis checkpointer 是后续增强项。
 
 ### 5.4 为什么不用 Neo4j
 

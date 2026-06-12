@@ -439,11 +439,15 @@ export const ApiService = {
   },
 
   // Agent对话（支持传入图片 URL）
-  async agentExecute(input, imageUrl = null) {
+  async agentExecute(input, imageUrl = null, conversationId = '') {
     const res = await request({
       url: '/v1/agent/execute',
       method: 'POST',
-      data: { input, image_url: imageUrl || undefined }
+      data: {
+        input,
+        image_url: imageUrl || undefined,
+        conversation_id: conversationId || undefined
+      }
     })
     if (res.status === 'success') return L(res.data)
     throw new Error(res.error?.message || 'AI Agent 暂未连通')

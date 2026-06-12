@@ -181,7 +181,17 @@
             <view class="chat-bubble">
               <text class="chat-text">{{ msg.text }}</text>
               <view v-if="msg.result" class="agent-panel">
-                <view class="agent-stages">
+                <view v-if="msg.result.events && msg.result.events.length" class="agent-timeline">
+                  <view v-for="(event, eventIndex) in msg.result.events" :key="`${event.type}-${event.step}-${eventIndex}`" class="agent-event" :class="event.type">
+                    <view class="event-dot"></view>
+                    <view class="event-copy">
+                      <text class="event-title">{{ agentEventTitle(event) }}</text>
+                      <text v-if="agentEventDetail(event)" class="event-detail">{{ agentEventDetail(event) }}</text>
+                    </view>
+                    <text v-if="event.latency_ms !== undefined" class="event-latency">{{ event.latency_ms }}ms</text>
+                  </view>
+                </view>
+                <view v-else class="agent-stages">
                   <view v-for="stage in msg.result.stages || []" :key="stage.stage" class="agent-stage" :class="stage.status">
                     <text class="stage-name">{{ stageLabel(stage.stage) }}</text>
                     <text class="stage-status">{{ stageStatusLabel(stage.status) }}</text>
@@ -241,6 +251,7 @@ const refreshing = ref(false)
 const agentMessage = ref('')
 const agentResult = ref(null)
 const agentMessages = ref([])
+const agentConversationId = ref(uni.getStorageSync('agent_conversation_id') || `conv_${Date.now()}_${Math.random().toString(16).slice(2)}`)
 const apiNotice = ref('')
 const byteFlow = [
   { key: 'B', label: '食材感知' },
@@ -348,7 +359,11 @@ async function sendAgentMessage() {
   agentMessages.value.push(userMsg)
   isLoading.value = true
   try {
-    const r = await ApiService.agentExecute(m)
+    const r = await ApiService.agentExecute(m, null, agentConversationId.value)
+    if (r.conversation_id) {
+      agentConversationId.value = r.conversation_id
+      uni.setStorageSync('agent_conversation_id', r.conversation_id)
+    }
     agentResult.value = r
     if (r.recipes && r.recipes.length) recipes.value = r.recipes
     if (r.parsed_intent?.ingredients) ingredients.value = r.parsed_intent.ingredients.map(i => typeof i === 'string' ? { name: i } : i)
@@ -373,6 +388,23 @@ function intentIngredients(result) {
 }
 function stageLabel(stage) { return ({ sense: '感知', decision: '推荐', task: '清单' })[stage] || stage }
 function stageStatusLabel(status) { return ({ success: '完成', skipped: '跳过', empty: '空', error: '异常', failed: '失败' })[status] || status }
+function agentEventTitle(event) {
+  if (event.type === 'plan') return `规划下一步：${stageLabel(event.tool)}`
+  if (event.type === 'tool_start') return `调用工具：${stageLabel(event.tool)}`
+  if (event.type === 'tool_result') return `${stageLabel(event.tool)}${event.status === 'success' ? '完成' : '失败'}`
+  if (event.type === 'ask_user') return '需要补充信息'
+  if (event.type === 'final') return 'Agent 完成'
+  return event.type
+}
+function agentEventDetail(event) {
+  if (event.reason) return event.reason
+  if (event.message) return event.message
+  if (event.summary?.ingredient_count !== undefined) return `识别到 ${event.summary.ingredient_count} 种食材`
+  if (event.summary?.recipe_count !== undefined) return `生成 ${event.summary.recipe_count} 个推荐`
+  if (event.summary?.shopping_item_count !== undefined) return `合并 ${event.summary.shopping_item_count} 项清单`
+  if (event.error_code) return `${event.error_code}：${event.message || '工具调用失败'}`
+  return ''
+}
 function saveAgentSession(result) {
   const first = result.recipes?.[0]
   historyStore.addEntry({
@@ -681,6 +713,17 @@ onShow(() => {
 .chat-row.assistant .chat-bubble { background: rgba(248,252,250,.96); color: var(--text); border-bottom-left-radius: 8rpx; box-shadow: var(--shadow-xs), var(--hairline); }
 .chat-text { display: block; font-size: 24rpx; line-height: 1.5; }
 .agent-panel { margin-top: 14rpx; display: flex; flex-direction: column; gap: 12rpx; }
+.agent-timeline { display: flex; flex-direction: column; gap: 8rpx; padding: 4rpx 0; }
+.agent-event { min-height: 54rpx; display: flex; align-items: flex-start; gap: 10rpx; padding: 10rpx 12rpx; border-radius: 14rpx; background: rgba(255,255,255,.86); border: 1rpx solid var(--border-light); }
+.agent-event.tool_result { background: var(--green-bg); }
+.agent-event.ask_user { background: var(--amber-bg); }
+.event-dot { width: 12rpx; height: 12rpx; margin-top: 7rpx; border-radius: 50%; background: var(--teal); flex-shrink: 0; }
+.agent-event.tool_start .event-dot { background: var(--berry); }
+.agent-event.ask_user .event-dot { background: var(--amber); }
+.event-copy { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3rpx; }
+.event-title { font-size: 21rpx; font-weight: 900; color: var(--text); }
+.event-detail { font-size: 19rpx; line-height: 1.45; color: var(--text-muted); }
+.event-latency { font-size: 18rpx; color: var(--text-muted); flex-shrink: 0; }
 .agent-stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8rpx; }
 .agent-stage { border-radius: 17rpx; padding: 11rpx 8rpx; background: #fff; border: 1rpx solid var(--border-light); box-shadow: var(--shadow-xs); }
 .agent-stage.success { background: var(--green-bg); border-color: rgba(35,169,120,.18); }

@@ -18,11 +18,10 @@ async def analyze_ingredients(req: SenseRequest):
 
     result = await vlm.analyze_food(req.image_url)
     if result is None:
-        logger.warning("vlm returned None; returning empty with hint")
-        return SuccessResponse(data={
-            "ingredients": [],
-            "portion_estimation": {"total_weight": 0},
-            "note": "图片上传成功，AI模型暂时繁忙，请重试或检查图片是否清晰"
+        logger.warning("vlm returned None; returning explicit unavailable error")
+        return ErrorResponse(error={
+            "code": "VLM_UNAVAILABLE",
+            "message": "AI视觉模型暂时不可用，请稍后重试",
         })
 
     return SuccessResponse(data=result)
