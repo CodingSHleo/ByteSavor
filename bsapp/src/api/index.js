@@ -41,7 +41,9 @@ function L(item) {
     // 翻译 steps
     if (item.stepsEn) localized.steps = item.stepsEn
     // 翻译 ingredients 里的 name
-    if (item.ingredients) localized.ingredients = item.ingredients.map(i => ({ ...i, name: i.nameEn || i.name }))
+    if (item.ingredients) {
+      localized.ingredients = item.ingredients.map(i => typeof i === 'string' ? i : ({ ...i, name: i.nameEn || i.name }))
+    }
   }
   return localized
 }
@@ -451,6 +453,16 @@ export const ApiService = {
     })
     if (res.status === 'success') return L(res.data)
     throw new Error(res.error?.message || 'AI Agent 暂未连通')
+  },
+
+  async assistantChat(message, history = []) {
+    const res = await request({
+      url: '/v1/assistant/chat',
+      method: 'POST',
+      data: { message, history }
+    })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || 'AI 助手暂未连通')
   },
 
   // 提交反馈

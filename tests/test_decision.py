@@ -18,6 +18,8 @@ async def test_meal_plan_with_ingredients(client):
         assert "match_score" in r
         assert "reasons" in r
         assert "category" in r
+        assert "ingredients" in r
+        assert isinstance(r["ingredients"], list)
         assert "micro_highlights" in r
         assert "micronutrients" in r
 

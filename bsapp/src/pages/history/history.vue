@@ -65,11 +65,25 @@ function goDetail(item) {
   if (item.recipeId) {
     uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${item.recipeId}&title=${encodeURIComponent(item.title)}` })
   } else if (item.recipes && item.recipes.length) {
+    const first = item.recipes[0]
+    const rid = first.recipe_id || first.recipeId
+    if (rid) {
+      uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${rid}&title=${encodeURIComponent(first.title || item.title)}` })
+    } else {
+      exportRecord(item)
+    }
+  } else if (item.shoppingList && item.shoppingList.length) {
     exportRecord(item)
+  } else {
+    uni.showToast({ title: '该记录暂无可打开内容', icon: 'none' })
   }
 }
 
 function exportRecord(item) {
+  if (item.shoppingList && item.shoppingList.length) {
+    uni.navigateTo({ url: `/pages/list-export/list-export?items=${encodeURIComponent(JSON.stringify(item.shoppingList))}&title=${encodeURIComponent(item.title || '历史清单')}` })
+    return
+  }
   uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(item.recipes || []))}` })
 }
 

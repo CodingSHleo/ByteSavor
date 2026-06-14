@@ -43,7 +43,7 @@
     </scroll-view>
 
     <view class="feed-list">
-      <view v-for="item in filteredRecipes" :key="item.recipeId" class="feed-card" @tap="goDetail(item)">
+      <view v-for="item in visibleRecipes" :key="item.recipeId" class="feed-card" @tap="goDetail(item)">
         <view class="feed-visual" :class="item.category">
           <text>{{ item.imageEmoji || '食' }}</text>
         </view>
@@ -74,11 +74,15 @@
       <image class="empty-icon" src="/static/icons/icon_plate.svg" />
       <text>{{ $t('noRecipesFound') }}</text>
     </view>
+
+    <button v-if="visibleRecipes.length < filteredRecipes.length" class="load-more" @tap="visibleLimit += 40">
+      显示更多 {{ filteredRecipes.length - visibleRecipes.length }} 道
+    </button>
   </view>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { ApiService } from '@/api/index'
 import { t } from '@/utils/i18n'
@@ -89,6 +93,7 @@ const activeCategory = ref('all')
 const recipes = ref([])
 const isLoading = ref(true)
 const errorNotice = ref('')
+const visibleLimit = ref(60)
 
 const categories = [
   { key: 'all', label: $t('allCategories'), icon: 'icon_tag' },
@@ -109,9 +114,14 @@ const filteredRecipes = computed(() => {
   }
   return list
 })
+const visibleRecipes = computed(() => filteredRecipes.value.slice(0, visibleLimit.value))
 const highProteinCount = computed(() => recipes.value.filter(r => r.category === 'high_protein' || (r.tags || []).includes('high_protein')).length)
 const microRichCount = computed(() => recipes.value.filter(r => (r.micro_highlights || []).length > 0).length)
 const featuredRecipe = computed(() => filteredRecipes.value[0] || recipes.value[0] || null)
+
+watch([searchText, activeCategory], () => {
+  visibleLimit.value = 60
+})
 
 onLoad(async () => {
   try {
@@ -211,4 +221,5 @@ function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-det
 .feed-arrow { font-size: 34rpx; color: var(--text-muted); margin-left: 6rpx; }
 .empty { display: flex; flex-direction: column; align-items: center; padding-top: 120rpx; color: var(--text-muted); font-size: 26rpx; }
 .empty-icon { width: 78rpx; height: 78rpx; margin-bottom: 16rpx; }
+.load-more { height: 76rpx; margin: 24rpx 0 10rpx; border-radius: var(--radius-full); background: #fff; color: var(--accent); font-size: 25rpx; font-weight: 900; border: 1rpx solid var(--border-light); box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; }
 </style>

@@ -152,6 +152,7 @@ import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { ApiService } from '@/api/index'
 import { t } from '@/utils/i18n'
+import { parsePreferenceText } from '@/utils/food-analysis'
 
 const $t = key => t(key)
 const settingsStore = useSettingsStore()
@@ -184,22 +185,25 @@ async function parseFreeText() {
   const t = freeText.value.trim(); if (!t) return
   parsing.value = true; parseResult.value = ''
   try {
-    const resp = await fetch('http://127.0.0.1:8000/v1/assistant/chat', {
-      method: 'POST', headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({message: `分析饮食偏好，返回JSON: {"goal":"fat_loss/muscle_gain/balanced","preferences":["标签1","标签2"]}。标签从:spicy,light,high_protein,low_carb,vegetarian,comfort_food,seafood中选。\n用户输入: ${t}`})
-    })
-    const d = await resp.json()
-    const reply = d.data?.reply || ''
+    const d = await ApiService.assistantChat(`只分析饮食偏好，必须只返回JSON，不要解释。格式: {"goal":"fat_loss/muscle_gain/balanced","preferences":["spicy","light","high_protein","low_carb","vegetarian","comfort_food","seafood"]}。\n用户输入: ${t}`)
+    const reply = d?.reply || ''
     // 提取JSON
-    let json = reply
-    if (reply.includes('```')) json = reply.split('```')[1].split('```')[0]
-    if (json.startsWith('json')) json = json.slice(4)
+    let json = reply.trim()
+    if (reply.includes('```')) json = reply.split('```')[1].split('```')[0].trim()
+    if (json.startsWith('json')) json = json.slice(4).trim()
+    if (json.includes('{') && json.includes('}')) json = json.slice(json.indexOf('{'), json.lastIndexOf('}') + 1)
     const parsed = JSON.parse(json)
     if (parsed.goal) currentGoal.value = parsed.goal
-    if (parsed.preferences) currentPrefs.value = parsed.preferences
-    parseResult.value = `已解析: 目标=${currentGoal.value} 偏好=${currentPrefs.value.join(',')}`
+    if (Array.isArray(parsed.preferences)) currentPrefs.value = parsed.preferences.filter(p => prefOptions.some(o => o.key === p))
+    if (!currentPrefs.value.length) {
+      currentPrefs.value = parsePreferenceText(t).preferences.filter(p => prefOptions.some(o => o.key === p))
+    }
+    parseResult.value = `已解析: 目标=${goalText(currentGoal.value)} 偏好=${prefText(currentPrefs.value)}`
   } catch (e) {
-    parseResult.value = '解析失败，请手动选择'
+    const parsed = parsePreferenceText(t)
+    currentGoal.value = parsed.goal
+    currentPrefs.value = parsed.preferences.filter(p => prefOptions.some(o => o.key === p))
+    parseResult.value = `已用本地规则解析: 目标=${goalText(currentGoal.value)} 偏好=${prefText(currentPrefs.value)}`
   }
   parsing.value = false
 }
@@ -208,6 +212,10 @@ const prefOptions = [
   { key: 'spicy', label: '辣' }, { key: 'light', label: '清淡' }, { key: 'high_protein', label: '高蛋白' },
   { key: 'low_carb', label: '低碳水' }, { key: 'vegetarian', label: '素食' }
 ]
+function goalText(goal) { return goals.find(g => g.key === goal)?.label || goal }
+function prefText(prefs) {
+  return (prefs || []).map(p => prefOptions.find(o => o.key === p)?.label || p).join('、') || '无'
+}
 
 async function loadPreferences() {
   try {

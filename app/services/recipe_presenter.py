@@ -80,6 +80,7 @@ def recipe_brief(recipe: Recipe) -> dict:
         "cookTime": recipe.cook_time,
         "difficulty": recipe.difficulty,
         "calories": recipe.calories,
+        "ingredients": recipe.ingredients or [],
         "category": category(recipe.tags),
         "tags": recipe.tags or [],
         "macros": {"protein": recipe.protein, "carbs": recipe.carbs, "fat": recipe.fat},

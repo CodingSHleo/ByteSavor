@@ -144,7 +144,14 @@ function dedupeIngredients(list) {
 
 onLoad(async (options) => {
   try {
-    if (options && options.recipes) {
+    if (options && options.items) {
+      const parsedItems = JSON.parse(decodeURIComponent(options.items))
+      recipes.value = [{ title: decodeURIComponent(options.title || 'AI助手清单'), recipeId: 'agent_list' }]
+      editingList.value = dedupeIngredients(parsedItems.map(item => ({
+        ...item,
+        amount: item.display || item.amount || ''
+      })))
+    } else if (options && options.recipes) {
       const parsed = JSON.parse(decodeURIComponent(options.recipes))
       if (parsed.length > 0 && (parsed[0].recipeId || parsed[0].recipe_id)) {
         recipes.value = parsed

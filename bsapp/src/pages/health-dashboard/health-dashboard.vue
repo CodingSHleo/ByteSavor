@@ -146,17 +146,17 @@
       <view class="insight-row">
         <view class="insight-icon red"></view>
         <text class="insight-label">{{ $t('heatDeficit') }}</text>
-        <text class="insight-value">~320 kcal</text>
+        <text class="insight-value">{{ calorieDeficitText }}</text>
       </view>
       <view class="insight-row">
         <view class="insight-icon blue"></view>
         <text class="insight-label">{{ $t('proteinNeeded') }}</text>
-        <text class="insight-value">~18g</text>
+        <text class="insight-value">{{ proteinDeficitText }}</text>
       </view>
       <view class="insight-row">
         <view class="insight-icon green"></view>
         <text class="insight-label">{{ $t('vitaminDeficit') }}</text>
-        <text class="insight-value">{{ $t('vitaminDeficitItems') }}</text>
+        <text class="insight-value">{{ vitaminDeficitText }}</text>
       </view>
     </view>
 
@@ -175,6 +175,7 @@ import { onLoad } from '@dcloudio/uni-app'
 import { ApiService } from '@/api/index'
 import { useSettingsStore } from '@/store/settings'
 import { t } from '@/utils/i18n'
+import { buildNutritionOverview } from '@/utils/food-analysis'
 
 const $t = key => t(key)
 const settingsStore = useSettingsStore()
@@ -186,7 +187,10 @@ const recommendations = ref([])
 const recommendedRecipe = ref(null)
 const errorNotice = ref('')
 
-const score = computed(() => nutrition.value?.score || 0)
+const score = computed(() => {
+  if (recommendations.value.length) return overview.value.score
+  return nutrition.value?.score || 0
+})
 const scorePercent = computed(() => Math.min(100, Math.max(0, score.value)))
 const ratingLabel = computed(() => {
   if (score.value >= 80) return $t('veryGood')
@@ -199,6 +203,7 @@ const ratingClass = computed(() => {
   return 'bad'
 })
 const matchPercent = computed(() => recommendedRecipe.value ? ((recommendedRecipe.value.matchScore || recommendedRecipe.value.match_score || 0) * 100).toFixed(0) : 0)
+const overview = computed(() => buildNutritionOverview(recommendations.value))
 const todayDate = computed(() => {
   const d = new Date()
   return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`
@@ -210,28 +215,46 @@ const ringGradient = computed(() => {
   return `conic-gradient(var(--teal) 0 ${scoreValue}%, var(--amber) ${scoreValue}% ${Math.min(100, scoreValue + 14)}%, #E8F1ED ${Math.min(100, scoreValue + 14)}% 100%)`
 })
 
-const metrics = [
-  { label: $t('calorieIntake'), value: 75, color: 'var(--blue)' },
-  { label: $t('protein'), value: 82, color: 'var(--teal)' },
-  { label: $t('fiber'), value: 45, color: 'var(--amber)' },
-  { label: $t('vitamins'), value: 68, color: 'var(--berry)' }
-]
-const trendDays = [
-  { label: '一', value: 42 },
-  { label: '二', value: 58 },
-  { label: '三', value: 50 },
-  { label: '四', value: 72 },
-  { label: '五', value: 64 },
-  { label: '六', value: 84 },
-  { label: '日', value: 68 }
-]
-const nutritionGaps = [
-  { label: $t('calories'), needed: `${$t('dailyTarget')} 2400`, current: `${$t('currentIntake')} 1800`, progress: 75, color: 'var(--blue)' },
-  { label: $t('protein'), needed: `${$t('dailyTarget')} 70g`, current: `${$t('currentIntake')} 55g`, progress: 78, color: 'var(--teal)' },
-  { label: $t('fiber'), needed: `${$t('dailyTarget')} 30g`, current: `${$t('currentIntake')} 12g`, progress: 40, color: 'var(--tomato)' },
-  { label: `${$t('vitamins')} C`, needed: `${$t('dailyTarget')} 90mg`, current: `${$t('currentIntake')} 45mg`, progress: 50, color: 'var(--amber)' },
-  { label: $t('iron'), needed: `${$t('dailyTarget')} 18mg`, current: `${$t('currentIntake')} 8mg`, progress: 44, color: 'var(--berry)' }
-]
+const metrics = computed(() => [
+  { label: $t('calorieIntake'), value: overview.value.caloriesPct, color: 'var(--blue)' },
+  { label: $t('protein'), value: overview.value.proteinPct, color: 'var(--teal)' },
+  { label: $t('fiber'), value: overview.value.fiberPct, color: 'var(--amber)' },
+  { label: $t('vitamins'), value: overview.value.vitaminPct, color: 'var(--berry)' }
+])
+const trendDays = computed(() => {
+  const base = Math.max(10, overview.value.score || 20)
+  return ['一', '二', '三', '四', '五', '六', '日'].map((label, idx) => ({
+    label,
+    value: Math.min(100, Math.max(8, base + (idx - 3) * 6 + (idx % 2 ? 8 : -4)))
+  }))
+})
+const nutritionGaps = computed(() => {
+  const totals = overview.value.totals
+  const targets = overview.value.targets
+  return [
+    { label: $t('calories'), needed: `${$t('dailyTarget')} ${targets.calories}`, current: `${$t('currentIntake')} ${Math.round(totals.calories)}`, progress: overview.value.caloriesPct, color: 'var(--blue)' },
+    { label: $t('protein'), needed: `${$t('dailyTarget')} ${targets.protein}g`, current: `${$t('currentIntake')} ${Math.round(totals.protein)}g`, progress: overview.value.proteinPct, color: 'var(--teal)' },
+    { label: $t('fiber'), needed: `${$t('dailyTarget')} ${targets.fiber}g`, current: `${$t('currentIntake')} ${Math.round(totals.micronutrients.fiber || 0)}g`, progress: overview.value.fiberPct, color: 'var(--tomato)' },
+    { label: `${$t('vitamins')} C`, needed: `${$t('dailyTarget')} ${targets.vitamin_c}mg`, current: `${$t('currentIntake')} ${Math.round(totals.micronutrients.vitamin_c || 0)}mg`, progress: overview.value.vitaminPct, color: 'var(--amber)' },
+    { label: $t('iron'), needed: `${$t('dailyTarget')} ${targets.iron}mg`, current: `${$t('currentIntake')} ${Number((totals.micronutrients.iron || 0).toFixed(1))}mg`, progress: overview.value.ironPct, color: 'var(--berry)' }
+  ]
+})
+const calorieDeficitText = computed(() => {
+  const gap = Math.max(0, overview.value.targets.calories - overview.value.totals.calories)
+  return recommendations.value.length ? `~${Math.round(gap)} kcal` : '暂无推荐'
+})
+const proteinDeficitText = computed(() => {
+  const gap = Math.max(0, overview.value.targets.protein - overview.value.totals.protein)
+  return recommendations.value.length ? `~${Math.round(gap)}g` : '暂无推荐'
+})
+const vitaminDeficitText = computed(() => {
+  if (!recommendations.value.length) return '暂无推荐'
+  const missing = []
+  if (overview.value.vitaminPct < 80) missing.push('维C')
+  if (overview.value.ironPct < 80) missing.push('铁')
+  if (overview.value.fiberPct < 80) missing.push('纤维')
+  return missing.length ? missing.join('、') : '基本满足'
+})
 const microTargets = {
   vitamin_c: { label: '维生素C', unit: 'mg', target: 90, color: 'var(--amber)', note: '抗氧化与免疫支持' },
   iron: { label: '铁', unit: 'mg', target: 18, color: 'var(--berry)', note: '关注补铁与能量状态' },
@@ -269,6 +292,9 @@ onLoad(async (options) => {
     const names = ingredients.value.map(i => i.name)
     recommendations.value = await ApiService.generateMealPlan(names)
     recommendedRecipe.value = recommendations.value[0] || null
+    if (recommendations.value.length) {
+      nutrition.value = { ...(nutrition.value || {}), score: overview.value.score }
+    }
   } catch (e) {
     errorNotice.value = '后端健康数据暂未连通，未使用本地 mock 数据。'
     recommendations.value = []

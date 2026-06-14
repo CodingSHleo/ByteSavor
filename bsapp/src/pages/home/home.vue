@@ -238,6 +238,7 @@ import { ApiService } from '@/api/index'
 import { useAuthStore } from '@/store/auth'
 import { useHistoryStore } from '@/store/history'
 import { t, currentLang } from '@/utils/i18n'
+import { buildNutritionOverview, extractIngredientNames, missingIngredients, normalizeRecipe } from '@/utils/food-analysis'
 
 const $t = key => t(key)
 const authStore = useAuthStore()
@@ -253,6 +254,7 @@ const agentResult = ref(null)
 const agentMessages = ref([])
 const agentConversationId = ref(uni.getStorageSync('agent_conversation_id') || `conv_${Date.now()}_${Math.random().toString(16).slice(2)}`)
 const apiNotice = ref('')
+const nutritionOverview = computed(() => buildNutritionOverview(recipes.value))
 const byteFlow = [
   { key: 'B', label: '食材感知' },
   { key: 'Y', label: '约束推理' },
@@ -260,9 +262,9 @@ const byteFlow = [
   { key: 'E', label: '反馈优化' }
 ]
 
-const proteinPct = computed(() => Math.min(100, Math.round(nutritionScore.value * 1.15)))
-const carbPct = computed(() => Math.min(100, Math.round(nutritionScore.value * 0.9)))
-const fatPct = computed(() => Math.min(100, Math.round(nutritionScore.value * 0.7)))
+const proteinPct = computed(() => nutritionOverview.value.proteinPct || Math.min(100, Math.round(nutritionScore.value * 1.15)))
+const carbPct = computed(() => nutritionOverview.value.carbsPct || Math.min(100, Math.round(nutritionScore.value * 0.9)))
+const fatPct = computed(() => nutritionOverview.value.fatPct || Math.min(100, Math.round(nutritionScore.value * 0.7)))
 const topRecipe = computed(() => recipes.value[0] || null)
 const hubItems = computed(() => [
   { key: 'health', title: '状态看板', desc: '营养缺口与趋势', icon: '/static/icons/icon_chart.svg', tone: 'green' },
@@ -301,9 +303,12 @@ const recipeReasons = computed(() => {
   const r = topRecipe.value
   if (!r) return []
   const out = []
-  if (r.cookTime) out.push(`${r.cookTime}分钟`)
+  const cookTime = r.cookTime || r.cook_time
+  if (cookTime) out.push(`${cookTime}分钟`)
   if (r.calories) out.push(`${r.calories}kcal`)
-  out.push('适合今日目标')
+  const missing = missingIngredients(r, ingredients.value).slice(0, 2)
+  if (missing.length) out.push(`需补 ${missing.join('、')}`)
+  else out.push('现有食材可做')
   return out.slice(0, 3)
 })
 function byteFlowActive(idx) {
@@ -333,17 +338,21 @@ async function loadIngredients() {
 async function loadNutrition() {
   try {
     const d = await ApiService.getNutritionStatus()
-    nutritionScore.value = d.score || 0
+    if (!recipes.value.length) nutritionScore.value = d.score || 0
   } catch (e) {
     apiNotice.value = '后端营养服务暂不可用，未使用本地 mock 数据。'
-    nutritionScore.value = 0
+    if (!recipes.value.length) nutritionScore.value = 0
   }
 }
 async function generateRecommendations() {
   isLoading.value = true
   try {
     const n = ingredients.value.map(i => i.name)
-    recipes.value = await ApiService.generateMealPlan(n)
+    recipes.value = (await ApiService.generateMealPlan(n)).map(normalizeRecipe)
+    if (recipes.value.length) {
+      const overview = buildNutritionOverview(recipes.value)
+      nutritionScore.value = overview.score
+    }
   } catch (e) {
     apiNotice.value = '推荐服务暂不可用，未使用本地 mock 菜谱。'
     recipes.value = []
@@ -352,7 +361,22 @@ async function generateRecommendations() {
   }
 }
 async function onRefresh() { refreshing.value = true; await loadNutrition(); await generateRecommendations(); refreshing.value = false }
-async function refreshRecommendations() { await generateRecommendations(); historyStore.addEntry({ type: 'recommendation', title: $t('refreshTitle'), detail: t('refreshDetail',{n:ingredients.value.length}) }) }
+async function refreshRecommendations() {
+  if (isLoading.value) return
+  await generateRecommendations()
+  if (recipes.value.length) {
+    historyStore.addEntry({
+      type: 'recommendation',
+      title: $t('refreshTitle'),
+      detail: t('refreshDetail', { n: ingredients.value.length }),
+      recipeId: recipes.value[0].recipe_id || recipes.value[0].recipeId || '',
+      recipes: recipes.value
+    })
+    uni.showToast({ title: `已生成 ${recipes.value.length} 个推荐`, icon: 'success' })
+  } else {
+    uni.showToast({ title: '暂无可推荐菜谱', icon: 'none' })
+  }
+}
 async function sendAgentMessage() {
   const m = agentMessage.value.trim(); if (!m) return
   const userMsg = { id: 'u_' + Date.now(), role: 'user', text: m }
@@ -365,8 +389,15 @@ async function sendAgentMessage() {
       uni.setStorageSync('agent_conversation_id', r.conversation_id)
     }
     agentResult.value = r
-    if (r.recipes && r.recipes.length) recipes.value = r.recipes
-    if (r.parsed_intent?.ingredients) ingredients.value = r.parsed_intent.ingredients.map(i => typeof i === 'string' ? { name: i } : i)
+    if (r.recipes && r.recipes.length) {
+      recipes.value = r.recipes.map(normalizeRecipe)
+      nutritionScore.value = buildNutritionOverview(recipes.value).score
+    }
+    const typedIngredients = extractIngredientNames(m)
+    if (typedIngredients.length) {
+      ingredients.value = typedIngredients.map(name => ({ name }))
+      uni.setStorageSync('last_ingredients', JSON.stringify(ingredients.value))
+    }
     agentMessages.value.push({
       id: 'a_' + Date.now(),
       role: 'assistant',
@@ -428,7 +459,11 @@ function saveAgentRecipe(recipe, result) {
   uni.showToast({ title: '已记录到历史', icon: 'success' })
 }
 function exportAgentList(result) {
-  const payload = result.recipes?.length ? result.recipes : recipes.value
+  if (result.shopping_list?.length) {
+    uni.navigateTo({ url: `/pages/list-export/list-export?items=${encodeURIComponent(JSON.stringify(result.shopping_list))}&title=${encodeURIComponent('AI助手清单')}` })
+    return
+  }
+  const payload = result.recipes?.length ? result.recipes.map(normalizeRecipe) : recipes.value
   uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(payload))}` })
 }
 function goalLabel(g) { const m = { fat_loss:'减脂', muscle_gain:'增肌', maintain:'保持', balanced:'均衡', healthy:'健康' }; return m[g]||g }
@@ -438,7 +473,13 @@ function freshnessClass(f) { return f === 'high' ? 'fresh-high' : f === 'low' ? 
 function goRecipeDetail(r) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${r.recipe_id || r.recipeId}&title=${encodeURIComponent(r.title)}` }) }
 function goIngredientRecognition() { uni.switchTab({ url: '/pages/ingredient-recognition/ingredient-recognition' }) }
 function goHealthDashboard() { uni.navigateTo({ url: `/pages/health-dashboard/health-dashboard?ingredients=${encodeURIComponent(JSON.stringify(ingredients.value))}` }) }
-function goListExport() { uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(recipes.value))}` }) }
+function goListExport() {
+  if (!recipes.value.length) {
+    uni.showToast({ title: '请先生成推荐菜谱', icon: 'none' })
+    return
+  }
+  uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(recipes.value))}` })
+}
 function goHistory() { uni.navigateTo({ url: '/pages/history/history' }) }
 function goHub(key) {
   const routes = {

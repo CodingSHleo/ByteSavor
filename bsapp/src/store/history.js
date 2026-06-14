@@ -17,7 +17,7 @@ export const useHistoryStore = defineStore('history', () => {
   }
 
   function addEntry(entry) {
-    items.value.unshift({
+    const next = {
       type: entry.type || 'unknown',
       title: entry.title || '',
       detail: entry.detail || '',
@@ -25,7 +25,15 @@ export const useHistoryStore = defineStore('history', () => {
       recipes: entry.recipes || [],
       shoppingList: entry.shoppingList || [],
       createdAt: entry.createdAt || new Date().toISOString()
-    })
+    }
+    const duplicateIndex = items.value.findIndex(item =>
+      item.type === next.type &&
+      item.title === next.title &&
+      item.recipeId === next.recipeId &&
+      item.detail === next.detail
+    )
+    if (duplicateIndex >= 0) items.value.splice(duplicateIndex, 1)
+    items.value.unshift(next)
     if (items.value.length > MAX_RECORDS) {
       items.value.splice(MAX_RECORDS)
     }
