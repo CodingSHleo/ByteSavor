@@ -1,3 +1,5 @@
+FOOD_ANALYSIS_PROMPT_VERSION = "food-analysis-v1"
+
 FOOD_ANALYSIS = """你是一个专业营养师。仔细看这张图，列出所有识别到的食材，判断新鲜度和性状，并逐个估算分量。以 JSON 格式返回：
 
 {

@@ -26,7 +26,7 @@ class OpenAICompatProvider(BaseVLMProvider):
                     len(image_url))
 
         try:
-            async with httpx.AsyncClient(timeout=120) as client:
+            async with httpx.AsyncClient(timeout=settings.vlm_timeout_sec) as client:
                 resp = await client.post(
                     settings.vlm_api_url,
                     headers={"Authorization": f"Bearer {settings.vlm_api_key}"},

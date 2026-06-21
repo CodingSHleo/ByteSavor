@@ -62,21 +62,31 @@ function formatTime(dateStr) {
 }
 
 function goDetail(item) {
-  if (item.recipeId) {
-    uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${item.recipeId}&title=${encodeURIComponent(item.title)}` })
-  } else if (item.recipes && item.recipes.length) {
-    const first = item.recipes[0]
-    const rid = first.recipe_id || first.recipeId
-    if (rid) {
-      uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${rid}&title=${encodeURIComponent(first.title || item.title)}` })
-    } else {
-      exportRecord(item)
-    }
-  } else if (item.shoppingList && item.shoppingList.length) {
+  if (item.shoppingList && item.shoppingList.length) {
     exportRecord(item)
+    return
+  }
+  if (item.recipes && item.recipes.length) {
+    const first = item.recipes[0]
+    const rid = first.recipe_id || first.recipeId || item.recipeId
+    if (isRealRecipeId(rid)) {
+      uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${rid}&title=${encodeURIComponent(first.title || item.title)}` })
+      return
+    }
+    exportRecord(item)
+    return
+  }
+  if (isRealRecipeId(item.recipeId)) {
+    uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${item.recipeId}&title=${encodeURIComponent(item.title)}` })
   } else {
     uni.showToast({ title: '该记录暂无可打开内容', icon: 'none' })
   }
+}
+
+function isRealRecipeId(id) {
+  const text = String(id || '')
+  if (!text) return false
+  return !/^(agent_|scan_|nutrition_|r_ai|local_|tmp_)/.test(text)
 }
 
 function exportRecord(item) {
@@ -166,7 +176,8 @@ function iconFor(type) {
 .hist-detail { font-size: 24rpx; color: var(--text-secondary); display: block; margin-top: 8rpx; line-height: 1.45; }
 .hist-bottom { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; margin-top: 10rpx; }
 .hist-time { font-size: 21rpx; color: var(--text-muted); display: block; }
-.hist-export { width: 76rpx; height: 48rpx; margin: 0; padding: 0; border: none; border-radius: var(--radius-full); background: var(--teal); color: #fff; font-size: 20rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.hist-export { width: 76rpx; height: 48rpx; margin: 0; padding: 0; border: none; border-radius: var(--radius-full); background: #23A978 !important; color: #fff !important; font-size: 20rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.hist-export::after { border: none; }
 .hist-type-tag {
   background: var(--bg-elevated);
   padding: 6rpx 14rpx;

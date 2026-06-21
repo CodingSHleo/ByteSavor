@@ -26,15 +26,15 @@ onLaunch(async () => {
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
 
   /* ======== Munch · 多彩食材色 ======== */
-  --bg:            #FFFBF7;
+  --bg:            #F7F7F8;
   --bg-white:      #FFFFFF;
   --bg-card:       #FFFFFF;
-  --bg-elevated:   #FFF8F2;
+  --bg-elevated:   #F3F5F7;
 
-  --text:          #2C2416;
-  --text-secondary:#7B6F62;
-  --text-muted:    #B0A699;
-  --text-placeholder:#CFC7BD;
+  --text:          #15171A;
+  --text-secondary:#69717D;
+  --text-muted:    #9AA2AD;
+  --text-placeholder:#C3C8D0;
 
   /* 食材色系 */
   --tomato:        #E74C3C;
@@ -42,7 +42,7 @@ onLaunch(async () => {
   --cheese:        #F0A500;
   --berry:         #8E5EA2;
   --ocean:         #4A90D9;
-  --cream:         #FFF0E0;
+  --cream:         #F7F7F8;
 
   --teal:          var(--avocado);
   --teal-light:    #6EE08A;
@@ -80,10 +80,10 @@ onLaunch(async () => {
   --border:        #E5E7EB;
   --border-light:  #F3F4F6;
 
-  --shadow-sm:     0 1px 2px rgba(0,0,0,0.04);
-  --shadow-md:     0 2px 8px rgba(0,0,0,0.06);
-  --shadow-lg:     0 4px 16px rgba(0,0,0,0.08);
-  --shadow-xl:     0 2px 8px rgba(0,0,0,0.10);
+  --shadow-sm:     0 1px 2px rgba(17,24,39,0.04);
+  --shadow-md:     0 6px 18px rgba(17,24,39,0.06);
+  --shadow-lg:     0 10px 28px rgba(17,24,39,0.08);
+  --shadow-xl:     0 14px 36px rgba(17,24,39,0.10);
 
   --radius-sm:   12rpx;
   --radius:      24rpx;
@@ -137,7 +137,7 @@ page {
   color: var(--text);
   background-color: var(--bg);
   -webkit-font-smoothing: antialiased;
-  letter-spacing: -0.01em;
+  letter-spacing: 0;
   line-height: 1.5;
   overflow-x: hidden;
   max-width: 100vw;
@@ -197,11 +197,11 @@ page {
 
 .section-title, .card-title {
   font-size: 32rpx;
-  font-weight: 800;
+  font-weight: 750;
   color: var(--text);
   margin-bottom: 18rpx;
   display: block;
-  letter-spacing: -0.02em;
+  letter-spacing: 0;
 }
 
 button {

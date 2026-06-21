@@ -11,6 +11,7 @@ from app.core.database import get_db
 from app.core import cache
 from app.middleware.auth import get_optional_user
 from app.services import user as user_svc
+from app.services.feedback import get_preference_signals
 
 router = APIRouter()
 
@@ -21,10 +22,10 @@ async def generate_meal_plan(
     db: AsyncSession = Depends(get_db),
     user: dict | None = Depends(get_optional_user),
 ):
-    # 未登录时走缓存（无个性化差异）
+    # 未登录时走缓存（无个性化差异）；refresh=true 时跳过缓存
     ings = sorted(req.ingredients)
     ck = cache.make_key("meal", json.dumps(ings), str(req.constraints))
-    if not user:
+    if not user and not req.refresh:
         cached = await cache.get(ck)
         if cached:
             return SuccessResponse(data=cached)
@@ -36,8 +37,14 @@ async def generate_meal_plan(
         if profile:
             user_prefs = profile.get("preferences", [])
             goal = goal or profile.get("goal", "")
+        signals = await get_preference_signals(db, user["sub"])
+        user_prefs = list(dict.fromkeys(user_prefs + signals.get("liked_tags", []) + signals.get("liked_ingredients", [])))
+        req.constraints["avoid_tags"] = signals.get("avoid_tags", [])
+        req.constraints["avoid_ingredients"] = signals.get("avoid_ingredients", [])
 
-    recipes = await match_recipes(db, req.ingredients, req.constraints, user_prefs)
+    constraints = dict(req.constraints or {})
+    constraints["exclude_recipe_ids"] = req.exclude_recipe_ids if req.refresh else []
+    recipes = await match_recipes(db, req.ingredients, constraints, user_prefs)
     ids = [r["recipe_id"] for r in recipes]
     gap = await calc_gap(db, ids, goal)
     result = {"recipes": recipes, "nutrition_gap": gap}

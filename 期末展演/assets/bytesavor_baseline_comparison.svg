@@ -1,0 +1,67 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#F7FBF8"/>
+      <stop offset="1" stop-color="#EEF6F1"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B7F5F"/>
+      <stop offset="1" stop-color="#55C99B"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#173B2E" flood-opacity=".14"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="1420" cy="100" r="190" fill="#D8F2E5" opacity=".65"/>
+  <circle cx="145" cy="780" r="210" fill="#FFE7B8" opacity=".5"/>
+  <text x="90" y="92" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="44" font-weight="800" fill="#173B2E">从单点工具到全链路 Agent</text>
+  <text x="90" y="138" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="24" fill="#5C6B63">ByteSavor 把识别、推荐、执行和反馈接成一条可验证流程</text>
+
+  <text x="150" y="218" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="30" font-weight="800" fill="#7B6051">传统饮食软件：能力割裂</text>
+  <text x="900" y="218" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="30" font-weight="800" fill="#173B2E">ByteSavor：场景闭环</text>
+
+  <g filter="url(#shadow)">
+    <rect x="110" y="275" width="250" height="130" rx="24" fill="#FFFFFF"/>
+    <rect x="405" y="275" width="250" height="130" rx="24" fill="#FFFFFF"/>
+    <rect x="110" y="460" width="250" height="130" rx="24" fill="#FFFFFF"/>
+    <rect x="405" y="460" width="250" height="130" rx="24" fill="#FFFFFF"/>
+  </g>
+  <g font-family="PingFang SC, Microsoft YaHei, Arial">
+    <text x="145" y="330" font-size="28" font-weight="800" fill="#173B2E">热量记录</text>
+    <text x="145" y="368" font-size="21" fill="#6A766F">只能手动估算</text>
+    <text x="440" y="330" font-size="28" font-weight="800" fill="#173B2E">菜谱搜索</text>
+    <text x="440" y="368" font-size="21" fill="#6A766F">不知道家里有什么</text>
+    <text x="145" y="515" font-size="28" font-weight="800" fill="#173B2E">购物清单</text>
+    <text x="145" y="553" font-size="21" fill="#6A766F">和推荐断开</text>
+    <text x="440" y="515" font-size="28" font-weight="800" fill="#173B2E">图片识别</text>
+    <text x="440" y="553" font-size="21" fill="#6A766F">识别后没有执行链路</text>
+  </g>
+  <g stroke="#C8D8CF" stroke-width="3" stroke-dasharray="10 12" fill="none">
+    <path d="M360 340 C380 340 385 340 405 340"/>
+    <path d="M235 405 C235 430 235 435 235 460"/>
+    <path d="M530 405 C530 430 530 435 530 460"/>
+    <path d="M360 525 C380 525 385 525 405 525"/>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="835" y="270" width="610" height="400" rx="34" fill="#FFFFFF"/>
+  </g>
+  <circle cx="1140" cy="470" r="162" fill="none" stroke="#DDEDE5" stroke-width="26"/>
+  <path d="M1140 308 A162 162 0 0 1 1302 470" fill="none" stroke="#1B7F5F" stroke-width="26" stroke-linecap="round"/>
+  <path d="M1302 470 A162 162 0 0 1 1140 632" fill="none" stroke="#F4B957" stroke-width="26" stroke-linecap="round"/>
+  <path d="M1140 632 A162 162 0 0 1 978 470" fill="none" stroke="#6E69C9" stroke-width="26" stroke-linecap="round"/>
+  <path d="M978 470 A162 162 0 0 1 1140 308" fill="none" stroke="#55C99B" stroke-width="26" stroke-linecap="round"/>
+  <circle cx="1140" cy="470" r="92" fill="url(#green)"/>
+  <text x="1140" y="458" text-anchor="middle" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="34" font-weight="900" fill="#FFFFFF">B-Y-T-E</text>
+  <text x="1140" y="502" text-anchor="middle" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="22" fill="#EAFBF2">饮食闭环</text>
+  <g font-family="PingFang SC, Microsoft YaHei, Arial" font-weight="800">
+    <text x="1095" y="285" font-size="25" fill="#1B7F5F">B 感知</text>
+    <text x="1317" y="480" font-size="25" fill="#9A651B">Y 决策</text>
+    <text x="1095" y="684" font-size="25" fill="#5C56B1">T 执行</text>
+    <text x="878" y="480" font-size="25" fill="#1B7F5F">E 反馈</text>
+  </g>
+  <g font-family="PingFang SC, Microsoft YaHei, Arial" fill="#5C6B63" font-size="21">
+    <text x="960" y="736">确认摄入、评分原因、偏好记忆会回到下一轮推荐</text>
+  </g>
+</svg>

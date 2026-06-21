@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FCFDFB"/>
+      <stop offset="1" stop-color="#EEF7F2"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#173B2E" flood-opacity=".12"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <rect x="70" y="60" width="1460" height="780" rx="36" fill="#FFFFFF" filter="url(#shadow)"/>
+  <text x="115" y="122" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="42" font-weight="900" fill="#173B2E">角色化功能测试矩阵</text>
+  <text x="115" y="164" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="23" fill="#66756D">功能展示和测试场景一一对应，现场演示可以按角色切换</text>
+
+  <g font-family="PingFang SC, Microsoft YaHei, Arial">
+    <rect x="115" y="205" width="1370" height="60" rx="16" fill="#173B2E"/>
+    <text x="165" y="244" font-size="22" font-weight="900" fill="#FFFFFF">角色</text>
+    <text x="365" y="244" font-size="22" font-weight="900" fill="#FFFFFF">功能路径</text>
+    <text x="805" y="244" font-size="22" font-weight="900" fill="#FFFFFF">测试材料</text>
+    <text x="1125" y="244" font-size="22" font-weight="900" fill="#FFFFFF">验证点</text>
+  </g>
+
+  <g font-family="PingFang SC, Microsoft YaHei, Arial" font-size="21">
+    <g transform="translate(115 285)">
+      <rect width="1370" height="76" rx="18" fill="#F3FAF6"/>
+      <text x="50" y="47" font-weight="900" fill="#173B2E">家庭做饭</text>
+      <text x="250" y="47" fill="#35463D">拍照识别 -> 校正 -> 推荐 -> 清单</text>
+      <text x="690" y="47" fill="#1B7F5F">场景一_拍照推荐</text>
+      <text x="1010" y="47" fill="#35463D">可删改、推荐多道菜、不误计入</text>
+    </g>
+    <g transform="translate(115 375)">
+      <rect width="1370" height="76" rx="18" fill="#FFF8EA"/>
+      <text x="50" y="47" font-weight="900" fill="#173B2E">健康管理</text>
+      <text x="250" y="47" fill="#35463D">餐盘识别 -> 确认摄入 -> 看板</text>
+      <text x="690" y="47" fill="#9A651B">场景四_营养分析</text>
+      <text x="1010" y="47" fill="#35463D">确认才写入；错误可删除</text>
+    </g>
+    <g transform="translate(115 465)">
+      <rect width="1370" height="76" rx="18" fill="#F4F3FF"/>
+      <text x="50" y="47" font-weight="900" fill="#173B2E">买菜用户</text>
+      <text x="250" y="47" fill="#35463D">拍水果/食材 -> 品质鉴定</text>
+      <text x="690" y="47" fill="#5C56B1">场景三_品质鉴定</text>
+      <text x="1010" y="47" fill="#35463D">等级、依据、购买建议</text>
+    </g>
+    <g transform="translate(115 555)">
+      <rect width="1370" height="76" rx="18" fill="#F3FAF6"/>
+      <text x="50" y="47" font-weight="900" fill="#173B2E">探店用户</text>
+      <text x="250" y="47" fill="#35463D">拍菜品 -> 故事/口味/吃法</text>
+      <text x="690" y="47" fill="#1B7F5F">场景五_探店向导</text>
+      <text x="1010" y="47" fill="#35463D">VLM 识别 + LLM 补全讲解</text>
+    </g>
+    <g transform="translate(115 645)">
+      <rect width="1370" height="76" rx="18" fill="#FFF8EA"/>
+      <text x="50" y="47" font-weight="900" fill="#173B2E">备餐采购</text>
+      <text x="250" y="47" fill="#35463D">多菜谱/文本 -> 合并购物清单</text>
+      <text x="690" y="47" fill="#9A651B">场景二_清单导出</text>
+      <text x="1010" y="47" fill="#35463D">同名合并、数量保留、可复制</text>
+    </g>
+    <g transform="translate(115 735)">
+      <rect width="1370" height="76" rx="18" fill="#EAF7EF"/>
+      <text x="50" y="47" font-weight="900" fill="#173B2E">长期个性化</text>
+      <text x="250" y="47" fill="#35463D">确认摄入 -> 评分原因 -> 偏好记忆</text>
+      <text x="690" y="47" fill="#1B7F5F">test_feedback_memory.py</text>
+      <text x="1010" y="47" fill="#35463D">liked/avoid 写库并影响推荐</text>
+    </g>
+  </g>
+</svg>

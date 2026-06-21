@@ -34,12 +34,9 @@ async def test_recommendation_uses_decision_without_unrequested_task():
 
     assert calls == ["decision"]
     assert result["recipes"][0]["recipe_id"] == "r_001"
-    assert [event["type"] for event in result["events"]] == [
-        "plan",
-        "tool_start",
-        "tool_result",
-        "final",
-    ]
+    event_types = [event["type"] for event in result["events"]]
+    assert event_types[:4] == ["plan", "tool_start", "tool_result", "evaluation"]
+    assert "final" in event_types  # P1-3: evaluation 在 final 之前
 
 
 async def test_shopping_request_replans_from_decision_to_task():

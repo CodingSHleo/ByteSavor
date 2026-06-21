@@ -25,7 +25,16 @@ async def update_user_profile(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    await user_svc.update_profile(db, user["sub"], goal=req.goal, preferences=req.preferences)
+    await user_svc.update_profile(
+        db,
+        user["sub"],
+        name=req.name,
+        avatar_url=req.avatar_url,
+        goal=req.goal,
+        preferences=req.preferences,
+        body_metrics=req.body_metrics,
+        nutrition_targets=req.nutrition_targets,
+    )
     profile = await user_svc.get_profile(db, user["sub"])
     return SuccessResponse(data=profile)
 

@@ -1,8 +1,8 @@
 <template>
   <view class="explore-page">
     <view class="page-head">
-      <text class="page-title">探索菜谱</text>
-      <text class="page-sub">按目标、时间和营养偏好找到下一餐</text>
+      <text class="page-title">菜谱库</text>
+      <text class="page-sub">搜索全部菜谱，按当前库存清点缺少食材</text>
     </view>
 
     <view class="search-bar">
@@ -60,8 +60,18 @@
           <view class="micro-row">
             <text v-for="micro in (item.micro_highlights || []).slice(0, 3)" :key="micro">{{ micro }}</text>
           </view>
+          <view v-if="recipeExplainChips(item).length" class="explain-row">
+            <text v-for="chip in recipeExplainChips(item)" :key="chip">{{ chip }}</text>
+          </view>
         </view>
-        <text class="feed-arrow">›</text>
+        <view class="feed-actions">
+          <button class="icon-action" :class="{ active: item.favorited_by_me }" @tap.stop="favoriteRecipe(item)">
+            <image :src="item.favorited_by_me ? '/static/icons/icon_heart.svg' : '/static/icons/icon_heart_outline.svg'" mode="aspectFit" />
+            <text>{{ item.favorited_by_me ? '已藏' : '收藏' }}</text>
+          </button>
+          <button class="dark" @tap.stop="checkRecipe(item)">清点</button>
+          <button class="accent" @tap.stop="planRecipeFromExplore(item)">计划</button>
+        </view>
       </view>
     </view>
 
@@ -86,11 +96,14 @@ import { ref, computed, watch } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { ApiService } from '@/api/index'
 import { t } from '@/utils/i18n'
+import { searchRecipes } from '@/utils/recipe-search'
 
 const $t = key => t(key)
 const searchText = ref('')
 const activeCategory = ref('all')
 const recipes = ref([])
+const favoriteIds = ref(new Set())
+const userPreferences = ref([])
 const isLoading = ref(true)
 const errorNotice = ref('')
 const visibleLimit = ref(60)
@@ -109,11 +122,11 @@ const filteredRecipes = computed(() => {
   let list = recipes.value
   if (activeCategory.value !== 'all') list = list.filter(r => r.category === activeCategory.value)
   if (searchText.value.trim()) {
-    const kw = searchText.value.trim().toLowerCase()
-    list = list.filter(r => r.title.toLowerCase().includes(kw))
+    list = searchRecipes(list, searchText.value.trim(), { preferences: userPreferences.value })
   }
   return list
 })
+
 const visibleRecipes = computed(() => filteredRecipes.value.slice(0, visibleLimit.value))
 const highProteinCount = computed(() => recipes.value.filter(r => r.category === 'high_protein' || (r.tags || []).includes('high_protein')).length)
 const microRichCount = computed(() => recipes.value.filter(r => (r.micro_highlights || []).length > 0).length)
@@ -125,7 +138,12 @@ watch([searchText, activeCategory], () => {
 
 onLoad(async () => {
   try {
-    recipes.value = await ApiService.getRecipes()
+    const [recipeList] = await Promise.all([
+      ApiService.getRecipes(),
+      loadFavoriteIds(),
+      loadUserPreferences()
+    ])
+    recipes.value = recipeList.map(markFavorite)
   } catch (e) {
     errorNotice.value = '后端菜谱接口暂不可用，未使用本地 mock 数据。'
     recipes.value = []
@@ -134,10 +152,105 @@ onLoad(async () => {
   }
 })
 
+async function loadFavoriteIds() {
+  try {
+    const favorites = await ApiService.getFavorites()
+    favoriteIds.value = new Set(
+      favorites
+        .filter(f => f.target_type === 'system_recipe')
+        .map(f => String(f.target_id))
+    )
+  } catch (e) {
+    favoriteIds.value = new Set()
+  }
+}
+
+async function loadUserPreferences() {
+  try {
+    const profile = await ApiService.getUserProfile()
+    userPreferences.value = profile.preferences || []
+  } catch (e) {
+    userPreferences.value = []
+  }
+}
+
+function recipeKey(item) {
+  return String(item.recipeId || item.recipe_id || '')
+}
+
+function markFavorite(item) {
+  return { ...item, favorited_by_me: favoriteIds.value.has(recipeKey(item)) }
+}
+
 function tagBg(cat) { const m = { high_protein: 'var(--red-bg)', low_fat: 'var(--green-bg)', quick: 'var(--amber-bg)', vegetarian: 'var(--green-bg)', seafood: 'var(--blue-bg)', comfort: 'var(--purple-bg)' }; return m[cat] || 'var(--border-light)' }
 function tagFg(cat) { const m = { high_protein: 'var(--tomato)', low_fat: 'var(--teal)', quick: '#9A651B', vegetarian: 'var(--teal)', seafood: 'var(--blue)', comfort: 'var(--berry)' }; return m[cat] || 'var(--text-secondary)' }
 function catLabel(cat) { const m = { high_protein: $t('highProtein'), low_fat: $t('lowFat'), quick: $t('quickMeals'), vegetarian: $t('vegetarian'), seafood: $t('seafood'), comfort: $t('comfortFood'), balanced: '均衡' }; return m[cat] || cat }
 function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-detail?recipeId=${item.recipeId}&title=${encodeURIComponent(item.title)}` }) }
+function listFromMeta(value) {
+  if (!value) return []
+  if (Array.isArray(value)) {
+    return value.map(item => {
+      if (typeof item === 'string') return item
+      return item?.name || item?.label || item?.display || ''
+    }).filter(Boolean)
+  }
+  if (typeof value === 'string') return value ? [value] : []
+  if (typeof value === 'object') return [value.name || value.label || value.display || ''].filter(Boolean)
+  return []
+}
+function recipeExplainChips(item) {
+  const meta = item?._meta || {}
+  const chips = []
+  const matched = listFromMeta(meta.matched_ingredients || item?.matched_ingredients).slice(0, 2)
+  const missing = listFromMeta(meta.missing_ingredients || item?.missing_ingredients).slice(0, 2)
+  const purchase = listFromMeta(meta.purchase_suggestions || item?.purchase_suggestions).slice(0, 2)
+  const prefs = listFromMeta(meta.preference_matches || item?.preference_matches || item?.matched_preferences).slice(0, 2)
+  if (matched.length) chips.push(`已用 ${matched.join('、')}`)
+  if (missing.length) chips.push(`缺 ${missing.join('、')}`)
+  if (purchase.length) chips.push(`补买 ${purchase.join('、')}`)
+  if (prefs.length) chips.push(`偏好 ${prefs.join('、')}`)
+  if (item?.llm_reranked) chips.push('AI重排')
+  return chips.slice(0, 5)
+}
+async function favoriteRecipe(item) {
+  try {
+    const id = recipeKey(item)
+    if (!id) return
+    if (item.favorited_by_me) {
+      await ApiService.removeFavorite('system_recipe', id)
+      favoriteIds.value.delete(id)
+      item.favorited_by_me = false
+      uni.showToast({ title: '已取消收藏', icon: 'none' })
+    } else {
+      await ApiService.addFavorite('system_recipe', id, item)
+      favoriteIds.value.add(id)
+      item.favorited_by_me = true
+      uni.showToast({ title: '已收藏', icon: 'success' })
+    }
+  } catch (e) {
+    uni.showToast({ title: e.message || '收藏失败', icon: 'none' })
+  }
+}
+function checkRecipe(item) {
+  uni.navigateTo({ url: `/pages/recipe-checker/recipe-checker?targetType=system_recipe&targetId=${item.recipeId || item.recipe_id}` })
+}
+async function planRecipeFromExplore(item) {
+  const recipe = item.recipe || item
+  const slotLabels = ['早餐', '午餐', '晚餐', '加餐']
+  const slotKeys = ['breakfast', 'lunch', 'dinner', 'snack']
+  uni.showActionSheet({
+    itemList: slotLabels,
+    success: async (res) => {
+      const slot = slotKeys[res.tapIndex] || 'lunch'
+      try {
+        await ApiService.planMeal(slot, recipe, (recipe.ingredients || []), [])
+        uni.showToast({ title: `已加入${slotLabels[res.tapIndex]}计划`, icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: e.message || '加入失败', icon: 'none' })
+      }
+    }
+  })
+}
 </script>
 
 <style scoped>
@@ -209,7 +322,7 @@ function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-det
 .feed-visual.quick { background: var(--amber-bg); }
 .feed-visual.seafood { background: var(--blue-bg); }
 .feed-visual.comfort { background: var(--purple-bg); }
-.feed-body { flex: 1; margin-left: 18rpx; display: flex; flex-direction: column; gap: 10rpx; min-width: 0; }
+.feed-body { flex: 1; margin-left: 18rpx; display: flex; flex-direction: column; gap: 10rpx; min-width: 0; padding-right: 4rpx; }
 .feed-top { display: flex; align-items: center; gap: 10rpx; }
 .feed-title { font-size: 29rpx; font-weight: 950; color: var(--text); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .feed-cat { font-size: 19rpx; padding: 5rpx 12rpx; border-radius: var(--radius-full); font-weight: 800; white-space: nowrap; }
@@ -218,7 +331,16 @@ function goDetail(item) { uni.navigateTo({ url: `/pages/recipe-detail/recipe-det
 .meta-icon { width: 22rpx; height: 22rpx; }
 .micro-row { display: flex; flex-wrap: wrap; gap: 8rpx; }
 .micro-row text { background: var(--blue-bg); color: var(--blue); border-radius: var(--radius-full); padding: 5rpx 11rpx; font-size: 19rpx; font-weight: 850; box-shadow: inset 0 0 0 1rpx rgba(75,167,200,.08); }
-.feed-arrow { font-size: 34rpx; color: var(--text-muted); margin-left: 6rpx; }
+.explain-row { display: flex; flex-wrap: wrap; gap: 7rpx; }
+.explain-row text { max-width: 220rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--green-bg); color: var(--teal); border-radius: var(--radius-full); padding: 5rpx 10rpx; font-size: 19rpx; font-weight: 850; box-sizing: border-box; }
+.feed-actions { display: flex; flex-direction: column; gap: 8rpx; flex-shrink: 0; }
+.feed-actions button { width: 82rpx; height: 46rpx; margin: 0; padding: 0; border-radius: var(--radius-full); border: none; background: var(--green-bg); color: var(--teal); font-size: 20rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.feed-actions .icon-action { gap: 4rpx; transition: transform .18s ease, background-color .18s ease; }
+.feed-actions .icon-action image { width: 18rpx; height: 18rpx; flex-shrink: 0; }
+.feed-actions .icon-action.active { background: #FFE9EA; color: #D94F4F; transform: scale(1.03); }
+.feed-actions button.dark { background: #173B2E; color: #fff; }
+.feed-actions button.accent { background: var(--amber-bg); color: #9A651B; }
+.feed-actions button::after { border: none; }
 .empty { display: flex; flex-direction: column; align-items: center; padding-top: 120rpx; color: var(--text-muted); font-size: 26rpx; }
 .empty-icon { width: 78rpx; height: 78rpx; margin-bottom: 16rpx; }
 .load-more { height: 76rpx; margin: 24rpx 0 10rpx; border-radius: var(--radius-full); background: #fff; color: var(--accent); font-size: 25rpx; font-weight: 900; border: 1rpx solid var(--border-light); box-shadow: var(--shadow-sm); display: flex; align-items: center; justify-content: center; }

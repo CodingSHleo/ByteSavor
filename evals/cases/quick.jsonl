@@ -1,0 +1,10 @@
+{"case_id":"Q01","name":"纯文本推荐-牛肉南瓜减脂","input":"牛肉南瓜减脂30分钟","conversation_id":"eval_q01","expected_checks":{"has_recipes":true,"recipes_non_empty":true,"reply_not_empty":true,"has_evaluation":true,"has_termination_reason":true,"core_ingredient_coverage_min_1":["牛肉","南瓜"]}}
+{"case_id":"Q02","name":"纯文本推荐-无约束探索","input":"推荐一道家常菜","conversation_id":"eval_q02","expected_checks":{"has_recipes":true,"recipes_non_empty":true,"reply_not_empty":true,"has_evaluation":true,"has_termination_reason":true}}
+{"case_id":"Q03","name":"多食材-牛肉南瓜鸡蛋","input":"牛肉南瓜鸡蛋减脂30分钟","conversation_id":"eval_q03","expected_checks":{"has_recipes":true,"recipes_non_empty":true,"reply_not_empty":true,"core_ingredient_coverage_min_2":["牛肉","南瓜","鸡蛋"],"has_phase_routing":true,"has_phase_executing":true,"has_phase_evaluating":true,"has_phase_finished":true}}
+{"case_id":"Q04","name":"纯识别意图-缺图片触发澄清","input":"帮我识别这张图片里的食材","conversation_id":"eval_q04","expected_checks":{"status":"needs_input","has_ask_user_event":true,"has_termination_reason_needs_input":true}}
+{"case_id":"Q05","name":"购物清单-需先推荐","input":"帮我做购物清单","conversation_id":"eval_q05","expected_checks":{"has_evaluation":true,"has_termination_reason":true,"events_non_empty":true}}
+{"case_id":"Q06","name":"口味偏好-清淡","input":"清淡少油的家常菜推荐","conversation_id":"eval_q06","expected_checks":{"has_recipes":true,"recipes_non_empty":true,"reply_not_empty":true,"has_evaluation":true}}
+{"case_id":"Q07","name":"时间约束-快速菜","input":"15分钟能做完的菜","conversation_id":"eval_q07","expected_checks":{"has_recipes":true,"reply_not_empty":true,"has_evaluation":true}}
+{"case_id":"Q08","name":"增肌目标","input":"增肌餐30分钟鸡胸肉","conversation_id":"eval_q08","expected_checks":{"has_recipes":true,"recipes_non_empty":true,"reply_not_empty":true,"has_evaluation":true,"has_termination_reason":true}}
+{"case_id":"Q09","name":"信息不足-空输入","input":"","conversation_id":"eval_q09","expected_checks":{"has_evaluation":true,"has_termination_reason":true}}
+{"case_id":"Q10","name":"多轮对话-第二轮引用上一轮","input":"刚才那道菜生成购物清单","conversation_id":"eval_q10_multi","expected_checks":{"has_evaluation":true,"has_termination_reason":true,"events_non_empty":true}}

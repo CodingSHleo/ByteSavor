@@ -6,7 +6,8 @@ function getBaseUrl() {
     const stored = uni.getStorageSync('api_base_url')
     if (stored) return stored
     if (typeof window !== 'undefined' && window.location?.hostname) {
-      return `http://${window.location.hostname}:8000`
+      const host = window.location.hostname === 'localhost' ? '127.0.0.1' : window.location.hostname
+      return `http://${host}:8000`
     }
     return 'http://127.0.0.1:8000'
   } catch (e) { return 'http://127.0.0.1:8000' }
@@ -355,7 +356,8 @@ function request(options) {
         if (res.statusCode === 200 || res.statusCode === 201) {
           resolve(res.data)
         } else {
-          reject(new Error(`请求失败: ${res.statusCode}`))
+          const message = res.data?.error?.message || res.data?.detail || `请求失败: ${res.statusCode}`
+          reject(new Error(message))
         }
       },
       fail: (err) => {
@@ -386,6 +388,11 @@ export const ApiService = {
 
   // 食材识别
   async analyzeIngredient(imageUrl) {
+    const data = await this.analyzeIngredientDetail(imageUrl)
+    return L(data.ingredients || [])
+  },
+
+  async analyzeIngredientDetail(imageUrl) {
     const res = await request({
       url: '/v1/sense/analyze',
       method: 'POST',
@@ -395,8 +402,46 @@ export const ApiService = {
         context: { scene: 'kitchen' }
       }
     })
-    if (res.status === 'success') return L(res.data.ingredients || [])
+    if (res.status === 'success') return L(res.data)
     throw new Error(res.error?.message || '食材识别失败')
+  },
+
+  async assessQuality(imageUrl) {
+    const res = await request({
+      url: '/v1/quality/assess',
+      method: 'POST',
+      data: {
+        task_id: 'quality_' + Date.now(),
+        image_url: imageUrl,
+        context: { scene: 'quality_assessment' }
+      }
+    })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || '品质鉴定失败')
+  },
+
+  async analyzeMealNutrition(imageUrl, goal = 'balanced') {
+    const res = await request({
+      url: '/v1/nutrition/analyze-meal',
+      method: 'POST',
+      data: { image_url: imageUrl, goal }
+    })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || '营养分析失败')
+  },
+
+  async exploreFoodGuide(imageUrl) {
+    const res = await request({
+      url: '/v1/guide/explore',
+      method: 'POST',
+      data: {
+        task_id: 'guide_' + Date.now(),
+        image_url: imageUrl,
+        context: { scene: 'restaurant' }
+      }
+    })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || '探店向导失败')
   },
 
   // 获取用户画像
@@ -406,8 +451,13 @@ export const ApiService = {
     throw new Error(res.error?.message || '获取用户画像失败')
   },
 
-  async updateProfile(goal, preferences) {
-    const res = await request({ url: '/v1/user/profile', method: 'PUT', data: { goal, preferences } })
+  async updateProfile(goal, preferences, bodyMetrics = undefined, nutritionTargets = undefined, display = undefined) {
+    const data = { goal, preferences }
+    if (bodyMetrics !== undefined) data.body_metrics = bodyMetrics
+    if (nutritionTargets !== undefined) data.nutrition_targets = nutritionTargets
+    if (display?.name !== undefined) data.name = display.name
+    if (display?.avatar_url !== undefined) data.avatar_url = display.avatar_url
+    const res = await request({ url: '/v1/user/profile', method: 'PUT', data })
     if (res.status === 'success') return res.data
     throw new Error(res.error?.message || '更新用户画像失败')
   },
@@ -420,13 +470,15 @@ export const ApiService = {
   },
 
   // 生成餐食方案
-  async generateMealPlan(ingredients) {
+  async generateMealPlan(ingredients, options = {}) {
     const res = await request({
       url: '/v1/decision/meal-plan',
       method: 'POST',
       data: {
         ingredients: ingredients,
-        constraints: { time_limit: 30, taste: '', goal: 'balanced' }
+        constraints: { time_limit: 30, taste: '', goal: 'balanced' },
+        refresh: !!options.refresh,
+        exclude_recipe_ids: options.excludeRecipeIds || []
       }
     })
     if (res.status === 'success') return L(res.data.recipes || [])
@@ -466,14 +518,25 @@ export const ApiService = {
   },
 
   // 提交反馈
-  async submitFeedback(recipeId, rating) {
+  async submitFeedback(recipeId, rating, comment = '') {
     const res = await request({
       url: '/v1/feedback/meal',
       method: 'POST',
-      data: { recipe_id: recipeId, rating }
+      data: { recipe_id: recipeId, rating, comment }
     })
     if (res.status === 'success') return res.data
     throw new Error(res.error?.message || '提交反馈失败')
+  },
+
+  // 纠错日志
+  async recordCorrection(payload) {
+    const res = await request({
+      url: '/v1/correction-logs',
+      method: 'POST',
+      data: payload
+    })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '记录纠错失败')
   },
 
   // 合并购物清单
@@ -487,13 +550,174 @@ export const ApiService = {
     throw new Error(res.error?.message || '合并购物清单失败')
   },
 
-  // 登录（后端只收 openid，返回 { token, user_id, name }）
-  async login(openid) {
+  async importInventory(items, source = 'scan') {
+    const res = await request({
+      url: '/v1/inventory/import',
+      method: 'POST',
+      data: { items, source }
+    })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '导入库存失败')
+  },
+
+  async getInventory() {
+    const res = await request({ url: '/v1/inventory/current' })
+    if (res.status === 'success') return L(res.data.items || [])
+    throw new Error(res.error?.message || '获取库存失败')
+  },
+
+  async addInventoryItem(item) {
+    const res = await request({ url: '/v1/inventory/items', method: 'POST', data: item })
+    if (res.status === 'success') return L(res.data.item)
+    throw new Error(res.error?.message || '新增食材失败')
+  },
+
+  async updateInventoryItem(itemId, item) {
+    const res = await request({ url: `/v1/inventory/items/${itemId}`, method: 'PUT', data: item })
+    if (res.status === 'success') return L(res.data.item)
+    throw new Error(res.error?.message || '更新食材失败')
+  },
+
+  async deleteInventoryItem(itemId) {
+    const res = await request({ url: `/v1/inventory/items/${itemId}`, method: 'DELETE' })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '删除食材失败')
+  },
+
+  async getInventoryStats() {
+    const res = await request({ url: '/v1/inventory/stats' })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || '获取库存统计失败')
+  },
+
+  async checkRecipe(targetType, targetId) {
+    const res = await request({
+      url: '/v1/recipes/check',
+      method: 'POST',
+      data: { target_type: targetType, target_id: String(targetId) }
+    })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || '菜谱清点失败')
+  },
+
+  async getFavorites() {
+    const res = await request({ url: '/v1/favorites' })
+    if (res.status === 'success') return L(res.data.favorites || [])
+    throw new Error(res.error?.message || '获取收藏失败')
+  },
+
+  async addFavorite(targetType, targetId, snapshot = {}) {
+    const res = await request({
+      url: '/v1/favorites',
+      method: 'POST',
+      data: { target_type: targetType, target_id: String(targetId), snapshot }
+    })
+    if (res.status === 'success') return L(res.data.favorite)
+    throw new Error(res.error?.message || '收藏失败')
+  },
+
+  async removeFavorite(targetType, targetId) {
+    const res = await request({ url: `/v1/favorites?target_type=${encodeURIComponent(targetType)}&target_id=${encodeURIComponent(String(targetId))}`, method: 'DELETE' })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '取消收藏失败')
+  },
+
+  async getFavoriteStatus(targetType, targetId) {
+    const res = await request({ url: `/v1/favorites/status?target_type=${encodeURIComponent(targetType)}&target_id=${encodeURIComponent(String(targetId))}` })
+    if (res.status === 'success') return !!res.data.favorited
+    throw new Error(res.error?.message || '获取收藏状态失败')
+  },
+
+  async getCommunityPosts(category = 'all', { limit = 20, offset = 0 } = {}) {
+    const res = await request({ url: `/v1/community/posts?category=${encodeURIComponent(category)}&limit=${encodeURIComponent(limit)}&offset=${encodeURIComponent(offset)}` })
+    if (res.status === 'success') return L(res.data || { posts: [], total: 0, limit, offset, has_more: false })
+    throw new Error(res.error?.message || '获取社区内容失败')
+  },
+
+  async createCommunityPost(payload) {
+    const res = await request({ url: '/v1/community/posts', method: 'POST', data: payload })
+    if (res.status === 'success') return L(res.data.post)
+    throw new Error(res.error?.message || '发布失败')
+  },
+
+  async getCommunityPost(postId) {
+    const res = await request({ url: `/v1/community/posts/${postId}` })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || '获取帖子失败')
+  },
+
+  async likeCommunityPost(postId) {
+    const res = await request({ url: `/v1/community/posts/${postId}/like`, method: 'POST' })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '点赞失败')
+  },
+
+  async unlikeCommunityPost(postId) {
+    const res = await request({ url: `/v1/community/posts/${postId}/like`, method: 'DELETE' })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '取消点赞失败')
+  },
+
+  async deleteCommunityPost(postId) {
+    const res = await request({ url: `/v1/community/posts/${postId}`, method: 'DELETE' })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '删除失败')
+  },
+
+  async addCommunityComment(postId, content) {
+    const res = await request({ url: `/v1/community/posts/${postId}/comments`, method: 'POST', data: { content } })
+    if (res.status === 'success') return L(res.data.comment)
+    throw new Error(res.error?.message || '评论失败')
+  },
+
+  async planMeal(mealSlot, recipe, ingredientsUsed = [], shoppingList = []) {
+    const res = await request({
+      url: '/v1/meals/plan',
+      method: 'POST',
+      data: { meal_slot: mealSlot, recipe, ingredients_used: ingredientsUsed, shopping_list: shoppingList }
+    })
+    if (res.status === 'success') return L(res.data.meal)
+    throw new Error(res.error?.message || '加入今日计划失败')
+  },
+
+  async getTodayMeals() {
+    const res = await request({ url: '/v1/meals/today' })
+    if (res.status === 'success') return L(res.data.meals || [])
+    throw new Error(res.error?.message || '获取今日计划失败')
+  },
+
+  async completeMeal(mealId) {
+    const res = await request({ url: `/v1/meals/${mealId}/complete`, method: 'POST' })
+    if (res.status === 'success') return L(res.data.meal)
+    throw new Error(res.error?.message || '完成这一餐失败')
+  },
+
+  async cancelMeal(mealId) {
+    const res = await request({ url: `/v1/meals/${mealId}/cancel`, method: 'POST' })
+    if (res.status === 'success') return L(res.data.meal)
+    throw new Error(res.error?.message || '取消计划失败')
+  },
+
+  async changeMealSlot(mealId, newSlot) {
+    const res = await request({ url: `/v1/meals/${mealId}/slot`, method: 'PUT', data: { meal_slot: newSlot } })
+    if (res.status === 'success') return L(res.data.meal)
+    throw new Error(res.error?.message || '切换餐次失败')
+  },
+
+  async getNutritionSummary(range = 'day') {
+    const res = await request({ url: `/v1/nutrition/summary?range=${encodeURIComponent(range)}` })
+    if (res.status === 'success') return res.data
+    throw new Error(res.error?.message || '获取营养汇总失败')
+  },
+
+  // 登录（v5: 兼容 {username,password} 或 旧 openid 字符串）
+  async login(payload) {
+    const data = typeof payload === 'string' ? { openid: payload } : (payload || {})
     try {
       const res = await request({
         url: '/v1/auth/login',
         method: 'POST',
-        data: { openid }
+        data
       })
       if (res.status === 'success') return res.data
       throw new Error(res.error?.message || '登录失败')
@@ -504,13 +728,14 @@ export const ApiService = {
     throw new Error('登录失败，请检查网络或后端服务')
   },
 
-  // 注册
-  async register(openid) {
+  // 注册（v5: 兼容 {username,password,name} 或 旧 (openid, name)）
+  async register(payload, name = '') {
+    const data = typeof payload === 'string' ? { openid: payload, name } : (payload || {})
     try {
       const res = await request({
         url: '/v1/auth/register',
         method: 'POST',
-        data: { openid }
+        data
       })
       if (res.status === 'success') return res.data
       throw new Error(res.error?.message || '注册失败')

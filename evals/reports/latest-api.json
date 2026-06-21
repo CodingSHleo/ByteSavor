@@ -1,0 +1,329 @@
+{
+  "meta": {
+    "timestamp": "2026-06-20T16:43:11.629742+00:00",
+    "mode": "api",
+    "total_cases": 10,
+    "total_score": 72,
+    "total_max": 72,
+    "avg_pct": 100,
+    "total_failed_checks": 0,
+    "failed_cases_count": 0,
+    "elapsed_sec": 0.55
+  },
+  "scores": [
+    {
+      "case_id": "Q01",
+      "name": "纯文本推荐-牛肉南瓜减脂",
+      "total_score": 9,
+      "max_score": 9,
+      "score_pct": 100,
+      "passed_checks": [
+        "has_recipes",
+        "recipes_non_empty",
+        "reply_not_empty",
+        "has_evaluation",
+        "has_termination_reason",
+        "core_ingredient_coverage_min_1",
+        "termination_reason_ok",
+        "evaluation_verdict_ok",
+        "status_ok"
+      ],
+      "failed_checks": [],
+      "details": {
+        "has_recipes": "has_recipes=True",
+        "recipes_non_empty": "recipes count=8",
+        "reply_not_empty": "reply len=24",
+        "has_evaluation": "evaluation events count=1",
+        "has_termination_reason": "termination_reason=GOAL_ACHIEVED",
+        "core_ingredient_coverage_min_1": "core ingredients covered: 2/2, need >= 1",
+        "termination_reason_ok": "termination_reason=GOAL_ACHIEVED",
+        "evaluation_verdict_ok": "verdict=PASS",
+        "status_ok": "status=success"
+      },
+      "termination_reason": "GOAL_ACHIEVED",
+      "events_count": 5,
+      "memory_used_count": 0,
+      "evaluation_verdict": "PASS",
+      "error": ""
+    },
+    {
+      "case_id": "Q02",
+      "name": "纯文本推荐-无约束探索",
+      "total_score": 8,
+      "max_score": 8,
+      "score_pct": 100,
+      "passed_checks": [
+        "has_recipes",
+        "recipes_non_empty",
+        "reply_not_empty",
+        "has_evaluation",
+        "has_termination_reason",
+        "termination_reason_ok",
+        "evaluation_verdict_ok",
+        "status_ok"
+      ],
+      "failed_checks": [],
+      "details": {
+        "has_recipes": "has_recipes=True",
+        "recipes_non_empty": "recipes count=8",
+        "reply_not_empty": "reply len=21",
+        "has_evaluation": "evaluation events count=1",
+        "has_termination_reason": "termination_reason=GOAL_ACHIEVED",
+        "termination_reason_ok": "termination_reason=GOAL_ACHIEVED",
+        "evaluation_verdict_ok": "verdict=PASS",
+        "status_ok": "status=success"
+      },
+      "termination_reason": "GOAL_ACHIEVED",
+      "events_count": 5,
+      "memory_used_count": 0,
+      "evaluation_verdict": "PASS",
+      "error": ""
+    },
+    {
+      "case_id": "Q03",
+      "name": "多食材-牛肉南瓜鸡蛋",
+      "total_score": 11,
+      "max_score": 11,
+      "score_pct": 100,
+      "passed_checks": [
+        "has_recipes",
+        "recipes_non_empty",
+        "reply_not_empty",
+        "core_ingredient_coverage_min_2",
+        "has_phase_routing",
+        "has_phase_executing",
+        "has_phase_evaluating",
+        "has_phase_finished",
+        "termination_reason_ok",
+        "evaluation_verdict_ok",
+        "status_ok"
+      ],
+      "failed_checks": [],
+      "details": {
+        "has_recipes": "has_recipes=True",
+        "recipes_non_empty": "recipes count=8",
+        "reply_not_empty": "reply len=19",
+        "core_ingredient_coverage_min_2": "core ingredients covered: 3/3, need >= 2",
+        "has_phase_routing": "has_phase_ROUTING=True",
+        "has_phase_executing": "has_phase_EXECUTING=True",
+        "has_phase_evaluating": "has_phase_EVALUATING=True",
+        "has_phase_finished": "has_phase_FINISHED=True",
+        "termination_reason_ok": "termination_reason=GOAL_ACHIEVED",
+        "evaluation_verdict_ok": "verdict=PASS",
+        "status_ok": "status=success"
+      },
+      "termination_reason": "GOAL_ACHIEVED",
+      "events_count": 5,
+      "memory_used_count": 0,
+      "evaluation_verdict": "PASS",
+      "error": ""
+    },
+    {
+      "case_id": "Q04",
+      "name": "纯识别意图-缺图片触发澄清",
+      "total_score": 6,
+      "max_score": 6,
+      "score_pct": 100,
+      "passed_checks": [
+        "status",
+        "has_ask_user_event",
+        "has_termination_reason_needs_input",
+        "termination_reason_ok",
+        "evaluation_verdict_ok",
+        "status_ok"
+      ],
+      "failed_checks": [],
+      "details": {
+        "status": "status=needs_input expected=needs_input",
+        "has_ask_user_event": "has_ask_user_event=True",
+        "has_termination_reason_needs_input": "termination_reason=NEEDS_INPUT",
+        "termination_reason_ok": "termination_reason=NEEDS_INPUT",
+        "evaluation_verdict_ok": "verdict=",
+        "status_ok": "status=needs_input"
+      },
+      "termination_reason": "NEEDS_INPUT",
+      "events_count": 1,
+      "memory_used_count": 0,
+      "evaluation_verdict": "",
+      "error": ""
+    },
+    {
+      "case_id": "Q05",
+      "name": "购物清单-需先推荐",
+      "total_score": 6,
+      "max_score": 6,
+      "score_pct": 100,
+      "passed_checks": [
+        "has_evaluation",
+        "has_termination_reason",
+        "events_non_empty",
+        "termination_reason_ok",
+        "evaluation_verdict_ok",
+        "status_ok"
+      ],
+      "failed_checks": [],
+      "details": {
+        "has_evaluation": "evaluation events count=1",
+        "has_termination_reason": "termination_reason=GOAL_ACHIEVED",
+        "events_non_empty": "events count=8",
+        "termination_reason_ok": "termination_reason=GOAL_ACHIEVED",
+        "evaluation_verdict_ok": "verdict=PASS",
+        "status_ok": "status=success"
+      },
+      "termination_reason": "GOAL_ACHIEVED",
+      "events_count": 8,
+      "memory_used_count": 0,
+      "evaluation_verdict": "PASS",
+      "error": ""
+    },
+    {
+      "case_id": "Q06",
+      "name": "口味偏好-清淡",
+      "total_score": 7,
+      "max_score": 7,
+      "score_pct": 100,
+      "passed_checks": [
+        "has_recipes",
+        "recipes_non_empty",
+        "reply_not_empty",
+        "has_evaluation",
+        "termination_reason_ok",
+        "evaluation_verdict_ok",
+        "status_ok"
+      ],
+      "failed_checks": [],
+      "details": {
+        "has_recipes": "has_recipes=True",
+        "recipes_non_empty": "recipes count=8",
+        "reply_not_empty": "reply len=21",
+        "has_evaluation": "evaluation events count=1",
+        "termination_reason_ok": "termination_reason=GOAL_ACHIEVED",
+        "evaluation_verdict_ok": "verdict=PASS",
+        "status_ok": "status=success"
+      },
+      "termination_reason": "GOAL_ACHIEVED",
+      "events_count": 5,
+      "memory_used_count": 0,
+      "evaluation_verdict": "PASS",
+      "error": ""
+    },
+    {
+      "case_id": "Q07",
+      "name": "时间约束-快速菜",
+      "total_score": 6,
+      "max_score": 6,
+      "score_pct": 100,
+      "passed_checks": [
+        "has_recipes",
+        "reply_not_empty",
+        "has_evaluation",
+        "termination_reason_ok",
+        "evaluation_verdict_ok",
+        "status_ok"
+      ],
+      "failed_checks": [],
+      "details": {
+        "has_recipes": "has_recipes=True",
+        "reply_not_empty": "reply len=21",
+        "has_evaluation": "evaluation events count=1",
+        "termination_reason_ok": "termination_reason=GOAL_ACHIEVED",
+        "evaluation_verdict_ok": "verdict=PASS",
+        "status_ok": "status=success"
+      },
+      "termination_reason": "GOAL_ACHIEVED",
+      "events_count": 5,
+      "memory_used_count": 0,
+      "evaluation_verdict": "PASS",
+      "error": ""
+    },
+    {
+      "case_id": "Q08",
+      "name": "增肌目标",
+      "total_score": 8,
+      "max_score": 8,
+      "score_pct": 100,
+      "passed_checks": [
+        "has_recipes",
+        "recipes_non_empty",
+        "reply_not_empty",
+        "has_evaluation",
+        "has_termination_reason",
+        "termination_reason_ok",
+        "evaluation_verdict_ok",
+        "status_ok"
+      ],
+      "failed_checks": [],
+      "details": {
+        "has_recipes": "has_recipes=True",
+        "recipes_non_empty": "recipes count=8",
+        "reply_not_empty": "reply len=21",
+        "has_evaluation": "evaluation events count=1",
+        "has_termination_reason": "termination_reason=GOAL_ACHIEVED",
+        "termination_reason_ok": "termination_reason=GOAL_ACHIEVED",
+        "evaluation_verdict_ok": "verdict=PASS",
+        "status_ok": "status=success"
+      },
+      "termination_reason": "GOAL_ACHIEVED",
+      "events_count": 5,
+      "memory_used_count": 0,
+      "evaluation_verdict": "PASS",
+      "error": ""
+    },
+    {
+      "case_id": "Q09",
+      "name": "信息不足-空输入",
+      "total_score": 5,
+      "max_score": 5,
+      "score_pct": 100,
+      "passed_checks": [
+        "has_evaluation",
+        "has_termination_reason",
+        "termination_reason_ok",
+        "evaluation_verdict_ok",
+        "status_ok"
+      ],
+      "failed_checks": [],
+      "details": {
+        "has_evaluation": "evaluation events count=1",
+        "has_termination_reason": "termination_reason=GOAL_ACHIEVED",
+        "termination_reason_ok": "termination_reason=GOAL_ACHIEVED",
+        "evaluation_verdict_ok": "verdict=PASS",
+        "status_ok": "status=success"
+      },
+      "termination_reason": "GOAL_ACHIEVED",
+      "events_count": 5,
+      "memory_used_count": 0,
+      "evaluation_verdict": "PASS",
+      "error": ""
+    },
+    {
+      "case_id": "Q10",
+      "name": "多轮对话-第二轮引用上一轮",
+      "total_score": 6,
+      "max_score": 6,
+      "score_pct": 100,
+      "passed_checks": [
+        "has_evaluation",
+        "has_termination_reason",
+        "events_non_empty",
+        "termination_reason_ok",
+        "evaluation_verdict_ok",
+        "status_ok"
+      ],
+      "failed_checks": [],
+      "details": {
+        "has_evaluation": "evaluation events count=1",
+        "has_termination_reason": "termination_reason=GOAL_ACHIEVED",
+        "events_non_empty": "events count=8",
+        "termination_reason_ok": "termination_reason=GOAL_ACHIEVED",
+        "evaluation_verdict_ok": "verdict=PASS",
+        "status_ok": "status=success"
+      },
+      "termination_reason": "GOAL_ACHIEVED",
+      "events_count": 8,
+      "memory_used_count": 0,
+      "evaluation_verdict": "PASS",
+      "error": ""
+    }
+  ]
+}

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { clearUserScopedStorage } from '@/utils/user-storage'
 
 export const useAuthStore = defineStore('auth', () => {
   const token = ref('')
@@ -25,6 +26,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   // 保存登录数据
   async function setAuthData(user, newToken) {
+    // 先清理旧用户缓存，再写入新用户数据
+    clearUserScopedStorage()
+
     currentUser.value = user
     token.value = newToken
 
@@ -45,10 +49,10 @@ export const useAuthStore = defineStore('auth', () => {
     currentUser.value = null
     token.value = ''
 
-    uni.removeStorageSync('auth_token')
-    uni.removeStorageSync('user_id')
-    uni.removeStorageSync('username')
-    uni.removeStorageSync('email')
+    // 清除用户私有数据，防止新用户看到旧数据
+    clearUserScopedStorage()
+    const keys = ['auth_token', 'user_id', 'username', 'email']
+    keys.forEach(k => uni.removeStorageSync(k))
   }
 
   // 退出登录

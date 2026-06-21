@@ -8,7 +8,25 @@ from fastapi.responses import JSONResponse
 logging.basicConfig(level=logging.INFO, format="%(name)s %(levelname)s %(message)s")
 from app.core.database import engine, Base, async_session
 from app.models.recipe import Recipe  # noqa: 注册 ORM
-from app.routers import sense, decision, task, agent, feedback, user, auth, assistant, quality, nutrition, guide
+from app.routers import (
+    agent,
+    assistant,
+    auth,
+    community,
+    correction_logs,
+    decision,
+    favorites,
+    feedback,
+    guide,
+    inventory,
+    meals,
+    nutrition,
+    quality,
+    recipe_tools,
+    sense,
+    task,
+    user,
+)
 
 logger = logging.getLogger("main")
 
@@ -22,6 +40,11 @@ async def lifespan(app: FastAPI):
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         async with async_session() as db:
+            from app.services.user import ensure_profile_columns, ensure_user_auth_columns
+            await ensure_profile_columns(db)
+            await ensure_user_auth_columns(db)
+            from app.services.feedback import ensure_preference_memory_table
+            await ensure_preference_memory_table(db)
             from app.seed.seed_recipes import seed
             await seed(db)
         logger.info("startup: tables created, seed loaded")
@@ -70,6 +93,12 @@ app.include_router(assistant.router)
 app.include_router(quality.router)
 app.include_router(nutrition.router)
 app.include_router(guide.router)
+app.include_router(meals.router)
+app.include_router(inventory.router)
+app.include_router(recipe_tools.router)
+app.include_router(favorites.router)
+app.include_router(community.router)
+app.include_router(correction_logs.router)
 
 if __name__ == "__main__":
     import uvicorn

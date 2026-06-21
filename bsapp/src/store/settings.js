@@ -6,6 +6,8 @@ export const useSettingsStore = defineStore('settings', () => {
   const language = ref(currentLang.value)
   const darkMode = ref(false)
   const displayName = ref('')
+  const avatarUrl = ref('')
+  const communityTextMode = ref('summary')
   const recipeNotifications = ref(true)
   const nutritionNotifications = ref(true)
   const wifiSyncOnly = ref(true)
@@ -15,6 +17,8 @@ export const useSettingsStore = defineStore('settings', () => {
       language.value = uni.getStorageSync('app_language') || 'zh'
       darkMode.value = uni.getStorageSync('pref_dark_mode') || false
       displayName.value = uni.getStorageSync('pref_display_name') || ''
+      avatarUrl.value = uni.getStorageSync('pref_avatar_url') || ''
+      communityTextMode.value = uni.getStorageSync('pref_community_text_mode') || 'summary'
       recipeNotifications.value = uni.getStorageSync('pref_notification_recipes') !== false
       nutritionNotifications.value = uni.getStorageSync('pref_notification_nutrition') !== false
       wifiSyncOnly.value = uni.getStorageSync('pref_wifi_sync_only') !== false
@@ -38,6 +42,16 @@ export const useSettingsStore = defineStore('settings', () => {
     uni.setStorageSync('pref_display_name', name)
   }
 
+  function setAvatarUrl(url) {
+    avatarUrl.value = url || ''
+    uni.setStorageSync('pref_avatar_url', avatarUrl.value)
+  }
+
+  function setCommunityTextMode(mode) {
+    communityTextMode.value = mode === 'full' ? 'full' : 'summary'
+    uni.setStorageSync('pref_community_text_mode', communityTextMode.value)
+  }
+
   function setRecipeNotifications(value) {
     recipeNotifications.value = value
     uni.setStorageSync('pref_notification_recipes', value)
@@ -54,9 +68,10 @@ export const useSettingsStore = defineStore('settings', () => {
   }
 
   return {
-    language, darkMode, displayName,
+    language, darkMode, displayName, avatarUrl, communityTextMode,
     recipeNotifications, nutritionNotifications, wifiSyncOnly,
     init, setLanguage, setDarkMode, setDisplayName,
+    setAvatarUrl, setCommunityTextMode,
     setRecipeNotifications, setNutritionNotifications, setWifiSyncOnly
   }
 })

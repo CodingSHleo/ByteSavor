@@ -1,6 +1,9 @@
 import pytest
+from types import SimpleNamespace
 
-pytestmark = pytest.mark.asyncio(loop_scope="session")
+from app.services.decision import _rank
+
+pytestmark = [pytest.mark.asyncio(loop_scope="session"), pytest.mark.db]
 
 
 async def test_meal_plan_with_ingredients(client):
@@ -62,3 +65,176 @@ async def test_recipe_explore_list_uses_seed_data_with_micronutrients(client):
     assert len(first["micro_highlights"]) > 0
     assert {"protein", "carbs", "fat"}.issubset(first["macros"].keys())
     assert {"vitamin_c", "iron", "calcium", "fiber"}.issubset(first["micronutrients"].keys())
+
+
+async def test_rank_prefers_recipes_covering_all_requested_ingredients():
+    recipes = [
+        SimpleNamespace(
+            id="r_beef_celery",
+            title="芹菜牛肉",
+            cook_time=20,
+            difficulty="easy",
+            calories=320,
+            protein=28,
+            carbs=10,
+            fat=14,
+            tags=["quick", "high_protein"],
+            ingredients=[{"name": "牛肉"}, {"name": "芹菜"}],
+        ),
+        SimpleNamespace(
+            id="r_beef_pumpkin",
+            title="南瓜炖牛肉",
+            cook_time=30,
+            difficulty="easy",
+            calories=360,
+            protein=30,
+            carbs=22,
+            fat=12,
+            tags=["quick", "high_protein"],
+            ingredients=[{"name": "黄牛肉"}, {"name": "去皮南瓜"}],
+        ),
+    ]
+
+    ranked = _rank(recipes, ["牛肉", "南瓜"], "", "fat_loss", [])
+
+    assert ranked[0]["recipe_id"] == "r_beef_pumpkin"
+    assert ranked[0]["match_score"] > ranked[1]["match_score"]
+
+
+async def test_rank_prefers_specific_requested_ingredient_over_generic_partial_match():
+    recipes = [
+        SimpleNamespace(
+            id="r_beef_celery",
+            title="芹菜炒牛肉",
+            cook_time=20,
+            difficulty="easy",
+            calories=320,
+            protein=28,
+            carbs=10,
+            fat=14,
+            tags=["quick", "high_protein"],
+            ingredients=[{"name": "牛肉"}, {"name": "芹菜"}],
+        ),
+        SimpleNamespace(
+            id="r_chive_egg",
+            title="韭黄炒鸡蛋",
+            cook_time=10,
+            difficulty="easy",
+            calories=260,
+            protein=18,
+            carbs=8,
+            fat=12,
+            tags=["quick"],
+            ingredients=[{"name": "韭黄"}, {"name": "鸡蛋"}],
+        ),
+    ]
+
+    ranked = _rank(recipes, ["牛肉", "韭黄"], "", "fat_loss", [])
+
+    assert ranked[0]["recipe_id"] == "r_chive_egg"
+    assert "韭黄" in [i["name"] for i in ranked[0]["ingredients"]]
+    assert ranked[0]["_meta"]["missing_ingredients"] == ["牛肉"]
+
+
+async def test_rank_does_not_treat_partial_coverage_as_full_match():
+    recipes = [
+        SimpleNamespace(
+            id="r_beef_celery",
+            title="芹菜炒牛肉",
+            cook_time=20,
+            difficulty="easy",
+            calories=320,
+            protein=28,
+            carbs=10,
+            fat=14,
+            tags=["quick", "high_protein", "low_carb"],
+            ingredients=[{"name": "牛肉"}, {"name": "芹菜"}],
+        ),
+        SimpleNamespace(
+            id="r_chive_egg",
+            title="韭黄炒鸡蛋",
+            cook_time=10,
+            difficulty="easy",
+            calories=260,
+            protein=18,
+            carbs=8,
+            fat=12,
+            tags=["quick"],
+            ingredients=[{"name": "韭黄"}, {"name": "鸡蛋"}],
+        ),
+    ]
+
+    ranked = _rank(recipes, ["牛肉", "韭黄"], "", "fat_loss", [])
+
+    assert ranked[0]["recipe_id"] == "r_chive_egg"
+    assert ranked[1]["recipe_id"] == "r_beef_celery"
+
+
+async def test_rank_specific_requested_ingredient_wins_even_when_generic_has_goal_tags():
+    recipes = [
+        SimpleNamespace(
+            id="r_beef_celery",
+            title="芹菜炒牛肉",
+            cook_time=20,
+            difficulty="easy",
+            calories=320,
+            protein=28,
+            carbs=10,
+            fat=14,
+            tags=["quick", "high_protein", "low_carb"],
+            ingredients=[{"name": "牛肉"}, {"name": "芹菜"}, {"name": "干辣椒"}],
+        ),
+        SimpleNamespace(
+            id="r_chive_egg",
+            title="韭黄炒鸡蛋",
+            cook_time=10,
+            difficulty="easy",
+            calories=260,
+            protein=18,
+            carbs=8,
+            fat=12,
+            tags=["quick"],
+            ingredients=[{"name": "韭黄"}, {"name": "鸡蛋"}],
+        ),
+    ]
+
+    ranked = _rank(recipes, ["牛肉", "韭黄"], "", "fat_loss", [])
+
+    assert ranked[0]["recipe_id"] == "r_chive_egg"
+    assert ranked[0]["_meta"]["matched_ingredients"] == ["韭黄"]
+    assert ranked[0]["_meta"]["missing_ingredients"] == ["牛肉"]
+
+
+async def test_rank_uses_user_preferences_when_ingredient_coverage_is_equal():
+    recipes = [
+        SimpleNamespace(
+            id="r_spicy_beef",
+            title="香辣牛肉",
+            cook_time=20,
+            difficulty="easy",
+            calories=340,
+            protein=30,
+            carbs=12,
+            fat=15,
+            tags=["spicy", "high_protein"],
+            ingredients=[{"name": "牛肉"}, {"name": "辣椒"}],
+        ),
+        SimpleNamespace(
+            id="r_light_beef",
+            title="清炒牛肉",
+            cook_time=18,
+            difficulty="easy",
+            calories=300,
+            protein=29,
+            carbs=9,
+            fat=10,
+            tags=["light", "high_protein"],
+            ingredients=[{"name": "牛肉"}, {"name": "西兰花"}],
+        ),
+    ]
+
+    ranked = _rank(recipes, ["牛肉"], "", "balanced", ["清淡", "少油"])
+
+    assert ranked[0]["recipe_id"] == "r_light_beef"
+    assert "preference_matches" in ranked[0]["_meta"]
+    assert "light" in ranked[0]["_meta"]["preference_matches"]

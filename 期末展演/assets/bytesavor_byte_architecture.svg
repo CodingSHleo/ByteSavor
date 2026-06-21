@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0F2D24"/>
+      <stop offset=".55" stop-color="#173B2E"/>
+      <stop offset="1" stop-color="#245545"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity=".97"/>
+      <stop offset="1" stop-color="#EAF7EF" stop-opacity=".93"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#06150F" flood-opacity=".25"/>
+    </filter>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/>
+  <circle cx="1360" cy="140" r="240" fill="#55C99B" opacity=".12"/>
+  <circle cx="180" cy="820" r="260" fill="#F4B957" opacity=".13"/>
+  <text x="90" y="92" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="44" font-weight="900" fill="#FFFFFF">B-Y-T-E Agent 技术闭环</text>
+  <text x="90" y="138" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="24" fill="#C9E1D5">每个工具独立可测，由 Agent 统一编排，并把反馈写回长期记忆</text>
+
+  <g filter="url(#shadow)">
+    <rect x="520" y="185" width="560" height="86" rx="24" fill="url(#card)"/>
+  </g>
+  <text x="800" y="238" text-anchor="middle" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="29" font-weight="900" fill="#173B2E">uni-app / Vue3 前端</text>
+  <path d="M800 272 L800 326" stroke="#C9E1D5" stroke-width="5" stroke-linecap="round"/>
+  <polygon points="800,342 789,322 811,322" fill="#C9E1D5"/>
+
+  <g filter="url(#shadow)">
+    <rect x="140" y="350" width="300" height="210" rx="28" fill="url(#card)"/>
+    <rect x="470" y="350" width="300" height="210" rx="28" fill="url(#card)"/>
+    <rect x="800" y="350" width="300" height="210" rx="28" fill="url(#card)"/>
+    <rect x="1130" y="350" width="300" height="210" rx="28" fill="url(#card)"/>
+  </g>
+  <g font-family="PingFang SC, Microsoft YaHei, Arial">
+    <text x="190" y="418" font-size="36" font-weight="900" fill="#1B7F5F">B 感知</text>
+    <text x="190" y="462" font-size="23" fill="#4F6258">图片/文本输入</text>
+    <text x="190" y="500" font-size="23" fill="#4F6258">食材、分量、品质、菜品</text>
+    <text x="190" y="532" font-size="20" fill="#7C8B83">VLM: Qwen-VL / OpenAI-compatible</text>
+
+    <text x="520" y="418" font-size="36" font-weight="900" fill="#F0A83B">Y 决策</text>
+    <text x="520" y="462" font-size="23" fill="#4F6258">推荐引擎</text>
+    <text x="520" y="500" font-size="23" fill="#4F6258">目标、偏好、营养缺口</text>
+    <text x="520" y="532" font-size="20" fill="#7C8B83">食材 50% + 标签 30% + 偏好 20%</text>
+
+    <text x="850" y="418" font-size="36" font-weight="900" fill="#5C56B1">T 执行</text>
+    <text x="850" y="462" font-size="23" fill="#4F6258">三餐计划 / 清单</text>
+    <text x="850" y="500" font-size="23" fill="#4F6258">库存扣减、完成记录</text>
+    <text x="850" y="532" font-size="20" fill="#7C8B83">识别不等于摄入</text>
+
+    <text x="1180" y="418" font-size="36" font-weight="900" fill="#1B7F5F">E 反馈</text>
+    <text x="1180" y="462" font-size="23" fill="#4F6258">评分 + 文字原因</text>
+    <text x="1180" y="500" font-size="23" fill="#4F6258">LLM 解析偏好记忆</text>
+    <text x="1180" y="532" font-size="20" fill="#7C8B83">liked / avoid signals</text>
+  </g>
+  <g stroke="#D9EFE5" stroke-width="5" fill="none" stroke-linecap="round">
+    <path d="M440 455 L470 455"/>
+    <path d="M770 455 L800 455"/>
+    <path d="M1100 455 L1130 455"/>
+    <path d="M1280 560 C1280 700 320 700 320 560"/>
+  </g>
+  <polygon points="465,455 445,444 445,466" fill="#D9EFE5"/>
+  <polygon points="795,455 775,444 775,466" fill="#D9EFE5"/>
+  <polygon points="1125,455 1105,444 1105,466" fill="#D9EFE5"/>
+  <polygon points="320,560 309,580 331,580" fill="#D9EFE5"/>
+  <text x="800" y="728" text-anchor="middle" font-family="PingFang SC, Microsoft YaHei, Arial" font-size="24" fill="#D9EFE5">反馈回路：确认摄入 -> 营养长期记录；评分原因 -> 偏好数据库 -> 下一轮推荐加权</text>
+
+  <g filter="url(#shadow)">
+    <rect x="180" y="775" width="220" height="58" rx="18" fill="#FFFFFF" opacity=".95"/>
+    <rect x="435" y="775" width="220" height="58" rx="18" fill="#FFFFFF" opacity=".95"/>
+    <rect x="690" y="775" width="220" height="58" rx="18" fill="#FFFFFF" opacity=".95"/>
+    <rect x="945" y="775" width="220" height="58" rx="18" fill="#FFFFFF" opacity=".95"/>
+    <rect x="1200" y="775" width="220" height="58" rx="18" fill="#FFFFFF" opacity=".95"/>
+  </g>
+  <g font-family="PingFang SC, Microsoft YaHei, Arial" font-size="23" font-weight="900" fill="#173B2E" text-anchor="middle">
+    <text x="290" y="812">FastAPI</text>
+    <text x="545" y="812">MySQL</text>
+    <text x="800" y="812">Redis</text>
+    <text x="1055" y="812">VLM / LLM</text>
+    <text x="1310" y="812">2576+ 菜谱</text>
+  </g>
+</svg>

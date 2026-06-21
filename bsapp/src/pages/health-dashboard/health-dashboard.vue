@@ -77,7 +77,7 @@
     <view class="trend-card">
       <view class="card-head">
         <text>本周趋势</text>
-        <text>AI 估算</text>
+        <text>{{ nutritionSummary ? '真实摄入' : 'AI 估算' }}</text>
       </view>
       <view class="trend-bars">
         <view v-for="day in trendDays" :key="day.label" class="trend-day">
@@ -85,6 +85,51 @@
             <view class="trend-fill" :style="{ height: day.value + '%' }"></view>
           </view>
           <text>{{ day.label }}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="card" v-if="nutritionSummary">
+      <view class="card-head">
+        <text>长期营养记录</text>
+        <text>完成用餐后写入</text>
+      </view>
+      <view class="memory-grid">
+        <view class="memory-tile">
+          <text class="memory-value">{{ Math.round(nutritionSummary.totals?.calories || 0) }}</text>
+          <text class="memory-label">今日 kcal</text>
+        </view>
+        <view class="memory-tile">
+          <text class="memory-value">{{ Math.round(nutritionSummary.totals?.protein || 0) }}g</text>
+          <text class="memory-label">今日蛋白</text>
+        </view>
+        <view class="memory-tile">
+          <text class="memory-value">{{ completedMealCount }}</text>
+          <text class="memory-label">已完成餐</text>
+        </view>
+        <view class="memory-tile">
+          <text class="memory-value">{{ Math.round(weeksCalories) }}</text>
+          <text class="memory-label">近4周 kcal</text>
+        </view>
+      </view>
+      <view class="daily-list">
+        <view v-for="day in dailyRows" :key="day.date" class="daily-row">
+          <text class="daily-date">{{ day.date }}</text>
+          <text class="daily-main">{{ Math.round(day.calories || 0) }} kcal</text>
+          <text class="daily-sub">P {{ Math.round(day.protein || 0) }}g · C {{ Math.round(day.carbs || 0) }}g · F {{ Math.round(day.fat || 0) }}g</text>
+        </view>
+      </view>
+      <view v-if="completedMeals.length" class="meal-records">
+        <view class="record-head">
+          <text>已计入用餐</text>
+          <text>发现错误可删除</text>
+        </view>
+        <view v-for="meal in completedMeals" :key="meal.id" class="record-row">
+          <view class="record-main">
+            <text class="record-title">{{ meal.recipe?.title || '已吃餐食' }}</text>
+            <text class="record-meta">{{ mealSlotLabel(meal.meal_slot) }} · {{ meal.nutrition?.calories || 0 }} kcal · {{ meal.nutrition?.protein || 0 }}g 蛋白</text>
+          </view>
+          <button class="record-delete" @tap="deleteMealRecord(meal)">删除</button>
         </view>
       </view>
     </view>
@@ -110,7 +155,7 @@
     <view class="card">
       <view class="card-head">
         <text>微量营养素</text>
-        <text>来自推荐菜谱</text>
+        <text>{{ nutritionSummary ? '来自已完成用餐' : '来自推荐菜谱' }}</text>
       </view>
       <view v-if="micronutrientTiles.length > 0" class="micro-grid">
         <view v-for="m in micronutrientTiles" :key="m.key" class="micro-tile">
@@ -187,10 +232,10 @@ const recommendations = ref([])
 const recommendedRecipe = ref(null)
 const errorNotice = ref('')
 
-const score = computed(() => {
-  if (recommendations.value.length) return overview.value.score
-  return nutrition.value?.score || 0
-})
+const nutritionSummary = ref(null)
+const weekSummary = ref(null)
+const weeksSummary = ref(null)
+const score = computed(() => nutritionSummary.value?.score ?? (recommendations.value.length ? overview.value.score : (nutrition.value?.score || 0)))
 const scorePercent = computed(() => Math.min(100, Math.max(0, score.value)))
 const ratingLabel = computed(() => {
   if (score.value >= 80) return $t('veryGood')
@@ -203,7 +248,14 @@ const ratingClass = computed(() => {
   return 'bad'
 })
 const matchPercent = computed(() => recommendedRecipe.value ? ((recommendedRecipe.value.matchScore || recommendedRecipe.value.match_score || 0) * 100).toFixed(0) : 0)
-const overview = computed(() => buildNutritionOverview(recommendations.value))
+const summaryAsRecipes = computed(() => {
+  if (!nutritionSummary.value) return []
+  const totals = nutritionSummary.value.totals || {}
+  return [{ calories: totals.calories, macros: { protein: totals.protein, carbs: totals.carbs, fat: totals.fat }, micronutrients: totals }]
+})
+const nutritionSourceRecipes = computed(() => nutritionSummary.value ? summaryAsRecipes.value : recommendations.value)
+const activeTargets = computed(() => nutritionSummary.value?.targets || profile.value?.computed_targets || {})
+const overview = computed(() => buildNutritionOverview(nutritionSourceRecipes.value, activeTargets.value))
 const todayDate = computed(() => {
   const d = new Date()
   return `${d.getFullYear()}/${d.getMonth()+1}/${d.getDate()}`
@@ -222,6 +274,17 @@ const metrics = computed(() => [
   { label: $t('vitamins'), value: overview.value.vitaminPct, color: 'var(--berry)' }
 ])
 const trendDays = computed(() => {
+  if (weekSummary.value?.daily) {
+    const daily = weekSummary.value.daily
+    const now = new Date()
+    return Array.from({ length: 7 }).map((_, offset) => {
+      const d = new Date(now)
+      d.setDate(now.getDate() - (6 - offset))
+      const key = d.toISOString().slice(0, 10)
+      const value = daily[key]?.calories || 0
+      return { label: ['日','一','二','三','四','五','六'][d.getDay()], value: Math.min(100, Math.round(value / 18)) }
+    })
+  }
   const base = Math.max(10, overview.value.score || 20)
   return ['一', '二', '三', '四', '五', '六', '日'].map((label, idx) => ({
     label,
@@ -255,7 +318,7 @@ const vitaminDeficitText = computed(() => {
   if (overview.value.fiberPct < 80) missing.push('纤维')
   return missing.length ? missing.join('、') : '基本满足'
 })
-const microTargets = {
+const baseMicroTargets = {
   vitamin_c: { label: '维生素C', unit: 'mg', target: 90, color: 'var(--amber)', note: '抗氧化与免疫支持' },
   iron: { label: '铁', unit: 'mg', target: 18, color: 'var(--berry)', note: '关注补铁与能量状态' },
   calcium: { label: '钙', unit: 'mg', target: 800, color: 'var(--blue)', note: '骨骼与肌肉支持' },
@@ -263,17 +326,21 @@ const microTargets = {
   potassium: { label: '钾', unit: 'mg', target: 2000, color: 'var(--tomato)', note: '电解质与心血管支持' },
   omega3: { label: 'Omega-3', unit: 'g', target: 1.1, color: 'var(--ink-green)', note: '优先来自鱼虾海产' }
 }
+const microTargets = computed(() => {
+  const t = activeTargets.value || {}
+  return Object.fromEntries(Object.entries(baseMicroTargets).map(([key, meta]) => [key, { ...meta, target: Number(t[key] || meta.target) }]))
+})
 const micronutrientTotals = computed(() => {
   const totals = {}
-  recommendations.value.forEach(recipe => {
+  nutritionSourceRecipes.value.forEach(recipe => {
     const micro = recipe.micronutrients || {}
-    Object.keys(microTargets).forEach(key => {
+    Object.keys(microTargets.value).forEach(key => {
       totals[key] = (totals[key] || 0) + Number(micro[key] || 0)
     })
   })
   return totals
 })
-const micronutrientTiles = computed(() => Object.entries(microTargets).map(([key, meta]) => {
+const micronutrientTiles = computed(() => Object.entries(microTargets.value).map(([key, meta]) => {
   const raw = micronutrientTotals.value[key] || 0
   const value = key === 'omega3' || key === 'iron' ? Number(raw.toFixed(1)) : Math.round(raw)
   return {
@@ -283,11 +350,24 @@ const micronutrientTiles = computed(() => Object.entries(microTargets).map(([key
     progress: Math.min(100, Math.round((raw / meta.target) * 100))
   }
 }).filter(item => item.value > 0))
+const completedMealCount = computed(() => nutritionSummary.value?.meals?.length || 0)
+const completedMeals = computed(() => nutritionSummary.value?.meals || [])
+const weeksCalories = computed(() => Object.values(weeksSummary.value?.daily || {}).reduce((sum, day) => sum + Number(day.calories || 0), 0))
+const dailyRows = computed(() => {
+  const daily = weekSummary.value?.daily || nutritionSummary.value?.daily || {}
+  return Object.entries(daily)
+    .map(([date, values]) => ({ date, ...values }))
+    .sort((a, b) => b.date.localeCompare(a.date))
+    .slice(0, 7)
+})
 
 onLoad(async (options) => {
   try { if (options?.ingredients) ingredients.value = JSON.parse(decodeURIComponent(options.ingredients)) } catch (e) {}
   try {
     profile.value = await ApiService.getUserProfile()
+    try { nutritionSummary.value = await ApiService.getNutritionSummary('day') } catch (e) { nutritionSummary.value = null }
+    try { weekSummary.value = await ApiService.getNutritionSummary('week') } catch (e) { weekSummary.value = null }
+    try { weeksSummary.value = await ApiService.getNutritionSummary('weeks') } catch (e) { weeksSummary.value = null }
     nutrition.value = await ApiService.getNutritionStatus()
     const names = ingredients.value.map(i => i.name)
     recommendations.value = await ApiService.generateMealPlan(names)
@@ -312,6 +392,34 @@ function exportList() {
   uni.navigateTo({ url: `/pages/list-export/list-export?recipes=${encodeURIComponent(JSON.stringify(recommendations.value))}` })
 }
 function goBack() { uni.navigateBack() }
+function mealSlotLabel(slot) {
+  return ({ breakfast: '早餐', lunch: '午餐', dinner: '晚餐' })[slot] || '用餐'
+}
+function reloadNutritionMemory() {
+  return Promise.all([
+    ApiService.getNutritionSummary('day').then(v => { nutritionSummary.value = v }).catch(() => { nutritionSummary.value = null }),
+    ApiService.getNutritionSummary('week').then(v => { weekSummary.value = v }).catch(() => { weekSummary.value = null }),
+    ApiService.getNutritionSummary('weeks').then(v => { weeksSummary.value = v }).catch(() => { weeksSummary.value = null })
+  ])
+}
+function deleteMealRecord(meal) {
+  uni.showModal({
+    title: '删除用餐记录',
+    content: `删除「${meal.recipe?.title || '这条记录'}」后，它将不再计入营养汇总。`,
+    cancelText: '取消',
+    confirmText: '删除',
+    success: async res => {
+      if (!res.confirm) return
+      try {
+        await ApiService.cancelMeal(meal.id)
+        await reloadNutritionMemory()
+        uni.showToast({ title: '已删除记录', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: e.message || '删除失败', icon: 'none' })
+      }
+    }
+  })
+}
 </script>
 
 <style scoped>
@@ -416,6 +524,24 @@ function goBack() { uni.navigateBack() }
 .micro-bar view { height: 100%; border-radius: 8rpx; transform-origin: left center; animation: bar-grow .5s var(--ease) both; }
 .micro-note { display: block; margin-top: 10rpx; font-size: 20rpx; color: var(--text-muted); line-height: 1.35; }
 .micro-empty { padding: 28rpx 0; text-align: center; color: var(--text-muted); font-size: 24rpx; }
+.memory-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-bottom: 16rpx; }
+.memory-tile { background: var(--bg-elevated); border-radius: 18rpx; padding: 16rpx 10rpx; text-align: center; box-shadow: inset 0 0 0 1rpx rgba(19,35,29,.04); }
+.memory-value { display: block; color: var(--text); font-size: 28rpx; font-weight: 950; line-height: 1; }
+.memory-label { display: block; margin-top: 8rpx; color: var(--text-muted); font-size: 19rpx; font-weight: 800; }
+.daily-list { display: flex; flex-direction: column; gap: 10rpx; }
+.daily-row { display: grid; grid-template-columns: 1fr auto; gap: 6rpx 12rpx; align-items: center; background: #fff; border-radius: 16rpx; padding: 14rpx; box-shadow: inset 0 0 0 1rpx rgba(19,35,29,.04); }
+.daily-date { color: var(--text); font-size: 23rpx; font-weight: 900; }
+.daily-main { color: var(--teal); font-size: 23rpx; font-weight: 950; }
+.daily-sub { grid-column: 1 / -1; color: var(--text-muted); font-size: 20rpx; }
+.meal-records { margin-top: 18rpx; padding-top: 14rpx; border-top: 1rpx solid var(--border-light); }
+.record-head { display: flex; justify-content: space-between; margin-bottom: 12rpx; }
+.record-head text:first-child { color: var(--text); font-size: 25rpx; font-weight: 950; }
+.record-head text:last-child { color: var(--text-muted); font-size: 21rpx; }
+.record-row { display: flex; align-items: center; gap: 12rpx; padding: 14rpx; margin-bottom: 10rpx; border-radius: 18rpx; background: var(--bg-elevated); box-shadow: inset 0 0 0 1rpx rgba(19,35,29,.04); }
+.record-main { flex: 1; min-width: 0; }
+.record-title { display: block; color: var(--text); font-size: 24rpx; font-weight: 950; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.record-meta { display: block; margin-top: 5rpx; color: var(--text-muted); font-size: 20rpx; }
+.record-delete { width: 68rpx; height: 52rpx; margin: 0; padding: 0; border: none; border-radius: 18rpx; background: var(--red-bg); color: var(--red); font-size: 20rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; }
 .recipe-row { display: flex; align-items: center; gap: 16rpx; }
 .recipe-icon { width: 76rpx; height: 76rpx; border-radius: 23rpx; background: linear-gradient(145deg, var(--teal-bg), #FFFFFF); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.08); }
 .recipe-icon image { width: 44rpx; height: 44rpx; }

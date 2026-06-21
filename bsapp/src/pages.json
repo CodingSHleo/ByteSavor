@@ -60,6 +60,38 @@
       }
     },
     {
+      "path": "pages/quality-assessment/quality-assessment",
+      "style": {
+        "navigationBarTitleText": "品质鉴定",
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/meal-nutrition/meal-nutrition",
+      "style": {
+        "navigationBarTitleText": "一餐营养分析",
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/food-guide/food-guide",
+      "style": {
+        "navigationBarTitleText": "探店向导",
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/text-import/text-import",
+      "style": {
+        "navigationBarTitleText": "文本导入",
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
       "path": "pages/health-dashboard/health-dashboard",
       "style": {
         "navigationBarTitleText": "健康看板",
@@ -94,6 +126,55 @@
       }
     },
     {
+      "path": "pages/inventory/inventory",
+      "style": {
+        "navigationBarTitleText": "库存管理",
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/favorites/favorites",
+      "style": {
+        "navigationBarTitleText": "我的收藏",
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/recipe-checker/recipe-checker",
+      "style": {
+        "navigationBarTitleText": "菜谱清点器",
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/community/community",
+      "style": {
+        "navigationBarTitleText": "社区",
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black",
+        "navigationStyle": "custom"
+      }
+    },
+    {
+      "path": "pages/community-detail/community-detail",
+      "style": {
+        "navigationBarTitleText": "帖子详情",
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
+      "path": "pages/community-publish/community-publish",
+      "style": {
+        "navigationBarTitleText": "发布内容",
+        "navigationBarBackgroundColor": "#F2F8F5",
+        "navigationBarTextStyle": "black"
+      }
+    },
+    {
       "path": "pages/list-export/list-export",
       "style": {
         "navigationBarTitleText": "购物清单",
@@ -118,32 +199,32 @@
       {
         "pagePath": "pages/home/home",
         "text": "首页",
-        "iconPath": "static/icons/home.png",
-        "selectedIconPath": "static/icons/home-active.png"
+        "iconPath": "static/icons/tab_home.svg",
+        "selectedIconPath": "static/icons/tab_home_active.svg"
       },
       {
         "pagePath": "pages/ingredient-recognition/ingredient-recognition",
         "text": "识别",
-        "iconPath": "static/icons/scan.png",
-        "selectedIconPath": "static/icons/scan-active.png"
+        "iconPath": "static/icons/tab_scan.svg",
+        "selectedIconPath": "static/icons/tab_scan_active.svg"
       },
       {
         "pagePath": "pages/explore/explore",
-        "text": "探索",
-        "iconPath": "static/icons/explore.png",
-        "selectedIconPath": "static/icons/explore-active.png"
+        "text": "菜谱",
+        "iconPath": "static/icons/tab_recipe.svg",
+        "selectedIconPath": "static/icons/tab_recipe_active.svg"
       },
       {
-        "pagePath": "pages/food-knowledge/food-knowledge",
-        "text": "知识",
-        "iconPath": "static/icons/knowledge.png",
-        "selectedIconPath": "static/icons/knowledge-active.png"
+        "pagePath": "pages/community/community",
+        "text": "社区",
+        "iconPath": "static/icons/tab_community.svg",
+        "selectedIconPath": "static/icons/tab_community_active.svg"
       },
       {
         "pagePath": "pages/profile/profile",
         "text": "我的",
-        "iconPath": "static/icons/profile.png",
-        "selectedIconPath": "static/icons/profile-active.png"
+        "iconPath": "static/icons/tab_profile.svg",
+        "selectedIconPath": "static/icons/tab_profile_active.svg"
       }
     ]
   },

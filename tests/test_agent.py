@@ -10,6 +10,13 @@ def test_parse_intent_fat_loss():
     assert "南瓜" in intent["ingredients"]
 
 
+def test_parse_intent_extracts_specific_library_ingredients():
+    intent = _parse_intent_regex("牛肉韭黄，推荐一道减脂晚餐")
+    assert intent["goal"] == "fat_loss"
+    assert "牛肉" in intent["ingredients"]
+    assert "韭黄" in intent["ingredients"]
+
+
 def test_parse_intent_muscle_gain():
     intent = _parse_intent_regex("增肌餐，15分钟，有鸡胸肉和鸡蛋")
     assert intent["goal"] == "muscle_gain"
@@ -60,6 +67,10 @@ async def test_agent_api_returns_dynamic_events_and_conversation_id(client, monk
     assert any(event["type"] == "plan" for event in data["events"])
     assert any(event["type"] == "tool_start" for event in data["events"])
     assert any(event["type"] == "tool_result" for event in data["events"])
+    plan = next(event for event in data["events"] if event["type"] == "plan")
+    assert "decision" in plan["available_skills"]
+    tool_result = next(event for event in data["events"] if event["type"] == "tool_result")
+    assert tool_result["skill"]["category"] == "decision"
     assert data["next_action"] == "complete"
 
 
@@ -106,3 +117,24 @@ async def test_agent_api_keeps_recipe_context_across_turns(client, monkeypatch):
     assert first.json()["data"]["recipes"][0]["recipe_id"] == "r_001"
     assert second.json()["data"]["shopping_list"][0]["name"] == "牛肉"
     assert decision_calls == ["decision"]
+
+
+@pytest.mark.asyncio(loop_scope="session")
+async def test_agent_api_sense_registered_and_degrades_when_vlm_not_configured(client, monkeypatch):
+    monkeypatch.setattr("app.routers.agent.settings.vlm_api_url", "")
+
+    resp = await client.post("/v1/agent/execute", json={
+        "input": "识别图片里的食材",
+        "mode": "full",
+        "conversation_id": "conv_api_sense_no_vlm",
+        "image_url": "https://example.test/food.jpg",
+    })
+
+    assert resp.status_code == 200
+    data = resp.json()["data"]
+    tool_result = next(event for event in data["events"] if event.get("type") == "tool_result")
+
+    assert data["status"] == "degraded"
+    assert tool_result["tool"] == "sense"
+    assert tool_result["skill"]["category"] == "perception"
+    assert tool_result["error_code"] == "VLM_NOT_CONFIGURED"

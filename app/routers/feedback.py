@@ -14,5 +14,5 @@ async def meal_feedback(
     user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await do_feedback(db, user["sub"], req.recipe_id, req.rating)
+    result = await do_feedback(db, user["sub"], req.recipe_id, req.rating, req.comment)
     return SuccessResponse(data=result)

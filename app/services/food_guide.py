@@ -1,5 +1,10 @@
-"""探店美食向导 —— VLM识别菜品 + 文化故事"""
+"""探店美食向导 —— VLM识别菜品 + LLM文化故事补全"""
 
+import json
+
+import httpx
+
+from app.core.config import settings
 from app.services.vlm import analyze_food
 from app.services.vlm.prompts import DISH_UNDERSTAND
 
@@ -29,6 +34,67 @@ CLASSIC_DISHES = {
 }
 
 
+def _json_from_llm_content(content: str) -> dict | None:
+    text = (content or "").strip()
+    if "```" in text:
+        text = text.split("```")[1].split("```")[0].strip()
+        if text.startswith("json"):
+            text = text[4:].strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start >= 0 and end > start:
+        text = text[start:end + 1]
+    try:
+        return json.loads(text)
+    except Exception:
+        return None
+
+
+async def _llm_enrich_guide(dish_name: str, base: dict) -> dict:
+    """用 LLM 补全探店讲解字段。失败返回空 dict，不伪造内容。"""
+    if not settings.llm_api_url or not dish_name:
+        return {}
+
+    prompt = f"""你是专业美食向导。请基于菜品名称和已识别信息，补全探店讲解。
+要求：
+1. 只返回 JSON，不要 Markdown，不要多余解释。
+2. 如果菜品不是经典名菜，也要基于常识说明其地方风味、烹饪逻辑和吃法。
+3. 内容面向课堂演示，准确、自然、通俗。
+
+菜品名称：{dish_name}
+已识别信息：{json.dumps(base, ensure_ascii=False)}
+
+返回格式：
+{{
+  "cuisine": "菜系或地方风味",
+  "category": "荤菜/素菜/汤羹/面点/小吃/其他",
+  "history": "历史渊源、地方背景或餐饮场景，80-150字",
+  "features": "口味特点和烹饪技法，30-60字",
+  "best_eat": "最佳吃法、搭配和注意点，30-60字",
+  "estimated_calories": 估算整数,
+  "difficulty": "简单/中等/困难"
+}}"""
+
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            resp = await client.post(
+                settings.llm_api_url,
+                headers={"Authorization": f"Bearer {settings.llm_api_key}"},
+                json={
+                    "model": settings.llm_model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": 700,
+                    "temperature": 0.4,
+                },
+            )
+            if resp.status_code != 200:
+                return {}
+            data = _json_from_llm_content(resp.json()["choices"][0]["message"]["content"])
+            return data or {}
+    except Exception:
+        return {}
+
+
 async def guide(image_data: str) -> dict:
     """识别菜品并返回美食向导解析"""
     result = await analyze_food(image_data, DISH_UNDERSTAND)
@@ -44,16 +110,20 @@ async def guide(image_data: str) -> dict:
             classic = info
             break
 
+    needs_enrich = not (classic.get("history") or result.get("history")) or not (classic.get("features") or result.get("features")) or not (classic.get("best_eat") or result.get("best_eat"))
+    llm_info = await _llm_enrich_guide(dish_name, result) if needs_enrich else {}
+
     return {
         "status": "ok",
         "dish_name": dish_name,
-        "cuisine": classic.get("cuisine", result.get("cuisine", "")),
-        "category": result.get("category", ""),
-        "history": classic.get("history", result.get("history", "")),
-        "features": classic.get("features", result.get("features", "")),
-        "best_eat": classic.get("best_eat", result.get("best_eat", "")),
+        "cuisine": classic.get("cuisine") or result.get("cuisine") or llm_info.get("cuisine", ""),
+        "category": result.get("category") or llm_info.get("category", ""),
+        "history": classic.get("history") or result.get("history") or llm_info.get("history", ""),
+        "features": classic.get("features") or result.get("features") or llm_info.get("features", ""),
+        "best_eat": classic.get("best_eat") or result.get("best_eat") or llm_info.get("best_eat", ""),
         "ingredients": result.get("ingredients", []),
-        "estimated_calories": result.get("estimated_calories", 0),
-        "difficulty": result.get("difficulty", ""),
+        "estimated_calories": result.get("estimated_calories") or llm_info.get("estimated_calories", 0),
+        "difficulty": result.get("difficulty") or llm_info.get("difficulty", ""),
         "from_knowledge_base": bool(classic),
+        "from_llm": bool(llm_info),
     }

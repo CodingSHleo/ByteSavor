@@ -46,7 +46,10 @@
     </view>
 
     <view v-if="recognitionStatus" class="ir-status">
-      <text>{{ recognitionStatus }}</text>
+      <view class="status-copy">
+        <text>{{ recognitionStatus }}</text>
+        <text v-if="recognitionMetaText" class="status-meta">{{ recognitionMetaText }}</text>
+      </view>
       <view v-if="isLoading" class="loading-dots">
         <view class="dot"></view><view class="dot"></view><view class="dot"></view>
       </view>
@@ -59,7 +62,7 @@
     <view v-if="recognizedIngredients.length > 0" class="ir-results">
       <view class="section-head">
         <text>{{ $t('recognitionResults') }}</text>
-        <text class="section-sub">{{ recognizedIngredients.length }} 种食材</text>
+        <text class="section-sub">{{ recognizedIngredients.length }} 种已确认食材</text>
       </view>
       <view v-for="(item, idx) in recognizedIngredients" :key="idx" class="ingredient-card">
         <view class="ing-symbol" :class="freshnessClass(item.freshness)">
@@ -78,12 +81,21 @@
           </view>
           <text v-if="item.features" class="ing-features">{{ item.features }}</text>
           <text v-else class="ing-features">{{ item.state || '等待确认' }}</text>
+          <text v-if="item.source_count > 1" class="merge-note">已将 {{ item.source_count }} 个相同候选合并为 1 项</text>
         </view>
-        <image class="edit-icon" @tap="editIngredient(item, idx)" src="/static/icons/icon_edit.svg" mode="aspectFit" />
+        <view class="card-actions">
+          <button class="icon-action" @tap.stop="editIngredient(item, idx)">
+            <image src="/static/icons/icon_edit.svg" mode="aspectFit" />
+          </button>
+          <button class="icon-action danger" @tap.stop="deleteIngredient(idx)">
+            <image src="/static/icons/icon_delete.svg" mode="aspectFit" />
+          </button>
+        </view>
       </view>
 
+      <button class="btn-add" @tap="addIngredient">手动添加食材</button>
       <button class="btn-confirm" @tap="confirmAndNavigate">
-        {{ $t('confirmAndGoToDashboard') }}
+        确认并生成清单
       </button>
     </view>
   </view>
@@ -94,6 +106,7 @@ import { ref, computed } from 'vue'
 import { ApiService } from '@/api/index'
 import { useHistoryStore } from '@/store/history'
 import { t } from '@/utils/i18n'
+import { mergeRecognizedIngredients, removeIngredientAt, updateIngredientAt } from '@/utils/ingredient-confirmation'
 
 const $t = key => t(key)
 const historyStore = useHistoryStore()
@@ -103,6 +116,13 @@ const recognizedIngredients = ref([])
 const isLoading = ref(false)
 const errorMessage = ref('')
 const recognitionStatus = ref('')
+const recognitionMeta = ref(null)
+const recognitionMetaText = computed(() => {
+  const meta = recognitionMeta.value
+  if (!meta || typeof meta.latency_ms !== 'number') return ''
+  const cacheText = meta.cache_hit ? '缓存命中' : '实时推理'
+  return `${cacheText} · ${meta.latency_ms}ms`
+})
 const stages = [{ label: '上传图片' }, { label: 'AI 识别' }, { label: '人工校正' }]
 const stageIndex = computed(() => {
   if (recognizedIngredients.value.length > 0) return 2
@@ -146,6 +166,7 @@ function takePhoto() {
       const tempFile = res.tempFiles[0]
       selectedImage.value = tempFile.tempFilePath
       recognizedIngredients.value = []
+      recognitionMeta.value = null
       recognitionStatus.value = '正在上传图片...'
       analyzeImage()
     },
@@ -167,6 +188,7 @@ function pickFromGallery() {
       const tempFile = res.tempFiles[0]
       selectedImage.value = tempFile.tempFilePath
       recognizedIngredients.value = []
+      recognitionMeta.value = null
       recognitionStatus.value = '正在上传图片...'
       analyzeImage()
     },
@@ -178,12 +200,14 @@ function pickFromGallery() {
 function handleNativeFile(e) {
   const file = e.target?.files?.[0] || e.detail?.files?.[0]
   if (!file) return
+  recognitionStatus.value = '正在压缩图片...'
+  recognitionMeta.value = null
+  recognizedIngredients.value = []
   const reader = new FileReader()
   reader.onload = (ev) => {
     compressImage(ev.target.result, (compressed) => {
       selectedImage.value = compressed
-      recognizedIngredients.value = []
-      recognitionStatus.value = '正在识别食材...'
+      recognitionStatus.value = '图片已压缩，准备调用视觉模型...'
       analyzeImage()
     })
   }
@@ -193,13 +217,13 @@ function handleNativeFile(e) {
 function compressImage(dataUrl, callback) {
   const img = new Image()
   img.onload = () => {
-    const maxW = 800
+    const maxW = 720
     let w = img.width, h = img.height
     if (w > maxW) { h = h * maxW / w; w = maxW }
     const canvas = document.createElement('canvas')
     canvas.width = w; canvas.height = h
     canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-    callback(canvas.toDataURL('image/jpeg', 0.7))
+    callback(canvas.toDataURL('image/jpeg', 0.68))
   }
   img.src = dataUrl
 }
@@ -212,6 +236,7 @@ async function analyzeImage() {
   try {
     let imageData = selectedImage.value
     if (!imageData.startsWith('data:')) {
+      recognitionStatus.value = '正在读取图片...'
       const fs = uni.getFileSystemManager()
       const base64 = await new Promise((resolve, reject) => {
         fs.readFile({
@@ -222,10 +247,28 @@ async function analyzeImage() {
         })
       })
       imageData = `data:image/jpeg;base64,${base64}`
+      recognitionStatus.value = '图片已准备，准备调用视觉模型...'
     }
-    const ingredients = await ApiService.analyzeIngredient(imageData)
+    recognitionStatus.value = 'VLM 多模态模型推理中...'
+    const analysis = await ApiService.analyzeIngredientDetail(imageData)
+    recognitionMeta.value = {
+      cache_hit: !!analysis.cache_hit,
+      latency_ms: analysis.latency_ms,
+      model: analysis.model,
+      prompt_version: analysis.prompt_version,
+      cache_key: analysis.cache_key
+    }
+    if (analysis.cache_hit) {
+      recognitionStatus.value = '命中缓存，已快速识别'
+    }
+    const ingredients = mergeRecognizedIngredients(analysis.ingredients || [])
     recognizedIngredients.value = ingredients
-    recognitionStatus.value = `识别完成，检测到 ${ingredients.length} 种食材`
+    const latencyText = Number.isFinite(Number(analysis.latency_ms))
+      ? ` · ${analysis.latency_ms}ms`
+      : ''
+    recognitionStatus.value = analysis.cache_hit
+      ? `命中缓存，已快速识别${latencyText}。识别完成，请确认 ${ingredients.length} 种食材`
+      : `识别完成${latencyText}，请确认 ${ingredients.length} 种食材`
     isLoading.value = false
 
     if (ingredients.length > 0) {
@@ -262,7 +305,7 @@ function showManualCorrection(ingredient) {
       if (res.confirm && res.content) {
         const idx = recognizedIngredients.value.indexOf(ingredient)
         if (idx >= 0) {
-          recognizedIngredients.value[idx] = { ...ingredient, name: res.content }
+          recognizedIngredients.value = updateIngredientAt(recognizedIngredients.value, idx, { name: res.content, source_count: 1 })
         }
       }
     }
@@ -270,6 +313,7 @@ function showManualCorrection(ingredient) {
 }
 
 function editIngredient(ingredient, idx) {
+  const oldName = ingredient.name
   uni.showModal({
     title: $t('manualCorrection'),
     content: `${$t('ingredientName')}: ${ingredient.name}`,
@@ -277,7 +321,66 @@ function editIngredient(ingredient, idx) {
     placeholderText: ingredient.name,
     success: (res) => {
       if (res.confirm && res.content) {
-        recognizedIngredients.value[idx] = { ...ingredient, name: res.content }
+        recognizedIngredients.value = updateIngredientAt(recognizedIngredients.value, idx, { name: res.content, source_count: 1 })
+        // P1-9: 写入纠错日志
+        ApiService.recordCorrection({
+          action: 'rename',
+          source: 'sense',
+          original_name: oldName,
+          corrected_name: res.content,
+          confidence: ingredient.confidence || 0,
+          meta: { page: 'ingredient-recognition' }
+        }).catch((e) => {
+  console.warn('[correction] recordCorrection failed:', e)
+})
+      }
+    }
+  })
+}
+
+function deleteIngredient(idx) {
+  const item = recognizedIngredients.value[idx]
+  uni.showModal({
+    title: '删除食材',
+    content: `确定删除「${item?.name || '该食材'}」吗？`,
+    cancelText: $t('cancel'),
+    confirmText: '删除',
+    success: (res) => {
+      if (res.confirm) {
+        recognizedIngredients.value = removeIngredientAt(recognizedIngredients.value, idx)
+        // P1-9: 写入纠错日志
+        ApiService.recordCorrection({
+          action: 'delete',
+          source: 'sense',
+          original_name: item?.name || '',
+          confidence: item?.confidence || 0,
+          meta: { page: 'ingredient-recognition' }
+        }).catch((e) => {
+  console.warn('[correction] recordCorrection failed:', e)
+})
+        recognitionStatus.value = recognizedIngredients.value.length
+          ? `已确认 ${recognizedIngredients.value.length} 种食材`
+          : '识别结果已清空，请重新添加或拍照'
+      }
+    }
+  })
+}
+
+function addIngredient() {
+  uni.showModal({
+    title: '添加食材',
+    editable: true,
+    placeholderText: '例如：西瓜',
+    cancelText: $t('cancel'),
+    confirmText: $t('add'),
+    success: (res) => {
+      const name = String(res.content || '').trim()
+      if (res.confirm && name) {
+        recognizedIngredients.value = mergeRecognizedIngredients([
+          ...recognizedIngredients.value,
+          { name, confidence: 1, freshness: 'medium', state: '手动确认', features: '用户手动添加' }
+        ])
+        recognitionStatus.value = `已确认 ${recognizedIngredients.value.length} 种食材`
       }
     }
   })
@@ -294,8 +397,12 @@ function confirmAndNavigate() {
     detail: t('scanCompleteDetail', { n: recognizedIngredients.value.length })
   })
   uni.setStorageSync('last_ingredients', JSON.stringify(recognizedIngredients.value))
-  const data = encodeURIComponent(JSON.stringify(recognizedIngredients.value))
-  uni.navigateTo({ url: `/pages/health-dashboard/health-dashboard?ingredients=${data}` })
+  ApiService.importInventory(recognizedIngredients.value, 'scan')
+    .catch(() => {})
+    .finally(() => {
+      const data = encodeURIComponent(JSON.stringify(recognizedIngredients.value))
+      uni.navigateTo({ url: `/pages/list-export/list-export?items=${data}&title=${encodeURIComponent('本次识别食材')}&source=scan` })
+    })
 }
 
 function freshnessLabel(f) { return ({ high: '新鲜', normal: '冷藏', medium: '普通', low: '待确认' })[f] || f || '待确认' }
@@ -378,6 +485,8 @@ function freshnessClass(f) { return f === 'high' ? 'fresh-high' : f === 'low' ? 
 .stage-item.active { color: var(--teal); font-weight: 800; }
 .stage-item.active .stage-dot { background: var(--teal-bg); box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.12); }
 .ir-status { background: linear-gradient(135deg, var(--blue-bg), #FFFFFF); border-radius: var(--radius-md); padding: 18rpx 20rpx; margin-bottom: 18rpx; display: flex; align-items: center; justify-content: space-between; gap: 12rpx; font-size: 25rpx; color: var(--text-secondary); box-shadow: var(--shadow-sm), var(--hairline); }
+.status-copy { min-width: 0; display: flex; flex-direction: column; gap: 6rpx; }
+.status-meta { font-size: 21rpx; color: var(--text-muted); }
 .loading-dots { display: flex; gap: 8rpx; }
 .dot { width: 12rpx; height: 12rpx; background: var(--teal); border-radius: 50%; animation: blink 1.4s infinite ease-in-out both; }
 .dot:nth-child(2) { animation-delay: .16s; }
@@ -400,6 +509,11 @@ function freshnessClass(f) { return f === 'high' ? 'fresh-high' : f === 'low' ? 
 .confidence-track { flex: 1; height: 8rpx; border-radius: 8rpx; background: var(--border-light); overflow: hidden; }
 .confidence-fill { height: 100%; border-radius: 8rpx; background: linear-gradient(90deg, var(--teal), var(--teal-light)); transform-origin: left center; animation: bar-grow .5s var(--ease) both; }
 .ing-features { display: block; margin-top: 10rpx; font-size: 23rpx; color: var(--text-secondary); line-height: 1.45; }
-.edit-icon { width: 42rpx; height: 42rpx; flex-shrink: 0; }
+.merge-note { display: inline-flex; align-self: flex-start; margin-top: 10rpx; padding: 6rpx 12rpx; border-radius: var(--radius-full); background: var(--blue-bg); color: var(--blue); font-size: 20rpx; font-weight: 800; }
+.card-actions { display: flex; flex-direction: column; gap: 10rpx; flex-shrink: 0; }
+.icon-action { width: 56rpx; height: 56rpx; padding: 0; margin: 0; border-radius: 18rpx; border: none; background: var(--green-bg); display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.08); }
+.icon-action image { width: 30rpx; height: 30rpx; }
+.icon-action.danger { background: var(--red-bg); }
+.btn-add { width: 100%; height: 82rpx; background: rgba(255,255,255,.94); color: var(--teal); border: 1rpx solid var(--border-light); border-radius: var(--radius-md); font-size: 27rpx; font-weight: 900; margin-top: 10rpx; box-shadow: var(--shadow-sm); }
 .btn-confirm { width: 100%; height: 94rpx; background: linear-gradient(135deg, var(--teal), var(--teal-light)); color: #fff; border: none; border-radius: var(--radius-md); font-size: 30rpx; font-weight: 950; margin-top: 16rpx; box-shadow: 0 18rpx 36rpx rgba(35,169,120,.20); }
 </style>

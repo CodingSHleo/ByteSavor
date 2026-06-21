@@ -25,6 +25,52 @@
       <text>{{ errorNotice }}</text>
     </view>
 
+    <view class="nutrition-panel">
+      <view class="section-header">
+        <view class="section-title-row">
+          <image class="section-title-icon" src="/static/icons/icon_chart.svg" mode="aspectFit" />
+          <text class="section-label">本次食材营养</text>
+        </view>
+        <text class="section-count">估算值</text>
+      </view>
+      <view v-if="!ingredientNutritionRows.length" class="nutrition-empty">
+        <text>暂无可计算食材，请先确认识别结果名称和数量。</text>
+      </view>
+      <view class="nutrition-grid">
+        <view v-for="m in batchNutritionTiles" :key="m.key" class="nutrition-tile">
+          <text class="nutrition-value">{{ m.value }}{{ m.unit }}</text>
+          <text class="nutrition-label">{{ m.label }}</text>
+          <view class="nutrition-bar"><view :style="{ width: m.pct + '%' }"></view></view>
+          <text class="nutrition-foot">占每日 {{ m.pct }}%</text>
+        </view>
+      </view>
+      <view class="ingredient-nutrition-list">
+        <view v-for="row in ingredientNutritionRows" :key="row.name" class="ingredient-nutrition-row">
+          <text>{{ row.name }}</text>
+          <text>按 {{ row.weight }}g 计算 · {{ row.calories }}kcal · P {{ row.protein }}g</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="nutrition-panel gap-panel">
+      <view class="section-header">
+        <view class="section-title-row">
+          <image class="section-title-icon" src="/static/icons/icon_flash.svg" mode="aspectFit" />
+          <text class="section-label">今日摄入与缺口</text>
+        </view>
+        <text class="section-count">{{ intakeRecorded ? '已更新' : '当前' }}</text>
+      </view>
+      <view class="gap-list">
+        <view v-for="gap in dailyGapRows" :key="gap.key" class="gap-item">
+          <view class="gap-copy">
+            <text class="gap-name">{{ gap.label }}</text>
+            <text class="gap-meta">已摄入 {{ gap.current }}{{ gap.unit }} / 目标 {{ gap.target }}{{ gap.unit }}</text>
+          </view>
+          <text class="gap-need">{{ gap.need > 0 ? `还缺 ${gap.need}${gap.unit}` : '已达标' }}</text>
+        </view>
+      </view>
+    </view>
+
     <view class="automation-card">
       <view class="auto-step active">
         <text>1</text>
@@ -97,10 +143,14 @@
         <image class="btn-icon invert" src="/static/icons/icon_copy.svg" mode="widthFix" />
         {{ $t('copyToClipboard') }}
       </button>
+      <button class="primary-action plan-action" @tap="planFromList">
+        <image class="btn-icon invert" src="/static/icons/icon_calendar.svg" mode="widthFix" />
+        加入{{ selectedMealSlotLabel }}计划
+      </button>
       <view class="secondary-actions">
+        <button @tap="chooseMealSlot"><image class="btn-icon" src="/static/icons/icon_plate.svg" mode="widthFix" />{{ selectedMealSlotLabel }}</button>
         <button @tap="exportMarkdown"><image class="btn-icon" src="/static/icons/icon_export.svg" mode="widthFix" />{{ $t('exportMarkdown') }}</button>
         <button @tap="shareToSocial"><image class="btn-icon" src="/static/icons/icon_share.svg" mode="widthFix" />{{ $t('shareToSocial') }}</button>
-        <button @tap="goBack"><image class="btn-icon" src="/static/icons/icon_back.svg" mode="widthFix" />{{ $t('back') }}</button>
       </view>
     </view>
   </view>
@@ -112,6 +162,7 @@ import { ref, computed } from 'vue'
 import { onLoad } from '@dcloudio/uni-app'
 import { ApiService } from '@/api/index'
 import { t } from '@/utils/i18n'
+import { summarizeIngredientNutrition, NUTRITION_TARGETS, ingredientName, normalizeIngredientItem } from '@/utils/food-analysis'
 
 const $t = key => t(key)
 const isLoading = ref(true)
@@ -119,6 +170,19 @@ const recipes = ref([])
 const editingList = ref([])
 const checkedItems = ref({})
 const errorNotice = ref('')
+const dailySummary = ref(null)
+const intakeRecorded = ref(false)
+const lastIntakeRecipe = ref(null)
+const selectedMealSlot = ref(currentMealSlot())
+const mealSlotOptions = [
+  { key: 'breakfast', label: '早餐' },
+  { key: 'lunch', label: '午餐' },
+  { key: 'dinner', label: '晚餐' },
+  { key: 'snack', label: '加餐' },
+  { key: 'late_night', label: '宵夜' },
+  { key: 'custom', label: '自定义' }
+]
+const selectedMealSlotLabel = computed(() => mealSlotOptions.find(item => item.key === selectedMealSlot.value)?.label || selectedMealSlot.value || '本餐')
 const recipeCount = computed(() => recipes.value.length)
 const checkedCount = computed(() => Object.values(checkedItems.value).filter(Boolean).length)
 const uniqueIngredientCount = computed(() => {
@@ -129,15 +193,60 @@ const uniqueIngredientCount = computed(() => {
   })
   return names.size
 })
+const nutritionSummary = computed(() => summarizeIngredientNutrition(activeIntakeItems.value))
+const activeTargets = computed(() => ({ ...NUTRITION_TARGETS, ...(dailySummary.value?.targets || {}) }))
+const ingredientNutritionRows = computed(() => nutritionSummary.value.rows)
+const batchNutritionTiles = computed(() => {
+  const totals = nutritionSummary.value.totals
+  return [
+    { key: 'calories', label: '热量', value: Math.round(totals.calories || 0), unit: 'kcal', target: activeTargets.value.calories },
+    { key: 'protein', label: '蛋白质', value: totals.protein || 0, unit: 'g', target: activeTargets.value.protein },
+    { key: 'carbs', label: '碳水', value: totals.carbs || 0, unit: 'g', target: activeTargets.value.carbs },
+    { key: 'fat', label: '脂肪', value: totals.fat || 0, unit: 'g', target: activeTargets.value.fat },
+    { key: 'fiber', label: '膳食纤维', value: totals.fiber || 0, unit: 'g', target: activeTargets.value.fiber },
+    { key: 'vitamin_c', label: '维生素C', value: totals.vitamin_c || 0, unit: 'mg', target: activeTargets.value.vitamin_c },
+    { key: 'iron', label: '铁', value: totals.iron || 0, unit: 'mg', target: activeTargets.value.iron }
+  ].map(item => ({ ...item, pct: Math.min(100, Math.round((Number(item.value) / item.target) * 100)) }))
+})
+const dailyGapRows = computed(() => {
+  const current = dailySummary.value?.totals || {}
+  return [
+    { key: 'calories', label: '热量', unit: 'kcal', target: activeTargets.value.calories },
+    { key: 'protein', label: '蛋白质', unit: 'g', target: activeTargets.value.protein },
+    { key: 'carbs', label: '碳水', unit: 'g', target: activeTargets.value.carbs },
+    { key: 'fat', label: '脂肪', unit: 'g', target: activeTargets.value.fat },
+    { key: 'fiber', label: '膳食纤维', unit: 'g', target: activeTargets.value.fiber },
+    { key: 'vitamin_c', label: '维生素C', unit: 'mg', target: activeTargets.value.vitamin_c },
+    { key: 'iron', label: '铁', unit: 'mg', target: activeTargets.value.iron }
+  ].map(item => {
+    const value = Number(current[item.key] || 0)
+    return { ...item, current: Number(value.toFixed(item.key === 'calories' ? 0 : 1)), need: Number(Math.max(0, item.target - value).toFixed(item.key === 'calories' ? 0 : 1)) }
+  })
+})
+const activeIntakeItems = computed(() => {
+  const checkedIndexes = Object.keys(checkedItems.value).filter(key => checkedItems.value[key]).map(Number)
+  if (!checkedIndexes.length) return editingList.value
+  return checkedIndexes.map(idx => editingList.value[idx]).filter(Boolean)
+})
 
 function dedupeIngredients(list) {
   const map = new Map()
   list.forEach(item => {
-    const key = (item.name || '').trim().toLowerCase()
+    const normalized = normalizeIngredientItem(item)
+    const key = ingredientName(normalized).toLowerCase()
     if (!key) return
     if (!map.has(key)) {
-      map.set(key, { ...item, name: item.name.trim(), amount: item.display || item.amount || '' })
+      map.set(key, normalized)
+      return
     }
+    const current = map.get(key)
+    map.set(key, {
+      ...current,
+      ...normalized,
+      name: current.name,
+      confidence: Math.max(Number(current.confidence || 0), Number(normalized.confidence || 0)),
+      source_count: Number(current.source_count || 1) + 1
+    })
   })
   return Array.from(map.values())
 }
@@ -172,8 +281,17 @@ onLoad(async (options) => {
     errorNotice.value = '清单参数解析失败，未使用本地演示清单。'
     editingList.value = []
   }
+  await loadDailySummary()
   isLoading.value = false
 })
+
+async function loadDailySummary() {
+  try {
+    dailySummary.value = await ApiService.getNutritionSummary('day')
+  } catch (e) {
+    dailySummary.value = { totals: {} }
+  }
+}
 
 function addItem() { editingList.value.push({ name: '', amount: '' }) }
 function toggleChecked(idx) { checkedItems.value[idx] = !checkedItems.value[idx]; checkedItems.value = { ...checkedItems.value } }
@@ -187,11 +305,12 @@ function editItem(idx) {
   uni.showModal({
     title: $t('editIngredient'),
     editable: true,
-    placeholderText: item.name + ' - ' + item.amount,
+    placeholderText: `${item.name || '食材'} - ${item.display || item.amount || '100g'}`,
     success: (res) => {
       if (res.confirm && res.content) {
-        const parts = res.content.split('-').map(s => s.trim())
-        editingList.value[idx] = { name: parts[0] || item.name, amount: parts[1] || item.amount }
+        const parts = res.content.split(/[-—]/).map(s => s.trim())
+        const amount = parts[1] || item.amount || item.display || ''
+        editingList.value[idx] = { ...item, name: parts[0] || item.name, amount, display: amount }
         editingList.value = dedupeIngredients(editingList.value)
       }
     }
@@ -245,6 +364,97 @@ function exportMarkdown() {
         writeClipboard(md)
           .then(() => uni.showToast({ title: $t('copied'), icon: 'success' }))
           .catch(() => uni.showToast({ title: '复制失败，请检查浏览器权限', icon: 'none' }))
+      }
+    }
+  })
+}
+async function planFromList() {
+  if (!activeIntakeItems.value.length) {
+    uni.showToast({ title: '暂无可加入计划的食材', icon: 'none' })
+    return
+  }
+  const recipe = intakeRecipeSnapshot()
+  try {
+    await ApiService.planMeal(selectedMealSlot.value, recipe, recipe.ingredients, editingList.value)
+    uni.showToast({ title: `已加入${selectedMealSlotLabel.value}计划`, icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: e.message || '加入计划失败', icon: 'none' })
+  }
+}
+function currentMealSlot() {
+  const h = new Date().getHours()
+  if (h < 10) return 'breakfast'
+  if (h < 15) return 'lunch'
+  return 'dinner'
+}
+function intakeRecipeSnapshot() {
+  const totals = nutritionSummary.value.totals
+  const rows = nutritionSummary.value.rows
+  const names = rows.map(item => item.name).filter(Boolean)
+  return {
+    recipe_id: `scan_intake_${Date.now()}`,
+    title: names.length ? `本次识别：${names.slice(0, 3).join('、')}` : '本次识别食材',
+    calories: Math.round(totals.calories || 0),
+    nutrition: {
+      calories: Math.round(totals.calories || 0),
+      protein: Math.round(totals.protein || 0),
+      carbs: Math.round(totals.carbs || 0),
+      fat: Math.round(totals.fat || 0),
+      fiber: Math.round(totals.fiber || 0),
+      vitamin_c: Math.round(totals.vitamin_c || 0),
+      iron: Number(totals.iron || 0)
+    },
+    ingredients: rows.map(item => ({ name: item.name, amount: `${item.weight}g`, display: `${item.weight}g` }))
+  }
+}
+function chooseMealSlot() {
+  uni.showActionSheet({
+    itemList: mealSlotOptions.map(item => item.label),
+    success: (res) => {
+      const option = mealSlotOptions[res.tapIndex]
+      if (!option) return
+      if (option.key !== 'custom') {
+        selectedMealSlot.value = option.key
+        return
+      }
+      uni.showModal({
+        title: '自定义餐时',
+        editable: true,
+        placeholderText: '比如：训练后加餐、下午茶',
+        confirmText: '保存',
+        success: (modal) => {
+          if (modal.confirm && modal.content?.trim()) selectedMealSlot.value = modal.content.trim()
+        }
+      })
+    }
+  })
+}
+function askMealFeedback(recipe) {
+  uni.showActionSheet({
+    itemList: ['很喜欢 5分', '还可以 4分', '一般 3分', '不喜欢 2分'],
+    success: (res) => {
+      const ratings = [5, 4, 3, 2]
+      const rating = ratings[res.tapIndex] || 3
+      askMealFeedbackReason(recipe, rating)
+    },
+    fail: () => {}
+  })
+}
+function askMealFeedbackReason(recipe, rating) {
+  uni.showModal({
+    title: '这餐记忆一下',
+    editable: true,
+    placeholderText: '比如：喜欢清淡少油、牛肉口感好；或者太油腻、分量太大',
+    cancelText: '跳过',
+    confirmText: '提交',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        const comment = (res.content || '').trim() || `本次摄入评分 ${rating} 分`
+        await ApiService.submitFeedback(recipe.recipe_id || lastIntakeRecipe.value?.recipe_id || '', rating, comment)
+        uni.showToast({ title: '偏好已学习', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: '摄入已记录，偏好学习失败', icon: 'none' })
       }
     }
   })
@@ -339,6 +549,25 @@ function goBack() { uni.navigateBack() }
 .section-action { font-size: 25rpx; color: var(--teal); font-weight: 900; }
 .recipe-tags { display: flex; flex-wrap: wrap; gap: 10rpx; }
 .recipe-tag { background: #fff; color: var(--teal); font-size: 23rpx; padding: 9rpx 16rpx; border-radius: var(--radius-full); box-shadow: var(--shadow-sm); }
+.nutrition-panel { background: #fff; border-radius: var(--radius); padding: 20rpx; margin-bottom: 22rpx; box-shadow: var(--shadow-sm); }
+.nutrition-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12rpx; }
+.nutrition-tile { background: var(--bg-elevated); border-radius: 18rpx; padding: 16rpx; min-width: 0; box-shadow: inset 0 0 0 1rpx rgba(19,35,29,.04); }
+.nutrition-value { display: block; color: var(--text); font-size: 30rpx; line-height: 1; font-weight: 950; }
+.nutrition-label { display: block; margin-top: 7rpx; color: var(--text-secondary); font-size: 21rpx; font-weight: 800; }
+.nutrition-bar { height: 8rpx; margin-top: 12rpx; background: var(--border-light); border-radius: 999rpx; overflow: hidden; }
+.nutrition-bar view { height: 100%; border-radius: 999rpx; background: linear-gradient(90deg, var(--teal), var(--amber)); }
+.nutrition-foot { display: block; margin-top: 8rpx; color: var(--text-muted); font-size: 19rpx; }
+.ingredient-nutrition-list { margin-top: 14rpx; display: flex; flex-direction: column; gap: 8rpx; }
+.ingredient-nutrition-row { display: flex; justify-content: space-between; gap: 12rpx; background: #fff; border-radius: 14rpx; padding: 12rpx 14rpx; box-shadow: inset 0 0 0 1rpx rgba(19,35,29,.05); }
+.ingredient-nutrition-row text:first-child { color: var(--text); font-size: 22rpx; font-weight: 900; }
+.ingredient-nutrition-row text:last-child { color: var(--text-muted); font-size: 20rpx; text-align: right; }
+.gap-panel { background: linear-gradient(180deg, #FFFFFF, #F8FCFA); }
+.gap-list { display: flex; flex-direction: column; gap: 10rpx; }
+.gap-item { display: flex; align-items: center; justify-content: space-between; gap: 12rpx; background: var(--bg-elevated); border-radius: 16rpx; padding: 14rpx; }
+.gap-copy { min-width: 0; flex: 1; }
+.gap-name { display: block; color: var(--text); font-size: 23rpx; font-weight: 950; }
+.gap-meta { display: block; margin-top: 4rpx; color: var(--text-muted); font-size: 19rpx; }
+.gap-need { color: var(--teal); font-size: 21rpx; font-weight: 900; flex-shrink: 0; }
 .list-section { background: #fff; border-radius: var(--radius); padding: 20rpx; box-shadow: var(--shadow-sm); }
 .le-empty { padding: 46rpx 0; text-align: center; color: var(--text-secondary); }
 .list-item { display: flex; align-items: center; gap: 14rpx; padding: 18rpx 0; border-bottom: 1rpx solid var(--border-light); }
@@ -355,9 +584,14 @@ function goBack() { uni.navigateBack() }
 .item-actions { display: flex; gap: 14rpx; align-items: center; }
 .action-icon { width: 46rpx; height: 46rpx; }
 .bottom-actions { margin-top: 24rpx; }
-.primary-action { width: 100%; height: 90rpx; background: var(--teal); color: #fff; border: none; border-radius: var(--radius); font-size: 29rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md); }
+.primary-action { width: 100%; height: 90rpx; background: #23A978; color: #fff !important; border: none; border-radius: var(--radius); font-size: 29rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow-md); line-height: 1; }
+.primary-action::after { border: none; }
+.plan-action { margin-top: 12rpx; background: linear-gradient(135deg, #173B2E, #23A978) !important; color: #fff !important; }
+.intake-action { margin-top: 12rpx; background: linear-gradient(135deg, #8D7AE6, #A996FF) !important; color: #fff !important; }
 .secondary-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10rpx; margin-top: 12rpx; }
-.secondary-actions button { height: 76rpx; background: #fff; color: var(--text-secondary); border: none; border-radius: var(--radius); font-size: 22rpx; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 4rpx; box-shadow: var(--shadow-sm); padding: 0 6rpx; }
+.secondary-actions button { height: 76rpx; background: #fff !important; color: #58645F !important; border: none; border-radius: var(--radius); font-size: 22rpx; font-weight: 800; display: flex; align-items: center; justify-content: center; gap: 4rpx; box-shadow: var(--shadow-sm); padding: 0 6rpx; line-height: 1; }
+.secondary-actions button::after { border: none; }
 .btn-icon { width: 34rpx; height: 34rpx; }
 .btn-icon.invert { filter: brightness(0) invert(1); margin-right: 8rpx; }
+.nutrition-empty { padding: 18rpx 0 6rpx; color: var(--text-muted); font-size: 23rpx; line-height: 1.4; }
 </style>

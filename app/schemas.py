@@ -41,6 +41,8 @@ class RecipeBrief(BaseModel):
 class DecisionRequest(BaseModel):
     ingredients: List[str] = Field(default=[])
     constraints: dict = Field(default={"time_limit": 30, "taste": "spicy", "goal": "fat_loss"})
+    refresh: bool = False  # 跳过缓存，获取新推荐
+    exclude_recipe_ids: List[str] = Field(default=[])
 
 class RecipeDetail(BaseModel):
     recipe_id: str
@@ -66,13 +68,31 @@ class AgentRequest(BaseModel):
 class FeedbackRequest(BaseModel):
     recipe_id: str
     rating: int = Field(..., ge=1, le=5)
+    comment: str = ""
 
 # ---------- Auth ----------
 class RegisterRequest(BaseModel):
-    openid: str = Field(..., min_length=1)
+    # 旧演示路径
+    openid: str = ""
+    # v5 密码注册路径
+    username: str = ""
+    password: str = ""
+    name: str = ""
 
 class LoginRequest(BaseModel):
-    openid: str = Field(..., min_length=1)
+    # 旧演示路径
+    openid: str = ""
+    # v5 密码登录路径
+    username: str = ""
+    password: str = ""
+
+class CorrectionLogRequest(BaseModel):
+    action: str = Field(..., pattern="^(rename|delete|merge|weight_adjust|add)$")
+    source: str = Field(default="sense", pattern="^(sense|inventory)$")
+    original_name: str = ""
+    corrected_name: str = ""
+    confidence: float = Field(default=0, ge=0, le=1)
+    meta: dict = Field(default_factory=dict)
 
 # ---------- User ----------
 class NutritionStatus(BaseModel):
@@ -86,8 +106,12 @@ class UserProfile(BaseModel):
     preferences: List[str]
 
 class ProfileUpdate(BaseModel):
+    name: str | None = None
+    avatar_url: str | None = None
     goal: str | None = None
     preferences: List[str] | None = None
+    body_metrics: Dict[str, Any] | None = None
+    nutrition_targets: Dict[str, Any] | None = None
 
 # ---------- 结构化数量 ----------
 class Quantity(BaseModel):

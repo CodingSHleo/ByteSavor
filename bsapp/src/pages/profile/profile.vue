@@ -46,6 +46,30 @@
       </view>
 
       <view class="menu-list">
+        <view class="menu-item" @tap="goFavorites">
+          <view class="menu-icon"><text class="fallback-icon">收</text></view>
+          <view class="menu-copy">
+            <text class="menu-label">我的收藏</text>
+            <text class="menu-hint">收藏的系统菜谱和社区菜谱</text>
+          </view>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" @tap="goInventory">
+          <view class="menu-icon blue"><text class="fallback-icon">库</text></view>
+          <view class="menu-copy">
+            <text class="menu-label">库存管理</text>
+            <text class="menu-hint">手动添加、编辑和删除现有食材</text>
+          </view>
+          <text class="menu-arrow">›</text>
+        </view>
+        <view class="menu-item" @tap="goCommunity">
+          <view class="menu-icon amber"><text class="fallback-icon">社</text></view>
+          <view class="menu-copy">
+            <text class="menu-label">我的社区</text>
+            <text class="menu-hint">发布菜谱、打卡和健康饮食交流</text>
+          </view>
+          <text class="menu-arrow">›</text>
+        </view>
         <view class="menu-item" @tap="showDietPrefs">
           <view class="menu-icon"><image src="/static/icons/icon_plate.svg" mode="aspectFit" /></view>
           <view class="menu-copy">
@@ -147,6 +171,9 @@ function deficitLabel(d) {
 
 function goHistory() { uni.navigateTo({ url: '/pages/history/history' }) }
 function goSettings() { uni.navigateTo({ url: '/pages/settings/settings' }) }
+function goFavorites() { uni.navigateTo({ url: '/pages/favorites/favorites' }) }
+function goInventory() { uni.navigateTo({ url: '/pages/inventory/inventory' }) }
+function goCommunity() { uni.switchTab({ url: '/pages/community/community' }) }
 
 function showDietPrefs() {
   uni.navigateTo({ url: '/pages/settings/settings' })
@@ -203,6 +230,7 @@ async function handleLogout() {
   flex-shrink: 0;
 }
 .avatar-img { width: 100%; height: 100%; border-radius: 36rpx; }
+.fallback-icon { font-size: 28rpx; font-weight: 950; color: var(--teal); }
 .hero-info { flex: 1; min-width: 0; }
 .user-name {
   font-size: 42rpx;

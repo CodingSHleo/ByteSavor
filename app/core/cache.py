@@ -27,7 +27,7 @@ async def get(key: str) -> dict | None:
 async def set(key: str, data: dict, ttl: int = TTL):
     try:
         r = await _get_redis()
-        await r.setex(key, ttl, json.dumps(data, ensure_ascii=False))
+        await r.set(key, json.dumps(data, ensure_ascii=False), ex=ttl)
         await r.close()
     except Exception as e:
         logger.debug("cache_set_failed key=%s error=%s", key, e)

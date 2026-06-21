@@ -23,6 +23,7 @@
       <image class="btn-small-icon" src="/static/icons/icon_cart.svg" mode="widthFix" />
       {{ $t('generateShoppingList') }}
     </button>
+    <button class="check-btn" @tap="checkRecipe">清点当前库存缺什么</button>
 
     <view class="action-row">
       <view class="action-btn" :class="{ liked: isLiked }" @tap="toggleLike">
@@ -120,6 +121,7 @@ async function loadDetail() {
   isLoading.value = true
   try {
     detail.value = await ApiService.getRecipeDetail(recipeId.value)
+    try { isLiked.value = await ApiService.getFavoriteStatus('system_recipe', recipeId.value) } catch (e) {}
     uni.setNavigationBarTitle({ title: detail.value?.title || title.value })
   } catch (e) {
     detail.value = null
@@ -150,11 +152,29 @@ async function submitFeedback() {
     uni.showToast({ title: $t('clickToRate'), icon: 'none' })
   }
 }
-function toggleLike() {
-  isLiked.value = !isLiked.value
-  uni.showToast({ title: isLiked.value ? $t('likedRecipe') : $t('unlikedRecipe'), icon: 'none' })
+async function toggleLike() {
+  try {
+    if (isLiked.value) {
+      await ApiService.removeFavorite('system_recipe', recipeId.value)
+      isLiked.value = false
+      uni.showToast({ title: $t('unlikedRecipe'), icon: 'none' })
+    } else {
+      await ApiService.addFavorite('system_recipe', recipeId.value, detail.value || { title: title.value })
+      isLiked.value = true
+      uni.showToast({ title: $t('likedRecipe'), icon: 'success' })
+    }
+  } catch (e) {
+    uni.showToast({ title: e.message || '收藏失败', icon: 'none' })
+  }
 }
-function saveRecipe() { uni.showToast({ title: $t('savedToMyRecipes'), icon: 'success' }) }
+async function saveRecipe() {
+  await ApiService.addFavorite('system_recipe', recipeId.value, detail.value || { title: title.value })
+  isLiked.value = true
+  uni.showToast({ title: $t('savedToMyRecipes'), icon: 'success' })
+}
+function checkRecipe() {
+  uni.navigateTo({ url: `/pages/recipe-checker/recipe-checker?targetType=system_recipe&targetId=${recipeId.value}` })
+}
 function ingredientIcon(item) {
   const name = `${item?.name || ''}${item?.nameEn || ''}`.toLowerCase()
   if (name.includes('牛') || name.includes('肉') || name.includes('鸡') || name.includes('beef') || name.includes('chicken')) return '/static/icons/icon_muscle.svg'
@@ -205,6 +225,7 @@ function showShare() {
 .hero-tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 16rpx; }
 .hero-tags text { background: var(--bg); color: var(--text-secondary); border-radius: var(--radius-full); padding: 6rpx 12rpx; font-size: 21rpx; font-weight: 700; }
 .shopping-btn { width: 100%; height: 90rpx; background: var(--teal); color: #fff; border: none; border-radius: var(--radius); font-size: 30rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; box-shadow: var(--shadow-sm); }
+.check-btn { width: 100%; height: 82rpx; background: #173B2E; color: #fff; border: none; border-radius: var(--radius); font-size: 28rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; box-shadow: var(--shadow-sm); }
 .btn-small-icon { width: 40rpx; height: 40rpx; margin-right: 10rpx; filter: brightness(0) invert(1); }
 .action-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-bottom: 20rpx; }
 .action-btn { background: #fff; border-radius: var(--radius); padding: 16rpx 10rpx; display: flex; flex-direction: column; align-items: center; gap: 8rpx; color: var(--text-secondary); font-size: 22rpx; box-shadow: var(--shadow-sm); }

@@ -16,6 +16,9 @@ class AgentState(TypedDict):
     ingredients: list[str]
     recipes: list[dict]
     shopping_list: list[dict]
+    inventory: list[dict]
+    favorites: list[dict]
+    recipe_check: dict | None
     nutrition: dict | None
     quality: dict | None
     guide: dict | None
@@ -24,6 +27,9 @@ class AgentState(TypedDict):
     events: list[dict]
     errors: list[dict]
     step_count: int
+    memory_context: dict[str, Any]  # MemoryContext 四层记忆
+    memory_used: list[dict[str, Any]]  # 本次参考的记忆摘要
+    sense_result: dict | None  # sense 工具的原始返回（含置信度）
 
 
 def _parse_basic_intent(text: str) -> dict[str, Any]:
@@ -53,6 +59,7 @@ def new_agent_state(
     conversation_id: str,
     image_url: str | None = None,
     preferences: list[str] | None = None,
+    memory_context: dict[str, Any] | None = None,
 ) -> AgentState:
     intent = _parse_basic_intent(user_input)
     return {
@@ -64,6 +71,9 @@ def new_agent_state(
         "ingredients": list(intent["ingredients"]),
         "recipes": [],
         "shopping_list": [],
+        "inventory": [],
+        "favorites": [],
+        "recipe_check": None,
         "nutrition": None,
         "quality": None,
         "guide": None,
@@ -72,5 +82,7 @@ def new_agent_state(
         "events": [],
         "errors": [],
         "step_count": 0,
+        "memory_context": memory_context or {},
+        "memory_used": [],
+        "sense_result": None,
     }
-
