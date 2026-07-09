@@ -31,6 +31,8 @@ CLASSIC_DISHES = {
     "宫保鸡丁": {"cuisine": "川菜", "history": "清代四川总督丁宝桢(宫保是他的荣誉衔)家厨所创。丁宝桢爱吃鸡丁，家厨用花生米干辣椒花椒烹制，后传入民间。此菜在海外知名度极高，英文名Kung Pao Chicken。", "features": "糊辣味型，荔枝口，酸甜咸鲜辣交织，花生酥脆", "best_eat": "配白米饭，花生米和鸡丁一起吃口感最好"},
     "清蒸鲈鱼": {"cuisine": "粤菜", "history": "粤菜'鸡有鸡味，鱼有鱼味'哲学的极致体现。只用姜葱酱油，八分钟精准蒸制，不掩食材本味。广东人评价一道清蒸鱼的标准是'骨肉分离、皮不破、肉不老、汁不咸'。", "features": "原汁原味、肉质鲜嫩、葱油提鲜，酱油回甘", "best_eat": "先吃鱼颊肉(最嫩部位)，再吃鱼肚，蘸蒸鱼汁"},
     "水煮鱼": {"cuisine": "川菜", "history": "虽名'水煮'实为'油浸'。起源于重庆江北，本是渔夫船上用江水煮鱼的粗犷做法，后经改良成为川菜名品。1990年代在北京上海引爆川菜热潮。", "features": "鱼片嫩滑、麻辣鲜香、油而不腻，辣椒花椒浮满汤面", "best_eat": "夹鱼片沥去表面油，蘸醋解腻，配冰啤酒是经典搭配"},
+    "日式刺身饭": {"cuisine": "日式料理", "category": "主食", "history": "刺身饭也常被称为海鲜丼，是日式料理中把生食海鲜铺在米饭上的常见吃法。它强调食材新鲜度和切配顺序，既适合寿司店，也常见于海鲜市场周边餐厅。", "features": "海鲜鲜甜、米饭承托油脂与鲜味，通常搭配酱油、芥末、海苔或紫苏", "best_eat": "先吃味道清淡的白身鱼或虾，再吃三文鱼、金枪鱼等油脂更足的鱼类，酱油少量点蘸即可", "estimated_calories": 620, "difficulty": "中等"},
+    "刺身拼盘": {"cuisine": "日式料理", "category": "海鲜", "history": "刺身拼盘是日式料理中突出食材新鲜度的代表，把多种适合生食的海鲜按油脂、颜色和口感组合呈现。它不强调复杂烹饪，而强调切配、低温保存和食材原味。", "features": "三文鱼、金枪鱼、甜虾等形成鲜甜、软糯和弹牙的层次，常配芥末、酱油和紫苏", "best_eat": "先吃味道清淡的白身鱼或虾，再吃油脂更足的三文鱼、金枪鱼；酱油少量点蘸，避免盖过鲜味", "estimated_calories": 360, "difficulty": "中等"},
 }
 
 
@@ -95,20 +97,47 @@ async def _llm_enrich_guide(dish_name: str, base: dict) -> dict:
         return {}
 
 
+def _ingredient_names(items: list[dict]) -> list[str]:
+    names = []
+    for item in items or []:
+        if isinstance(item, str):
+            names.append(item)
+        elif item.get("name"):
+            names.append(str(item.get("name")))
+    return names
+
+
+def _infer_dish_from_ingredients(ingredients: list[dict]) -> str:
+    names = _ingredient_names(ingredients)
+    joined = "、".join(names)
+    has_sashimi = any(key in joined for key in ("刺身", "三文鱼", "金枪鱼", "甜虾", "北极贝", "海胆", "章鱼", "鱿鱼"))
+    has_rice = any(key in joined for key in ("米饭", "醋饭", "饭"))
+    if has_sashimi and has_rice:
+        return "日式刺身饭"
+    if has_sashimi:
+        return "刺身拼盘"
+    if "南瓜" in joined and any(key in joined for key in ("派", "面粉", "黄油", "鸡蛋")):
+        return "南瓜派"
+    return ""
+
+
 async def guide(image_data: str) -> dict:
     """识别菜品并返回美食向导解析"""
     result = await analyze_food(image_data, DISH_UNDERSTAND)
     if not result:
         return {"status": "no_dish", "message": "未能识别图中菜品"}
 
-    dish_name = result.get("dish_name", "")
+    dish_name = result.get("dish_name", "") or _infer_dish_from_ingredients(result.get("ingredients", []))
+    if dish_name:
+        result = {**result, "dish_name": dish_name}
 
     # 查找经典菜知识库
     classic = {}
-    for key, info in CLASSIC_DISHES.items():
-        if key in dish_name or dish_name in key:
-            classic = info
-            break
+    if dish_name:
+        for key, info in CLASSIC_DISHES.items():
+            if key in dish_name or dish_name in key:
+                classic = info
+                break
 
     needs_enrich = not (classic.get("history") or result.get("history")) or not (classic.get("features") or result.get("features")) or not (classic.get("best_eat") or result.get("best_eat"))
     llm_info = await _llm_enrich_guide(dish_name, result) if needs_enrich else {}
@@ -117,13 +146,13 @@ async def guide(image_data: str) -> dict:
         "status": "ok",
         "dish_name": dish_name,
         "cuisine": classic.get("cuisine") or result.get("cuisine") or llm_info.get("cuisine", ""),
-        "category": result.get("category") or llm_info.get("category", ""),
+    "category": classic.get("category") or result.get("category") or llm_info.get("category", ""),
         "history": classic.get("history") or result.get("history") or llm_info.get("history", ""),
         "features": classic.get("features") or result.get("features") or llm_info.get("features", ""),
         "best_eat": classic.get("best_eat") or result.get("best_eat") or llm_info.get("best_eat", ""),
         "ingredients": result.get("ingredients", []),
-        "estimated_calories": result.get("estimated_calories") or llm_info.get("estimated_calories", 0),
-        "difficulty": result.get("difficulty") or llm_info.get("difficulty", ""),
+        "estimated_calories": result.get("estimated_calories") or classic.get("estimated_calories") or llm_info.get("estimated_calories", 0),
+        "difficulty": result.get("difficulty") or classic.get("difficulty") or llm_info.get("difficulty", ""),
         "from_knowledge_base": bool(classic),
         "from_llm": bool(llm_info),
     }

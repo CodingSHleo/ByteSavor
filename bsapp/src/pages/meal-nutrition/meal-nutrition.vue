@@ -249,7 +249,8 @@ async function confirmEaten() {
       recording.value = true
       try {
         const recipe = recipeFromResult()
-        const meal = await ApiService.planMeal(currentMealSlot(), recipe, recipe.ingredients, [])
+        const adopted = await ApiService.adoptMeal(currentMealSlot(), recipe)
+        const meal = adopted.meal
         await ApiService.completeMeal(meal.id)
         uni.showToast({ title: '已计入今日营养', icon: 'success' })
       } catch (e) {

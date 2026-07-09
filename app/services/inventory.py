@@ -12,6 +12,14 @@ def clean_name(name: str) -> str:
     return str(name or "").strip()
 
 
+def _clean_unit(raw: str) -> str:
+    """清理 unit 字段：去数字、去空格、统一小写。'100g' → 'g', '2 个' → '个'"""
+    text = str(raw or "").strip()
+    # 移除数字和空格
+    text = re.sub(r"[\d\s]+", "", text)
+    return text.lower()
+
+
 def parse_amount(raw) -> tuple[int | None, str]:
     if raw is None:
         return None, ""
@@ -48,7 +56,7 @@ async def upsert_item(
         return None
     amount, unit = parse_amount(item.get("amount") or item.get("display") or item.get("weight_estimate"))
     if item.get("unit"):
-        unit = item.get("unit")
+        unit = _clean_unit(item.get("unit"))
     result = await db.execute(
         select(IngredientInventory).where(
             IngredientInventory.user_id == user_id,
@@ -102,7 +110,7 @@ async def update_item(db: AsyncSession, user_id: str, item_id: int, payload: dic
         amount, _unit = parse_amount(payload.get("amount"))
         row.amount = amount
     if "unit" in payload:
-        row.unit = payload.get("unit") or ""
+        row.unit = _clean_unit(payload.get("unit") or "")
     if "freshness" in payload:
         row.freshness = payload.get("freshness") or ""
     if "source" in payload:
@@ -155,7 +163,7 @@ async def deduct_inventory(db: AsyncSession, user_id: str, used_items: list[dict
         name = clean_name(used.get("name"))
         amount, unit = parse_amount(used.get("amount") or used.get("display"))
         if used.get("unit"):
-            unit = used.get("unit")
+            unit = _clean_unit(used.get("unit"))
         if not name or amount is None:
             continue
         result = await db.execute(
@@ -177,7 +185,7 @@ def inventory_dict(row: IngredientInventory) -> dict:
         "name": row.name,
         "amount": row.amount,
         "unit": row.unit,
-        "display": f"{row.amount}{row.unit}" if row.amount is not None else "",
+        "display": f"{row.amount} {row.unit}".strip() if row.amount is not None else "",
         "source": row.source,
         "freshness": row.freshness,
         "confidence": row.confidence,

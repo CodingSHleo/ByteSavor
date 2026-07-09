@@ -63,3 +63,42 @@ async def test_preference_signals_include_like_and_avoid_memory(client):
 
     assert "high_protein" in signals["liked_tags"]
     assert "oily" in signals["avoid_tags"]
+
+
+async def test_feedback_with_recipe_snapshot_extracts_rich_preference_memory(client):
+    headers, user_id = await _register(client)
+
+    resp = await client.post(
+        "/v1/feedback/meal",
+        headers=headers,
+        json={
+            "recipe_id": "agent_snapshot_recipe",
+            "rating": 5,
+            "comment": "喜欢10分钟快炒，少油清淡，韭黄口感很好",
+            "recipe_snapshot": {
+                "title": "韭黄炒牛肉",
+                "tags": ["quick", "high_protein"],
+                "ingredients": [
+                    {"name": "牛肉", "amount": "200g"},
+                    {"name": "韭黄", "amount": "150g"},
+                ],
+                "steps": ["快炒牛肉", "加入韭黄"],
+            },
+        },
+    )
+
+    assert resp.status_code == 200
+    async with async_session() as db:
+        result = await db.execute(
+            select(PreferenceMemory).where(PreferenceMemory.user_id == user_id).order_by(PreferenceMemory.id.desc())
+        )
+        memory = result.scalars().first()
+        signals = await get_preference_signals(db, user_id)
+
+    assert memory is not None
+    assert "韭黄" in memory.parsed["liked_ingredients"]
+    assert "stir_fry" in memory.parsed["liked_methods"]
+    assert "quick_meal" in memory.parsed["constraints"]
+    assert "low_oil" in memory.parsed["constraints"]
+    assert "stir_fry" in signals["liked_methods"]
+    assert "quick_meal" in signals["constraints"]

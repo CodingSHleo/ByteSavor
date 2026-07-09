@@ -22,6 +22,15 @@ class MealPlanRequest(BaseModel):
     shopping_list: list[dict] = Field(default_factory=list)
 
 
+class MealAdoptRequest(BaseModel):
+    meal_slot: str = "lunch"
+    recipe: dict
+
+
+class ShoppingItemStatusRequest(BaseModel):
+    status: str = Field(pattern="^(open|purchased|archived|deleted)$")
+
+
 @router.post("/v1/inventory/import", tags=["Inventory"])
 async def import_inventory(req: InventoryImportRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     items = await meal_memory.import_inventory(db, user["sub"], req.items, req.source)
@@ -39,9 +48,40 @@ async def plan_meal(req: MealPlanRequest, user: dict = Depends(get_current_user)
     return SuccessResponse(data={"meal": meal_memory._meal_dict(meal)})
 
 
+@router.post("/v1/meals/adopt", tags=["Meals"])
+async def adopt_recipe(req: MealAdoptRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return SuccessResponse(data=await meal_memory.adopt_recipe(db, user["sub"], req.meal_slot, req.recipe))
+
+
 @router.get("/v1/meals/today", tags=["Meals"])
 async def get_today_meals(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     return SuccessResponse(data={"meals": await meal_memory.today_meals(db, user["sub"])})
+
+
+@router.get("/v1/shopping-list/today", tags=["Meals"])
+async def get_today_shopping_list(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return SuccessResponse(data=await meal_memory.today_shopping_list(db, user["sub"]))
+
+
+@router.put("/v1/shopping-list/items/{item_id}", tags=["Meals"])
+async def update_shopping_item(item_id: int, req: ShoppingItemStatusRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    item = await meal_memory.update_shopping_item_status(db, user["sub"], item_id, req.status)
+    if item is None:
+        return ErrorResponse(error={"code": "SHOPPING_ITEM_NOT_FOUND", "message": "购物项不存在或状态无效"})
+    return SuccessResponse(data={"item": meal_memory._shopping_item_dict(item)})
+
+
+@router.delete("/v1/shopping-list/items/{item_id}", tags=["Meals"])
+async def delete_shopping_item(item_id: int, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    item = await meal_memory.update_shopping_item_status(db, user["sub"], item_id, "deleted")
+    if item is None:
+        return ErrorResponse(error={"code": "SHOPPING_ITEM_NOT_FOUND", "message": "购物项不存在"})
+    return SuccessResponse(data={"item": meal_memory._shopping_item_dict(item)})
+
+
+@router.post("/v1/shopping-list/archive", tags=["Meals"])
+async def archive_today_shopping_list(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    return SuccessResponse(data=await meal_memory.archive_shopping_list(db, user["sub"]))
 
 
 @router.post("/v1/meals/{meal_id}/complete", tags=["Meals"])

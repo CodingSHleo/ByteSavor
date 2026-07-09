@@ -202,3 +202,36 @@ async def test_llm_cannot_skip_required_sense_for_image_recommendation(monkeypat
     assert plan_events[0]["tool"] == "sense"
     assert plan_events[0]["candidate_tools"] == ["sense"]
     assert plan_events[0]["planner_source"] == "rule_fallback"
+
+
+async def test_new_explicit_ingredients_force_fresh_decision_in_same_conversation():
+    from app.agent.langgraph_runtime import LangGraphAgent
+
+    tools = ToolRegistry()
+    calls = []
+
+    async def decision(state):
+        calls.append(list(state["ingredients"]))
+        if "番茄" in state["ingredients"]:
+            return {"recipes": [{
+                "recipe_id": "r_tomato_beef",
+                "title": "番茄牛肉",
+                "match_score": 0.95,
+                "ingredients": [{"name": "番茄"}, {"name": "牛肉"}],
+            }]}
+        return {"recipes": [{
+            "recipe_id": "r_pepper_beef",
+            "title": "青椒牛肉",
+            "match_score": 0.8,
+            "ingredients": [{"name": "青椒"}, {"name": "牛肉"}],
+        }]}
+
+    tools.register("decision", decision)
+    runtime = LangGraphAgent(tools=tools)
+
+    first = await runtime.run("青椒牛肉减脂30分钟", "conv_new_food_refresh")
+    second = await runtime.run("番茄牛肉减脂30分钟", "conv_new_food_refresh")
+
+    assert first["recipes"][0]["recipe_id"] == "r_pepper_beef"
+    assert second["recipes"][0]["recipe_id"] == "r_tomato_beef"
+    assert calls == [["牛肉", "青椒"], ["牛肉", "番茄"]]

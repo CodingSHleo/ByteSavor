@@ -128,3 +128,45 @@ async def test_api_agent_second_round_sees_previous(client):
         f" last_recipes={conv_mem.get('last_recipes')},"
         f" memory_used_types={mem_used_types}"
     )
+
+
+async def test_api_agent_new_explicit_ingredients_do_not_reuse_previous_recipes(client, monkeypatch):
+    """同一 conversation_id 中，如果本轮明确输入新食材，必须重新推荐而不是复用上一轮菜谱。"""
+    calls = []
+
+    async def fake_recommend(_db, ingredients, _constraints, _prefs):
+        calls.append(list(ingredients))
+        if "番茄" in ingredients:
+            return [{
+                "recipe_id": "r_tomato_beef",
+                "title": "番茄牛肉",
+                "match_score": 0.95,
+                "ingredients": [{"name": "番茄"}, {"name": "牛肉"}],
+                "_meta": {"matched_user_ingredients": ["番茄", "牛肉"], "missing_user_ingredients": []},
+            }]
+        return [{
+            "recipe_id": "r_pepper_beef",
+            "title": "青椒牛肉",
+            "match_score": 0.8,
+            "ingredients": [{"name": "青椒"}, {"name": "牛肉"}],
+            "_meta": {"matched_user_ingredients": ["青椒", "牛肉"], "missing_user_ingredients": []},
+        }]
+
+    monkeypatch.setattr("app.routers.agent.recommend", fake_recommend)
+    conv_id = f"api_new_food_{uuid.uuid4().hex[:8]}"
+
+    first = await client.post("/v1/agent/execute", json={
+        "input": "青椒牛肉减脂30分钟",
+        "conversation_id": conv_id,
+    })
+    second = await client.post("/v1/agent/execute", json={
+        "input": "番茄牛肉减脂30分钟",
+        "conversation_id": conv_id,
+    })
+
+    assert first.status_code == 200
+    assert second.status_code == 200
+    d2 = second.json()["data"]
+    assert d2["recipes"][0]["recipe_id"] == "r_tomato_beef"
+    assert d2["parsed_intent"]["ingredients"] == ["牛肉", "番茄"]
+    assert calls == [["牛肉", "青椒"], ["牛肉", "番茄"]]

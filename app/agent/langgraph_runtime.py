@@ -102,12 +102,14 @@ class LangGraphAgent:
         state = new_agent_state(user_input, conversation_id, image_url, preferences, memory_context)
         previous = await self._load_previous_state(conversation_id)
         if previous:
-            if not state["ingredients"]:
+            has_explicit_ingredients = bool(state["ingredients"])
+            if not has_explicit_ingredients:
                 state["ingredients"] = list(previous.get("ingredients", []))
-            state["recipes"] = list(previous.get("recipes", []))
+                state["recipes"] = list(previous.get("recipes", []))
             state["inventory"] = list(previous.get("inventory", []))
             state["favorites"] = list(previous.get("favorites", []))
-            state["recipe_check"] = previous.get("recipe_check")
+            if not has_explicit_ingredients:
+                state["recipe_check"] = previous.get("recipe_check")
             if preferences is None:
                 state["preferences"] = list(previous.get("preferences", []))
         result = await self.graph.ainvoke(

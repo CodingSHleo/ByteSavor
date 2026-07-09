@@ -28,6 +28,7 @@
             <text>{{ post.category==='health'?'问':post.category==='checkin'?'记':'食' }}</text>
           </view>
           <view class="card-badge">{{ catLabel(post.category) }}</view>
+          <view v-if="isAdmin" class="admin-del" @tap.stop="adminDelete(post)">✕</view>
           <view class="card-body">
             <text class="card-title">{{ post.title }}</text>
             <text v-if="post.content" class="card-desc">{{ cropText(post.content, 40) }}</text>
@@ -53,6 +54,7 @@
             <text>{{ post.category==='health'?'问':post.category==='checkin'?'记':'食' }}</text>
           </view>
           <view class="card-badge">{{ catLabel(post.category) }}</view>
+          <view v-if="isAdmin" class="admin-del" @tap.stop="adminDelete(post)">✕</view>
           <view class="card-body">
             <text class="card-title">{{ post.title }}</text>
             <text v-if="post.content" class="card-desc">{{ cropText(post.content, 40) }}</text>
@@ -89,6 +91,7 @@ const category = ref('all')
 const sortMode = ref('hot')
 const posts = ref([])
 const loading = ref(false)
+const isAdmin = ref(false)
 const error = ref('')
 const limit = 20
 const offset = ref(0)
@@ -103,7 +106,17 @@ const sortedPosts = computed(() => {
 const leftPosts = computed(() => sortedPosts.value.filter((_, i) => i % 2 === 0))
 const rightPosts = computed(() => sortedPosts.value.filter((_, i) => i % 2 === 1))
 
-onShow(reload)
+onShow(() => {
+  // 检查管理员角色
+  try {
+    const token = uni.getStorageSync('auth_token') || ''
+    if (token) {
+      const payload = JSON.parse(atob(token.split('.')[1]))
+      isAdmin.value = payload.role === 'admin'
+    }
+  } catch(e) { isAdmin.value = false }
+  reload()
+})
 
 async function reload() { offset.value = 0; posts.value = []; await load(true) }
 function setCategory(k) { category.value = k; reload() }
@@ -137,6 +150,20 @@ async function toggleLike(post) {
       post.liked_by_me = true; post.like_count = (post.like_count||0)+1
     }
   } catch(e) { uni.showToast({ title: '操作失败', icon: 'none' }) }
+}
+async function adminDelete(post) {
+  uni.showModal({
+    title: '管理员删除',
+    content: `确定删除「${post.title}」？`,
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        await ApiService.deleteCommunityPost(post.id)
+        posts.value = posts.value.filter(p => p.id !== post.id)
+        uni.showToast({ title: '已删除', icon: 'success' })
+      } catch(e) { uni.showToast({ title: '删除失败', icon: 'none' }) }
+    }
+  })
 }
 function catLabel(c) { return ({ recipe: '菜谱', health: '健康', checkin: '打卡' })[c] || '社区' }
 function recipeSummary(post) {
@@ -175,6 +202,7 @@ function cropText(v, max) { const t = String(v||'').replace(/\s+/g,' ').trim(); 
 .tone-health { background: linear-gradient(135deg, #e9f2ff, #f4ecff); }
 .tone-checkin { background: linear-gradient(135deg, #fff7d6, #ecfdf5); }
 .card-badge { position: absolute; top: 12rpx; left: 12rpx; height: 34rpx; padding: 0 12rpx; border-radius: 999rpx; background: rgba(0,0,0,.55); color: #fff; font-size: 19rpx; font-weight: 700; display: flex; align-items: center; }
+.admin-del { position: absolute; top: 10rpx; right: 10rpx; width: 40rpx; height: 40rpx; border-radius: 50%; background: rgba(220,38,38,.85); color: #fff; font-size: 24rpx; display: flex; align-items: center; justify-content: center; z-index: 5; }
 .card-body { padding: 18rpx 18rpx 14rpx; }
 .card-title { display: block; font-size: 26rpx; font-weight: 750; color: #1a1c1e; line-height: 1.35; margin-bottom: 6rpx; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .card-desc { display: block; font-size: 22rpx; color: #8b95a5; line-height: 1.5; margin-bottom: 8rpx; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }

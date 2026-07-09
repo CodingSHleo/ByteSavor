@@ -109,11 +109,12 @@
         <view class="section-title-row">
           <image class="section-title-icon" src="/static/icons/icon_cart.svg" mode="aspectFit" />
           <text class="section-label">{{ $t('mergedList') }}</text>
-          <text class="section-count">{{ editingList.length }} 项</text>
-        </view>
-        <text class="section-action" @tap="toggleAll">全选</text>
-        <text class="section-action" @tap="addItem" style="margin-left:20rpx">+ {{ $t('add') }}</text>
+        <text class="section-count">{{ editingList.length }} 项</text>
       </view>
+      <text class="section-action" @tap="toggleAll">全选</text>
+      <text v-if="hasPersistedShoppingItems" class="section-action" @tap="archiveList" style="margin-left:20rpx">归档</text>
+      <text class="section-action" @tap="addItem" style="margin-left:20rpx">+ {{ $t('add') }}</text>
+    </view>
 
       <view v-if="editingList.length === 0" class="le-empty">
         <text>{{ $t('noIngredient') }}</text>
@@ -173,6 +174,7 @@ const errorNotice = ref('')
 const dailySummary = ref(null)
 const intakeRecorded = ref(false)
 const lastIntakeRecipe = ref(null)
+const persistedShoppingMode = ref(false)
 const selectedMealSlot = ref(currentMealSlot())
 const mealSlotOptions = [
   { key: 'breakfast', label: '早餐' },
@@ -228,6 +230,7 @@ const activeIntakeItems = computed(() => {
   if (!checkedIndexes.length) return editingList.value
   return checkedIndexes.map(idx => editingList.value[idx]).filter(Boolean)
 })
+const hasPersistedShoppingItems = computed(() => editingList.value.some(item => itemIds(item).length))
 
 function dedupeIngredients(list) {
   const map = new Map()
@@ -256,6 +259,7 @@ onLoad(async (options) => {
     if (options && options.items) {
       const parsedItems = JSON.parse(decodeURIComponent(options.items))
       recipes.value = [{ title: decodeURIComponent(options.title || 'AI助手清单'), recipeId: 'agent_list' }]
+      persistedShoppingMode.value = parsedItems.some(item => itemIds(item).length)
       editingList.value = dedupeIngredients(parsedItems.map(item => ({
         ...item,
         amount: item.display || item.amount || ''
@@ -285,6 +289,20 @@ onLoad(async (options) => {
   isLoading.value = false
 })
 
+async function reloadPersistedShoppingList() {
+  if (!persistedShoppingMode.value) return
+  try {
+    const data = await ApiService.getTodayShoppingList()
+    editingList.value = dedupeIngredients((data.items || []).map(item => ({
+      ...item,
+      amount: item.display || item.amount || ''
+    })))
+    checkedItems.value = {}
+  } catch (e) {
+    errorNotice.value = e.message || '购物清单同步失败，请稍后重试。'
+  }
+}
+
 async function loadDailySummary() {
   try {
     dailySummary.value = await ApiService.getNutritionSummary('day')
@@ -294,7 +312,31 @@ async function loadDailySummary() {
 }
 
 function addItem() { editingList.value.push({ name: '', amount: '' }) }
-function toggleChecked(idx) { checkedItems.value[idx] = !checkedItems.value[idx]; checkedItems.value = { ...checkedItems.value } }
+function itemIds(item) {
+  if (Array.isArray(item?.ids)) return item.ids.filter(Boolean)
+  if (item?.id) return [item.id]
+  return []
+}
+async function syncItemStatus(item, status) {
+  const ids = itemIds(item)
+  if (!ids.length) return false
+  await Promise.all(ids.map(id => ApiService.updateShoppingItemStatus(id, status)))
+  return true
+}
+async function toggleChecked(idx) {
+  const item = editingList.value[idx]
+  const nextChecked = !checkedItems.value[idx]
+  checkedItems.value[idx] = nextChecked
+  checkedItems.value = { ...checkedItems.value }
+  try {
+    const synced = await syncItemStatus(item, nextChecked ? 'purchased' : 'open')
+    if (synced) await reloadPersistedShoppingList()
+  } catch (e) {
+    checkedItems.value[idx] = !nextChecked
+    checkedItems.value = { ...checkedItems.value }
+    uni.showToast({ title: e.message || '同步失败', icon: 'none' })
+  }
+}
 function toggleAll() {
   const allChecked = editingList.value.length && editingList.value.every((_, i) => checkedItems.value[i])
   if (allChecked) { checkedItems.value = {} }
@@ -316,7 +358,38 @@ function editItem(idx) {
     }
   })
 }
-function removeItem(idx) { editingList.value.splice(idx, 1) }
+async function removeItem(idx) {
+  const item = editingList.value[idx]
+  const ids = itemIds(item)
+  try {
+    if (ids.length) {
+      await Promise.all(ids.map(id => ApiService.deleteShoppingItem(id)))
+      await reloadPersistedShoppingList()
+      return
+    }
+    editingList.value.splice(idx, 1)
+  } catch (e) {
+    uni.showToast({ title: e.message || '删除失败', icon: 'none' })
+  }
+}
+async function archiveList() {
+  if (!hasPersistedShoppingItems.value) return
+  uni.showModal({
+    title: '归档今日清单',
+    content: '归档后，今日补购清单会清空，已采纳的用餐计划不会被删除。',
+    confirmText: '归档',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        const result = await ApiService.archiveTodayShoppingList()
+        await reloadPersistedShoppingList()
+        uni.showToast({ title: `已归档${result.archived_count || 0}项`, icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: e.message || '归档失败', icon: 'none' })
+      }
+    }
+  })
+}
 function generateText() {
   let text = '=== ByteSavor 购物清单 ===\n\n'
   editingList.value.forEach(item => { text += `□ ${item.name} - ${item.amount}\n` })
@@ -375,10 +448,11 @@ async function planFromList() {
   }
   const recipe = intakeRecipeSnapshot()
   try {
-    await ApiService.planMeal(selectedMealSlot.value, recipe, recipe.ingredients, editingList.value)
-    uni.showToast({ title: `已加入${selectedMealSlotLabel.value}计划`, icon: 'success' })
+    const adopted = await ApiService.adoptMeal(selectedMealSlot.value, recipe)
+    const count = (adopted.shopping_list || []).length
+    uni.showToast({ title: count ? `已采纳，需补${count}项` : `已采纳到${selectedMealSlotLabel.value}`, icon: 'success' })
   } catch (e) {
-    uni.showToast({ title: e.message || '加入计划失败', icon: 'none' })
+    uni.showToast({ title: e.message || '采纳失败', icon: 'none' })
   }
 }
 function currentMealSlot() {

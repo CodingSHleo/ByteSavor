@@ -351,7 +351,7 @@ function request(options) {
         ...HEADERS,
         'Authorization': token ? `Bearer ${token}` : ''
       },
-      timeout: 60000,
+      timeout: 80000,
       success: (res) => {
         if (res.statusCode === 200 || res.statusCode === 201) {
           resolve(res.data)
@@ -518,11 +518,11 @@ export const ApiService = {
   },
 
   // 提交反馈
-  async submitFeedback(recipeId, rating, comment = '') {
+  async submitFeedback(recipeId, rating, comment = '', recipeSnapshot = {}) {
     const res = await request({
       url: '/v1/feedback/meal',
       method: 'POST',
-      data: { recipe_id: recipeId, rating, comment }
+      data: { recipe_id: recipeId, rating, comment, recipe_snapshot: recipeSnapshot }
     })
     if (res.status === 'success') return res.data
     throw new Error(res.error?.message || '提交反馈失败')
@@ -680,10 +680,44 @@ export const ApiService = {
     throw new Error(res.error?.message || '加入今日计划失败')
   },
 
+  async adoptMeal(mealSlot, recipe) {
+    const res = await request({
+      url: '/v1/meals/adopt',
+      method: 'POST',
+      data: { meal_slot: mealSlot, recipe }
+    })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || '采纳菜谱失败')
+  },
+
   async getTodayMeals() {
     const res = await request({ url: '/v1/meals/today' })
     if (res.status === 'success') return L(res.data.meals || [])
     throw new Error(res.error?.message || '获取今日计划失败')
+  },
+
+  async getTodayShoppingList() {
+    const res = await request({ url: '/v1/shopping-list/today' })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || '获取今日购物清单失败')
+  },
+
+  async updateShoppingItemStatus(itemId, status) {
+    const res = await request({ url: `/v1/shopping-list/items/${itemId}`, method: 'PUT', data: { status } })
+    if (res.status === 'success') return L(res.data.item)
+    throw new Error(res.error?.message || '更新购物项失败')
+  },
+
+  async deleteShoppingItem(itemId) {
+    const res = await request({ url: `/v1/shopping-list/items/${itemId}`, method: 'DELETE' })
+    if (res.status === 'success') return L(res.data.item)
+    throw new Error(res.error?.message || '删除购物项失败')
+  },
+
+  async archiveTodayShoppingList() {
+    const res = await request({ url: '/v1/shopping-list/archive', method: 'POST' })
+    if (res.status === 'success') return L(res.data)
+    throw new Error(res.error?.message || '归档购物清单失败')
   },
 
   async completeMeal(mealId) {

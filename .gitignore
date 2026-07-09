@@ -10,3 +10,6 @@ bsapp/node_modules/
 *.zip
 bsapp/dist/
 bsapp/node_modules/
+evals/reports/
+.cache/
+outputs/

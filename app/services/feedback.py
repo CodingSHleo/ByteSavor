@@ -27,6 +27,29 @@ TAG_ALIASES = {
     "太油": "oily",
 }
 
+METHOD_ALIASES = {
+    "快炒": "stir_fry",
+    "炒": "stir_fry",
+    "小炒": "stir_fry",
+    "蒸": "steam",
+    "清蒸": "steam",
+    "炖": "stew",
+    "煮": "boil",
+    "烤": "bake",
+    "凉拌": "cold_mix",
+}
+
+CONSTRAINT_ALIASES = {
+    "10分钟": "quick_meal",
+    "15分钟": "quick_meal",
+    "快手": "quick_meal",
+    "很快": "quick_meal",
+    "少油": "low_oil",
+    "低油": "low_oil",
+    "不油": "low_oil",
+    "清淡": "light_taste",
+}
+
 
 async def ensure_preference_memory_table(db: AsyncSession) -> None:
     conn = await db.connection()
@@ -78,6 +101,35 @@ def _normalize_tag(raw: str) -> list[str]:
     return list(dict.fromkeys(normalized or [lower]))
 
 
+def _normalize_alias(raw: str, aliases: dict[str, str]) -> list[str]:
+    text = str(raw or "").strip()
+    if not text:
+        return []
+    lower = text.lower()
+    values = []
+    for key, value in aliases.items():
+        if key in text or value in lower:
+            values.append(value)
+    for part in lower.replace("，", "/").replace(",", "/").split("/"):
+        part = part.strip()
+        if part in set(aliases.values()):
+            values.append(part)
+    return list(dict.fromkeys(values or [lower]))
+
+
+def _recipe_dict(recipe: Recipe | dict | None) -> dict:
+    if not recipe:
+        return {}
+    if isinstance(recipe, dict):
+        return recipe
+    return {
+        "title": recipe.title,
+        "tags": recipe.tags or [],
+        "ingredients": recipe.ingredients or [],
+        "steps": recipe.steps or [],
+    }
+
+
 def _normalize_parsed_preference(parsed: dict) -> dict:
     parsed = parsed or {}
     out = {**parsed}
@@ -86,25 +138,40 @@ def _normalize_parsed_preference(parsed: dict) -> dict:
         for item in parsed.get(key) or []:
             values.extend(_normalize_tag(item))
         out[key] = list(dict.fromkeys(values))[:12]
-    for key in ("liked_ingredients", "liked_cuisines", "liked_methods", "avoid_ingredients"):
+    for key in ("liked_ingredients", "liked_cuisines", "avoid_ingredients"):
         out[key] = [str(item).strip() for item in (parsed.get(key) or []) if str(item).strip()][:12]
+    methods = []
+    for item in parsed.get("liked_methods") or []:
+        methods.extend(_normalize_alias(item, METHOD_ALIASES))
+    out["liked_methods"] = list(dict.fromkeys(methods))[:12]
+    constraints = []
+    for item in parsed.get("constraints") or []:
+        constraints.extend(_normalize_alias(item, CONSTRAINT_ALIASES))
+    for source in [parsed.get("summary") or "", " ".join(parsed.get("liked_methods") or [])]:
+        constraints.extend(_normalize_alias(source, CONSTRAINT_ALIASES))
+    out["constraints"] = list(dict.fromkeys(constraints))[:12]
+    out["evidence"] = [str(item).strip() for item in (parsed.get("evidence") or []) if str(item).strip()][:8]
     out["summary"] = str(parsed.get("summary") or "")[:160]
     return out
 
 
-def _local_parse_preference(comment: str, recipe: Recipe | None, rating: int) -> dict:
+def _local_parse_preference(comment: str, recipe: Recipe | dict | None, rating: int) -> dict:
     text = comment or ""
     liked = rating >= 4
     disliked = rating <= 2
-    tags = list(recipe.tags or []) if recipe else []
-    ingredients = [i.get("name") for i in (recipe.ingredients or []) if isinstance(i, dict)] if recipe else []
+    recipe_data = _recipe_dict(recipe)
+    tags = list(recipe_data.get("tags") or [])
+    ingredients = [i.get("name") for i in (recipe_data.get("ingredients") or []) if isinstance(i, dict) and i.get("name")]
+    steps_text = " ".join([str(step) for step in (recipe_data.get("steps") or [])])
     out = {
         "liked_tags": tags[:4] if liked else [],
         "liked_ingredients": ingredients[:4] if liked else [],
         "liked_cuisines": [],
         "liked_methods": [],
+        "constraints": [],
         "avoid_tags": tags[:4] if disliked else [],
         "avoid_ingredients": ingredients[:4] if disliked else [],
+        "evidence": [text[:80]] if text else [],
         "summary": text[:120],
     }
     if any(k in text for k in ("辣", "麻辣", "香辣")):
@@ -115,17 +182,16 @@ def _local_parse_preference(comment: str, recipe: Recipe | None, rating: int) ->
         out["liked_tags"].append("high_protein")
     if any(k in text for k in ("太油", "油腻")):
         out["avoid_tags"].append("oily")
+    for source in (text, steps_text, recipe_data.get("title") or ""):
+        out["liked_methods"].extend(_normalize_alias(source, METHOD_ALIASES))
+        out["constraints"].extend(_normalize_alias(source, CONSTRAINT_ALIASES))
     return _normalize_parsed_preference(out)
 
 
-async def _llm_parse_preference(comment: str, recipe: Recipe | None, rating: int) -> dict:
+async def _llm_parse_preference(comment: str, recipe: Recipe | dict | None, rating: int) -> dict:
     if not settings.llm_api_url or not comment:
         return {}
-    recipe_info = {
-        "title": recipe.title if recipe else "",
-        "tags": recipe.tags if recipe else [],
-        "ingredients": recipe.ingredients if recipe else [],
-    }
+    recipe_info = _recipe_dict(recipe)
     prompt = f"""把用户对一道菜的反馈解析为偏好记忆。只返回JSON。
 评分: {rating}/5
 菜谱: {json.dumps(recipe_info, ensure_ascii=False)}
@@ -136,9 +202,11 @@ async def _llm_parse_preference(comment: str, recipe: Recipe | None, rating: int
   "liked_tags": ["spicy/high_protein/light/low_carb/balanced等"],
   "liked_ingredients": ["食材"],
   "liked_cuisines": ["菜系"],
-  "liked_methods": ["蒸/炒/炖/烤/凉拌等"],
+  "liked_methods": ["stir_fry/steam/stew/bake/cold_mix等"],
+  "constraints": ["quick_meal/low_oil/light_taste等"],
   "avoid_tags": ["不喜欢的口味标签"],
   "avoid_ingredients": ["不喜欢的食材"],
+  "evidence": ["触发该记忆的原句或菜谱特征"],
   "summary": "一句话总结"
 }}"""
     try:
@@ -170,21 +238,28 @@ async def get_preference_signals(db: AsyncSession, user_id: str) -> dict:
     )
     memories = result.scalars().all()
     liked_tags, liked_ingredients, avoid_tags, avoid_ingredients = [], [], [], []
+    liked_methods, constraints, evidence = [], [], []
     for memory in memories:
         parsed = memory.parsed or {}
         liked_tags.extend(parsed.get("liked_tags") or [])
         liked_ingredients.extend(parsed.get("liked_ingredients") or [])
         avoid_tags.extend(parsed.get("avoid_tags") or [])
         avoid_ingredients.extend(parsed.get("avoid_ingredients") or [])
+        liked_methods.extend(parsed.get("liked_methods") or [])
+        constraints.extend(parsed.get("constraints") or [])
+        evidence.extend(parsed.get("evidence") or [])
     return {
         "liked_tags": list(dict.fromkeys(liked_tags))[:12],
         "liked_ingredients": list(dict.fromkeys(liked_ingredients))[:12],
         "avoid_tags": list(dict.fromkeys(avoid_tags))[:12],
         "avoid_ingredients": list(dict.fromkeys(avoid_ingredients))[:12],
+        "liked_methods": list(dict.fromkeys(liked_methods))[:12],
+        "constraints": list(dict.fromkeys(constraints))[:12],
+        "evidence": list(dict.fromkeys(evidence))[:8],
     }
 
 
-async def submit_feedback(db: AsyncSession, user_id: str, recipe_id: str, rating: int, comment: str = "") -> dict:
+async def submit_feedback(db: AsyncSession, user_id: str, recipe_id: str, rating: int, comment: str = "", recipe_snapshot: dict | None = None) -> dict:
     fb = Feedback(user_id=user_id, recipe_id=recipe_id, rating=rating)
     db.add(fb)
     try:
@@ -199,10 +274,15 @@ async def submit_feedback(db: AsyncSession, user_id: str, recipe_id: str, rating
     try:
         await ensure_preference_memory_table(db)
         r = await db.execute(select(Recipe).where(Recipe.id == recipe_id))
-        recipe = r.scalar_one_or_none()
+        recipe = r.scalar_one_or_none() or (recipe_snapshot or None)
         parsed = await _llm_parse_preference(comment, recipe, rating)
         if not parsed:
             parsed = _local_parse_preference(comment, recipe, rating)
+        else:
+            fallback = _local_parse_preference(comment, recipe, rating)
+            for key in ("liked_tags", "liked_ingredients", "liked_methods", "constraints", "avoid_tags", "avoid_ingredients", "evidence"):
+                parsed[key] = list(dict.fromkeys((parsed.get(key) or []) + (fallback.get(key) or [])))[:12]
+            parsed = _normalize_parsed_preference(parsed)
         db.add(PreferenceMemory(
             user_id=user_id,
             recipe_id=recipe_id,
@@ -213,7 +293,7 @@ async def submit_feedback(db: AsyncSession, user_id: str, recipe_id: str, rating
         ))
         await db.commit()
 
-        if recipe:
+        if isinstance(recipe, Recipe):
             profile = await get_profile(db, user_id)
             prefs = list(profile.get("preferences", []) if profile else [])
             tags = [t for t in recipe.tags if not t.startswith("quick")]

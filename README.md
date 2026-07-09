@@ -1,154 +1,230 @@
-# ByteSavor V3.0 后端
+# ByteSavor
 
-一个基于 AI Agent 的饮食全链路系统后端，按 B-Y-T-E（感知-决策-执行-反馈）闭环设计。用户拍照或打字描述食材，系统自动推荐菜谱、生成购物清单，并根据用户反馈持续学习偏好。
+ByteSavor 是一个面向饮食场景的多模态 Agent 系统，覆盖食材识别、菜谱推荐、用餐计划、库存/购物清单、营养记录、偏好记忆和社区分享。系统采用 B-Y-T-E 闭环设计：
+
+- **B / Sense**：图片或文本感知食材、菜品、品质和探店场景。
+- **Y / Decision**：结合食材、时间、健康目标、库存和用户偏好生成推荐。
+- **T / Task**：采纳菜谱后加入用餐计划，联动库存扣减和补购清单。
+- **E / Feedback**：完成用餐后记录摄入，把评分和文字反馈沉淀为长期偏好。
+
+项目已经完成 H5 和微信小程序端适配；测试同学可优先用 H5 全栈链路测试，同一套前端代码也可构建 `mp-weixin`。
+
+## 当前规模
+
+统计口径：`app`、`bsapp/src`、`tests`、`scripts`、`evals` 下的 `.py/.js/.vue` 文件。
+
+| 指标 | 当前规模 |
+|---|---:|
+| 测试文件 | 30 个 |
+| 测试用例/测试函数 | 179 个 |
+| 源码/测试脚本文件 | 155 个 |
+| 代码行数 | 23,455 行 |
 
 ## 技术栈
 
-- FastAPI + Pydantic（API 框架）
-- SQLAlchemy async + MySQL（数据库）
-- Ollama + OpenAI 兼容接口（本地 LLM / VLM）
-- JWT（身份认证）
-- Redis（缓存，连接已配置）
+| 层级 | 技术 |
+|---|---|
+| 前端 | uni-app / Vue 3 / Vite 5 |
+| 后端 | FastAPI / Pydantic / SQLAlchemy Async |
+| 数据库 | MySQL 8 / Redis |
+| Agent | LangGraph Harness / Skill Registry / Runtime Evaluator / Offline Eval |
+| AI | Qwen-VL 兼容视觉接口 / DeepSeek 或 OpenAI 兼容 LLM |
+| 测试 | pytest / Eval Runner / 前端静态回归脚本 |
+
+## 目录结构
+
+```text
+app/                  FastAPI 后端、Agent、业务服务、ORM
+app/seed/recipes.json 菜谱种子数据，服务启动时自动导入
+bsapp/                uni-app 前端，支持 H5 和微信小程序构建
+demo_tests/           演示/测试图片和手工测试素材
+docs/                 架构、测试、迭代和交付文档
+evals/                黑箱 Eval 用例、runner、评分器和报告
+scripts/              一键验证、DB 验证、Eval API 验证、演示缓存预热
+tests/                后端、Agent、推荐、社区、用餐计划等测试
+```
 
 ## 环境要求
 
-- Python 3.10+
+- Python 3.10+，建议 3.12
+- Node.js 18+
 - MySQL 8.0+
-- Ollama（可选，本地跑 LLM 用）
+- Redis 7+
+- 可选：Qwen-VL / DeepSeek / Ollama 等 OpenAI 兼容模型接口
 
-## 快速开始
+## 本地启动
 
-**1. 克隆项目**
+### 1. 克隆和安装依赖
+
 ```bash
 git clone https://github.com/CodingSHleo/ByteSavor.git
 cd ByteSavor
-```
 
-**2. 装 MySQL 并建库**
-```bash
-# macOS
-brew install mysql && brew services start mysql
-
-# 设密码并建库
-mysql -u root -e "ALTER USER 'root'@'localhost' IDENTIFIED BY 'bytesavor'; FLUSH PRIVILEGES; CREATE DATABASE IF NOT EXISTS bytesavor CHARACTER SET utf8mb4;"
-```
-
-**3. 装 Python 依赖**
-```bash
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
+
+cd bsapp
+npm install
+cd ..
 ```
 
-**4. 配置环境变量**
+### 2. 准备 MySQL 和 Redis
+
+可以用本机服务，也可以用 Docker Compose 启动数据库：
+
+```bash
+docker compose up -d db redis
+```
+
+本机 MySQL 示例：
+
+```bash
+mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS bytesavor CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+```
+
+### 3. 配置环境变量
+
 ```bash
 cp .env.example .env
 ```
 
-`.env` 里需要改的：
-- `MYSQL_PASSWORD` — MySQL 密码
-- `VLM_API_URL` / `LLM_API_URL` — 如果跑本地模型，填 ollama 地址
+至少需要配置：
 
-**5. 启动**
+```env
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_USER=root
+MYSQL_PASSWORD=你的MySQL密码
+MYSQL_DB=bytesavor
+REDIS_URL=redis://127.0.0.1:6379/0
+JWT_SECRET=请替换为随机长字符串
+```
+
+AI 接口可选。不配置时，核心后端、推荐、用餐计划、社区和大部分测试仍可运行；视觉识别和 LLM 增强能力会走降级或跳过外部调用。
+
+```env
+VLM_API_URL=https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions
+VLM_API_KEY=你的视觉模型Key
+VLM_MODEL=qwen-vl-max
+LLM_API_URL=https://api.deepseek.com/v1/chat/completions
+LLM_API_KEY=你的LLM Key
+LLM_MODEL=deepseek-chat
+```
+
+不要把真实 `.env` 或 API Key 提交到 GitHub。
+
+### 4. 启动后端
+
 ```bash
+source venv/bin/activate
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-启动后访问 `http://127.0.0.1:8000/docs` 查看 Swagger 接口文档，可以页面上直接调接口测试。
+启动后访问：
 
-## 跑本地 AI（可选）
+- Swagger：`http://127.0.0.1:8000/docs`
+- Agent 入口：`POST /v1/agent/execute`
 
-用 Ollama 跑本地模型来做意图解析：
-
-```bash
-# 装 Ollama
-brew install ollama && brew services start ollama
-
-# 下拉模型
-ollama pull qwen2.5:1.5b
-
-# 配 .env
-LLM_API_URL=http://127.0.0.1:11434/v1/chat/completions
-LLM_API_KEY=ollama
-LLM_MODEL=qwen2.5:1.5b
-```
-
-配好重启服务，Agent 的自然语言解析就会走真实 LLM 推理（不配的话自动降级正则匹配，不影响系统运行）。
-
-本地 VLM 食材识别目前还没有稳定跑通，这部分会降级返回 Mock 数据。如果有云端 VLM API（比如 Qwen-VL），填 `VLM_API_URL` 就能直接用。
-
-## 接口总览
-
-全部接口在 `/docs` 页面上有 Swagger 文档。
-
-| 模块 | 方法 | 路径 | 说明 |
-|------|------|------|------|
-| 认证 | POST | `/v1/auth/register` | 注册/静默登录 |
-| 认证 | POST | `/v1/auth/login` | 登录 |
-| 用户 | GET | `/v1/user/profile` | 查画像（需登录） |
-| 用户 | PUT | `/v1/user/profile` | 改偏好 |
-| 用户 | GET | `/v1/nutrition/status` | 营养状态 |
-| 感知 | POST | `/v1/sense/analyze` | 食材识别 |
-| 决策 | POST | `/v1/decision/meal-plan` | 推荐菜谱 |
-| 决策 | GET | `/v1/recipes/{id}` | 菜谱详情 |
-| 执行 | POST | `/v1/task/merge-list` | 合并购物清单 |
-| 执行 | POST | `/v1/agent/execute` | Agent 统一入口（自然语言） |
-| 反馈 | POST | `/v1/feedback/meal` | 提交评分反馈 |
-
-## 目录结构
-
-```
-app/
-├── main.py                # 入口，注册路由和异常处理
-├── schemas.py             # 请求/响应数据模型
-├── core/                  # 基础设施
-│   ├── config.py          # 环境配置
-│   ├── database.py        # MySQL 连接
-│   ├── redis.py           # Redis 连接
-│   └── security.py        # JWT + 密码
-├── middleware/
-│   └── auth.py            # 认证中间件
-├── models/                # 数据库 ORM
-│   ├── __init__.py        # User / Profile / NutritionLog / Feedback
-│   └── recipe.py          # 菜谱
-├── routers/               # 接口层
-│   ├── auth.py / user.py  # 认证和用户
-│   ├── sense.py           # B-感知
-│   ├── decision.py        # Y-决策
-│   ├── task.py / agent.py # T-执行
-│   └── feedback.py        # E-反馈
-├── services/              # 业务逻辑
-│   ├── user.py            # 用户逻辑
-│   ├── decision.py        # 推荐引擎（检索-过滤-排序-fallback）
-│   ├── shopping.py        # 购物清单合并
-│   ├── agent.py           # BYTE 全链路编排
-│   ├── feedback.py        # 反馈 + 偏好学习
-│   ├── nutrition.py       # 营养计算
-│   ├── llm.py             # LLM 调用
-│   └── vlm/               # VLM provider 抽象
-└── seed/                  # 种子数据
-    ├── recipes.json       # 10 道菜谱
-    └── seed_recipes.py    # 导入脚本
-```
-
-## 测试
-
-详细测试文档见 `TEST_PLAN.md`，覆盖 29 个测试用例。快速验证：
+### 5. 启动前端 H5
 
 ```bash
-# 启动服务后
-# 1. 注册
-curl -X POST http://127.0.0.1:8000/v1/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"openid":"test_001"}'
-
-# 2. Agent（自然语言全链路）
-curl -X POST http://127.0.0.1:8000/v1/agent/execute \
-  -H 'Content-Type: application/json' \
-  -d '{"input":"家里有牛肉和南瓜，30分钟做个减脂餐"}'
+cd bsapp
+npm run dev:h5
 ```
 
-## 联系
+默认会启动本地 H5 页面，前端 API 地址在 `bsapp/src/api/index.js` 中配置。
 
-后端开发：李文彬 
-有问题提 GitHub Issue。
+### 6. 构建微信小程序
+
+```bash
+cd bsapp
+npm run build:mp-weixin
+```
+
+然后用微信开发者工具打开生成目录，按微信平台要求配置合法域名、HTTPS、隐私协议和版本审核。
+
+## 测试入口
+
+推荐测试同学先看：
+
+- [docs/FULLSTACK_TESTING.md](docs/FULLSTACK_TESTING.md)
+- [docs/TEST_PLAN.md](docs/TEST_PLAN.md)
+- [demo_tests/README.md](demo_tests/README.md)
+
+常用命令：
+
+```bash
+# 非 DB 核心测试 + Eval mock + H5 构建
+./scripts/verify_quick.sh
+
+# 前端搜索/推荐/页面回归
+node scripts/verify_frontend_regressions.mjs
+
+# DB 相关测试，需要 MySQL/Redis 和 .env
+./scripts/verify_db.sh
+
+# 后端已启动后，跑 API 模式 Eval
+API_BASE=http://127.0.0.1:8000 ./scripts/verify_eval_api.sh
+
+# 串联主要验证，DB/API 可通过开关启用
+./scripts/test_fullstack.sh
+RUN_DB=1 RUN_API_EVAL=1 ./scripts/test_fullstack.sh
+```
+
+## 推荐测试账号
+
+项目支持真实注册/登录，测试同学可自行注册。建议使用独立测试账号，避免不同测试人员数据互相污染：
+
+```text
+账号：tester@example.com
+密码：Test123456
+昵称：测试同学
+```
+
+如需清空数据，可重建 `bytesavor` 数据库；后端启动时会自动建表并导入 `app/seed/recipes.json`。
+
+## 手工测试主线
+
+1. 注册/登录，确认新用户没有继承其他用户数据。
+2. 使用 `demo_tests` 图片测试拍照识别、品质鉴定、探店向导。
+3. 输入“番茄牛肉减脂30分钟”，确认推荐优先覆盖番茄和牛肉。
+4. 点击加入这一餐，检查用餐计划、菜品清单、购物清单。
+5. 完成这一餐，检查今日营养和历史记录变化。
+6. 提交“少油一点、喜欢快炒”等反馈，检查偏好记忆影响下一轮推荐。
+7. 测试社区发布图片、点赞/取消点赞、收藏/取消收藏。
+
+## 数据说明
+
+- `app/seed/recipes.json`：菜谱种子数据，服务启动自动导入。
+- `demo_tests/`：演示图片和测试素材，可用于人工测试视觉识别、品质鉴定、探店和营养分析。
+- `evals/cases/quick.jsonl`：Agent 黑箱 Eval 快速用例。
+
+## 常见问题
+
+### 1. 后端启动后没有菜谱？
+
+确认 MySQL 可连接，重启后端。`app.main` 的 lifespan 会自动建表并调用 `app/seed/seed_recipes.py` 导入菜谱。
+
+### 2. 视觉识别失败？
+
+检查 `VLM_API_URL`、`VLM_API_KEY`、`VLM_MODEL`。没有配置视觉模型时，可以先测试非视觉链路：登录、推荐、用餐计划、社区、Eval mock。
+
+### 3. DB 测试连接不上 MySQL？
+
+确认 `.env` 中 MySQL 配置正确，或使用：
+
+```bash
+docker compose up -d db redis
+```
+
+再运行：
+
+```bash
+./scripts/verify_db.sh
+```
+
+### 4. 前端请求不到后端？
+
+确认后端在 `http://127.0.0.1:8000` 运行，并检查 `bsapp/src/api/index.js` 中的 API 基地址。
+

@@ -26,6 +26,15 @@ PREFERENCE_ALIASES = {
     "海鲜": "seafood",
     "鱼": "seafood",
     "虾": "seafood",
+    "快炒": "stir_fry",
+    "炒": "stir_fry",
+    "10分钟": "quick_meal",
+    "15分钟": "quick_meal",
+    "快手": "quick_meal",
+    "quick": "quick_meal",
+    "low_oil": "low_oil",
+    "stir_fry": "stir_fry",
+    "quick_meal": "quick_meal",
 }
 
 
@@ -37,6 +46,7 @@ async def recommend(db: AsyncSession, ingredients: list[str], constraints: dict,
     time_limit = constraints.get("time_limit", 999)
     avoid_tags = constraints.get("avoid_tags", []) or []
     avoid_ingredients = constraints.get("avoid_ingredients", []) or []
+    preference_evidence = constraints.get("preference_evidence", []) or []
     exclude_recipe_ids = {str(x) for x in constraints.get("exclude_recipe_ids", []) or []}
     is_explore = len(ingredients) == 0
 
@@ -48,9 +58,9 @@ async def recommend(db: AsyncSession, ingredients: list[str], constraints: dict,
 
     # ---- 3. 排序 ----
     if is_explore:
-        scored = _explore_rank(candidates, taste, goal, user_prefs, avoid_tags, avoid_ingredients)
+        scored = _explore_rank(candidates, taste, goal, user_prefs, avoid_tags, avoid_ingredients, preference_evidence)
     else:
-        scored = _rank(candidates, ingredients, taste, goal, user_prefs, avoid_tags, avoid_ingredients)
+        scored = _rank(candidates, ingredients, taste, goal, user_prefs, avoid_tags, avoid_ingredients, preference_evidence)
     if exclude_recipe_ids:
         filtered_scored = [r for r in scored if str(r.get("recipe_id")) not in exclude_recipe_ids]
         if filtered_scored:
@@ -81,7 +91,7 @@ async def recommend(db: AsyncSession, ingredients: list[str], constraints: dict,
     for r in result:
         r.pop("_group_priority", None)
         r["fallback"] = is_fallback
-        result_meta = _recipe_match_meta(r, ingredients)
+        result_meta = _recipe_match_meta(r, ingredients, preference_evidence)
         if result_meta:
             r["_meta"] = result_meta
     return result
@@ -127,19 +137,28 @@ def _recommend_meta(scored: list[dict], user_ings: list[str]) -> dict:
     }
 
 
-def _recipe_match_meta(recipe: dict, user_ings: list[str]) -> dict:
+def _recipe_match_meta(recipe: dict, user_ings: list[str], preference_evidence: list[str] | None = None) -> dict:
     if not user_ings:
         return {}
-    norm_user = [_normalize_ingredient_name(u) for u in user_ings if str(u).strip()]
+    user_pairs = [
+        (str(u).strip(), _normalize_ingredient_name(u))
+        for u in user_ings
+        if str(u).strip()
+    ]
+    norm_user = [pair[1] for pair in user_pairs]
     recipe_ingredients = [i for i in (recipe.get("ingredients", []) or []) if isinstance(i, dict)]
     recipe_names = [_normalize_ingredient_name(i.get("name", "")) for i in recipe_ingredients]
     matched = []
     missing = []
-    for user_ing in norm_user:
+    matched_user = []
+    missing_user = []
+    for original_user_ing, user_ing in user_pairs:
         if any(_ingredient_matches(recipe_name, user_ing) for recipe_name in recipe_names):
             matched.append(user_ing)
+            matched_user.append(original_user_ing)
         else:
             missing.append(user_ing)
+            missing_user.append(original_user_ing)
     purchase_suggestions = []
     for ingredient in recipe_ingredients:
         recipe_name = _normalize_ingredient_name(ingredient.get("name", ""))
@@ -154,8 +173,11 @@ def _recipe_match_meta(recipe: dict, user_ings: list[str]) -> dict:
     return {
         "matched_ingredients": sorted(set(matched)),
         "missing_ingredients": sorted(set(missing)),
+        "matched_user_ingredients": list(dict.fromkeys(matched_user)),
+        "missing_user_ingredients": list(dict.fromkeys(missing_user)),
         "purchase_suggestions": purchase_suggestions[:5],
         "preference_matches": recipe.get("_preference_matches", []),
+        "preference_evidence": (preference_evidence or [])[:2] if recipe.get("_preference_matches") else [],
     }
 
 
@@ -174,7 +196,7 @@ def _hard_filter(recipes: list[Recipe], time_limit: int) -> list[Recipe]:
 
 
 # ---------- 3a. 普通排序 ----------
-def _rank(recipes: list[Recipe], ingredients: list[str], taste: str, goal: str, prefs: list[str], avoid_tags: list[str] | None = None, avoid_ingredients: list[str] | None = None) -> list[dict]:
+def _rank(recipes: list[Recipe], ingredients: list[str], taste: str, goal: str, prefs: list[str], avoid_tags: list[str] | None = None, avoid_ingredients: list[str] | None = None, preference_evidence: list[str] | None = None) -> list[dict]:
     # ── 批次A: 核心食材硬约束 ──
     user_ings = [_normalize_ingredient_name(u) for u in (ingredients or []) if str(u).strip()]
     full_match = []
@@ -232,7 +254,7 @@ def _rank(recipes: list[Recipe], ingredients: list[str], taste: str, goal: str, 
                 "_group_priority": getattr(r, "_user_match_group", 9),
             }
             item["_preference_matches"] = [meta.get("pref") for code, meta in codes_pref if code == "PREF_MATCH" and meta.get("pref")]
-            item["_meta"] = _recipe_match_meta(item, ingredients)
+            item["_meta"] = _recipe_match_meta(item, ingredients, preference_evidence)
             scored.append(item)
     scored.sort(key=lambda x: (x.get("_group_priority", 9), -x["match_score"]))
     return scored
@@ -299,7 +321,7 @@ def _calc_ingredient_fixed(r: Recipe, user_ings: list[str]) -> tuple[float, list
 
 
 # ---------- 3b. 探索排序 ----------
-def _explore_rank(recipes: list[Recipe], taste: str, goal: str, prefs: list[str], avoid_tags: list[str] | None = None, avoid_ingredients: list[str] | None = None) -> list[dict]:
+def _explore_rank(recipes: list[Recipe], taste: str, goal: str, prefs: list[str], avoid_tags: list[str] | None = None, avoid_ingredients: list[str] | None = None, preference_evidence: list[str] | None = None) -> list[dict]:
     scored = []
     for r in recipes:
         s_tag, codes_tag = _calc_tag(r, taste, goal)
@@ -312,7 +334,10 @@ def _explore_rank(recipes: list[Recipe], taste: str, goal: str, prefs: list[str]
             codes.append(("QUICK", {"time": r.cook_time}))
             s += 0.05
         if s > 0.3:
-            scored.append({**recipe_brief(r), "match_score": round(min(s, 1.0), 2), "_codes": codes})
+            item = {**recipe_brief(r), "match_score": round(min(s, 1.0), 2), "_codes": codes}
+            item["_preference_matches"] = [meta.get("pref") for code, meta in codes_pref if code == "PREF_MATCH" and meta.get("pref")]
+            item["_meta"] = _recipe_match_meta(item, [], preference_evidence)
+            scored.append(item)
     scored.sort(key=lambda x: x["match_score"], reverse=True)
     return scored
 
@@ -427,6 +452,10 @@ def _calc_pref(r: Recipe, prefs: list[str]) -> tuple[float, list]:
     hits = []
     for pref in normalized_prefs:
         if pref in tags or pref in title or pref in ingredient_text:
+            hits.append(pref)
+        elif pref == "quick_meal" and ("quick" in tags or int(getattr(r, "cook_time", 999) or 999) <= 15):
+            hits.append(pref)
+        elif pref == "low_oil" and ("light" in tags or "low_fat" in tags or "低油" in title or "少油" in title):
             hits.append(pref)
     score = min(0.5 + len(hits) * 0.2, 1.0)
     codes = [("PREF_MATCH", {"pref": h}) for h in hits[:3]]

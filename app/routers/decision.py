@@ -38,9 +38,17 @@ async def generate_meal_plan(
             user_prefs = profile.get("preferences", [])
             goal = goal or profile.get("goal", "")
         signals = await get_preference_signals(db, user["sub"])
-        user_prefs = list(dict.fromkeys(user_prefs + signals.get("liked_tags", []) + signals.get("liked_ingredients", [])))
+        user_prefs = list(dict.fromkeys(
+            user_prefs
+            + signals.get("liked_tags", [])
+            + signals.get("liked_ingredients", [])
+            + signals.get("liked_methods", [])
+            + signals.get("constraints", [])
+            + signals.get("evidence", [])
+        ))
         req.constraints["avoid_tags"] = signals.get("avoid_tags", [])
         req.constraints["avoid_ingredients"] = signals.get("avoid_ingredients", [])
+        req.constraints["preference_evidence"] = signals.get("evidence", [])
 
     constraints = dict(req.constraints or {})
     constraints["exclude_recipe_ids"] = req.exclude_recipe_ids if req.refresh else []

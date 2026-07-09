@@ -63,10 +63,11 @@ async function addPlan() {
   const recipe = result.value?.target?.recipe
   if (!recipe) return
   try {
-    await ApiService.planMeal('lunch', recipe, recipe.ingredients || [], result.value?.shopping_list || [])
-    uni.showToast({ title: '已加入午餐计划', icon: 'success' })
+    const adopted = await ApiService.adoptMeal('lunch', recipe)
+    const count = (adopted.shopping_list || []).length
+    uni.showToast({ title: count ? `已采纳，需补${count}项` : '已采纳到午餐', icon: 'success' })
   } catch (e) {
-    uni.showToast({ title: e.message || '加入计划失败', icon: 'none' })
+    uni.showToast({ title: e.message || '采纳失败', icon: 'none' })
   }
 }
 </script>
@@ -88,4 +89,3 @@ button::after { border:none; }
 .primary { background:#173B2E; color:#fff; }
 .secondary { background:#23A978; color:#fff; }
 </style>
-

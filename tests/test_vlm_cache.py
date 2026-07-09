@@ -17,7 +17,7 @@ RAW_VLM_RESULT = {
 
 
 @pytest.fixture
-def memory_vlm_cache(monkeypatch):
+def memory_vlm_cache(monkeypatch, tmp_path):
     store = {}
 
     async def fake_get(key):
@@ -29,6 +29,7 @@ def memory_vlm_cache(monkeypatch):
 
     monkeypatch.setattr("app.services.vlm.cache_get", fake_get)
     monkeypatch.setattr("app.services.vlm.cache_set", fake_set)
+    monkeypatch.setattr("app.services.vlm.FILE_CACHE_DIR", tmp_path / "vlm-cache")
     return store
 
 

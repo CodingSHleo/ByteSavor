@@ -15,6 +15,7 @@ class User(Base):
     password_hash = Column(String(128), default="")
     auth_provider = Column(String(30), default="openid")  # openid / password
     status = Column(String(20), default="active")          # active / disabled
+    role = Column(String(20), default="user")              # user / admin
     last_login_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now())
 
@@ -71,6 +72,23 @@ class MealRecord(Base):
     planned_at = Column(DateTime, default=func.now())
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=func.now())
+
+
+class ShoppingListItem(Base):
+    __tablename__ = "shopping_list_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user_id = Column(String(32), ForeignKey("users.id"), nullable=False, index=True)
+    meal_id = Column(Integer, ForeignKey("meal_records.id"), nullable=True, index=True)
+    recipe_id = Column(String(64), default="", index=True)
+    name = Column(String(80), nullable=False, index=True)
+    amount = Column(Integer, nullable=True)
+    unit = Column(String(20), default="")
+    status = Column(String(20), default="open", index=True)
+    source = Column(String(30), default="agent_adopt")
+    meta = Column(JSON, default=dict)
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
 
 class Feedback(Base):

@@ -128,6 +128,7 @@ async def ensure_user_auth_columns(db: AsyncSession) -> None:
         "auth_provider": "VARCHAR(30) DEFAULT 'openid'",
         "status": "VARCHAR(20) DEFAULT 'active'",
         "last_login_at": "DATETIME NULL",
+        "role": "VARCHAR(20) DEFAULT 'user'",
     }
     conn = await db.connection()
     for col_name in columns:
@@ -192,6 +193,7 @@ async def create_password_user(
     password: str,
     name: str = "",
     email: str = "",
+    role: str = "user",
 ) -> User:
     """密码注册：bcrypt 哈希密码，auth_provider='password'。"""
     from app.core.security import hash_password
@@ -203,6 +205,7 @@ async def create_password_user(
         password_hash=hash_password(password),
         auth_provider="password",
         email=(email or "").strip() or None,
+        role=role,
     )
     db.add(user)
     await db.flush()

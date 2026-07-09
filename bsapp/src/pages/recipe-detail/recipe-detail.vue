@@ -23,7 +23,34 @@
       <image class="btn-small-icon" src="/static/icons/icon_cart.svg" mode="widthFix" />
       {{ $t('generateShoppingList') }}
     </button>
+    <button class="adopt-btn" @tap="adoptRecipe">
+      <image class="btn-small-icon" src="/static/icons/icon_ai.svg" mode="widthFix" />
+      采纳到今日计划
+    </button>
     <button class="check-btn" @tap="checkRecipe">清点当前库存缺什么</button>
+
+    <view v-if="adoptionResult" class="adoption-card">
+      <view class="adoption-head">
+        <view>
+          <text class="adoption-kicker">AGENT ACTION</text>
+          <text class="adoption-title">{{ adoptionResult.title }}</text>
+        </view>
+        <text class="adoption-clear" @tap="adoptionResult = null">收起</text>
+      </view>
+      <view class="adoption-timeline">
+        <view v-for="(event, idx) in adoptionResult.events" :key="idx" class="adoption-event" :class="event.status">
+          <view class="adoption-dot"></view>
+          <view class="adoption-copy">
+            <text>{{ event.title || adoptionEventTitle(event) }}</text>
+            <text>{{ event.detail || adoptionEventDetail(event) }}</text>
+          </view>
+        </view>
+      </view>
+      <view v-if="adoptionResult.shoppingList.length" class="adoption-shopping" @tap="openTodayShoppingList">
+        <text>补购清单 {{ adoptionResult.shoppingList.length }} 项</text>
+        <text>查看</text>
+      </view>
+    </view>
 
     <view class="action-row">
       <view class="action-btn" :class="{ liked: isLiked }" @tap="toggleLike">
@@ -116,6 +143,7 @@ const detail = ref(null)
 const rating = ref(0)
 const isLiked = ref(false)
 const feedback = ref('')
+const adoptionResult = ref(null)
 
 async function loadDetail() {
   isLoading.value = true
@@ -140,7 +168,7 @@ function setRating(n) { rating.value = n }
 async function submitFeedback() {
   if (rating.value > 0) {
     try {
-      const result = await ApiService.submitFeedback(recipeId.value, rating.value)
+      const result = await ApiService.submitFeedback(recipeId.value, rating.value, feedback.value, detail.value || {})
       const points = result?.reward_points || 1
       uni.showToast({ title: $t('thanksFeedback') + '+' + points + $t('rewardPoints'), icon: 'success' })
       rating.value = 0
@@ -174,6 +202,48 @@ async function saveRecipe() {
 }
 function checkRecipe() {
   uni.navigateTo({ url: `/pages/recipe-checker/recipe-checker?targetType=system_recipe&targetId=${recipeId.value}` })
+}
+function adoptRecipe() {
+  const slots = [
+    { key: 'breakfast', label: '早餐' },
+    { key: 'lunch', label: '午餐' },
+    { key: 'dinner', label: '晚餐' },
+    { key: 'snack', label: '加餐' }
+  ]
+  uni.showActionSheet({
+    itemList: slots.map(item => item.label),
+    success: async (res) => {
+      const slot = slots[res.tapIndex]?.key || 'lunch'
+      try {
+        const result = await ApiService.adoptMeal(slot, detail.value || { recipe_id: recipeId.value, title: title.value })
+        const shoppingList = result.shopping_list || []
+        adoptionResult.value = {
+          title: detail.value?.title || title.value || '已采纳菜谱',
+          events: result.agent_events || [],
+          shoppingList
+        }
+        uni.showToast({ title: shoppingList.length ? `已采纳，需补${shoppingList.length}项` : '已采纳并同步库存', icon: 'success' })
+      } catch (e) {
+        uni.showToast({ title: e.message || '采纳失败', icon: 'none' })
+      }
+    }
+  })
+}
+function adoptionEventTitle(event) {
+  return event.stage === 'inventory' ? '已同步库存' : event.stage === 'shopping_list' ? '已生成补购清单' : '已采纳菜谱'
+}
+function adoptionEventDetail(event) {
+  if (event.summary?.deducted_count !== undefined) return `扣减 ${event.summary.deducted_count} 项库存`
+  if (event.summary?.shopping_item_count !== undefined) return `缺少 ${event.summary.shopping_item_count} 项食材`
+  return event.detail || ''
+}
+async function openTodayShoppingList() {
+  try {
+    const data = await ApiService.getTodayShoppingList()
+    uni.navigateTo({ url: `/pages/list-export/list-export?items=${encodeURIComponent(JSON.stringify(data.items || []))}&title=${encodeURIComponent('今日补购清单')}` })
+  } catch (e) {
+    uni.showToast({ title: e.message || '清单打开失败', icon: 'none' })
+  }
 }
 function ingredientIcon(item) {
   const name = `${item?.name || ''}${item?.nameEn || ''}`.toLowerCase()
@@ -225,7 +295,25 @@ function showShare() {
 .hero-tags { display: flex; flex-wrap: wrap; gap: 8rpx; margin-top: 16rpx; }
 .hero-tags text { background: var(--bg); color: var(--text-secondary); border-radius: var(--radius-full); padding: 6rpx 12rpx; font-size: 21rpx; font-weight: 700; }
 .shopping-btn { width: 100%; height: 90rpx; background: var(--teal); color: #fff; border: none; border-radius: var(--radius); font-size: 30rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; box-shadow: var(--shadow-sm); }
+.adopt-btn { width: 100%; height: 88rpx; background: #F2A93B; color: #17231D; border: none; border-radius: var(--radius); font-size: 29rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; box-shadow: var(--shadow-sm); }
+.adopt-btn .btn-small-icon { filter: none; }
 .check-btn { width: 100%; height: 82rpx; background: #173B2E; color: #fff; border: none; border-radius: var(--radius); font-size: 28rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; margin-bottom: 14rpx; box-shadow: var(--shadow-sm); }
+.adoption-card { margin-bottom: 18rpx; background: linear-gradient(150deg, #FFFFFF, #F5FBF8); border-radius: var(--radius); padding: 20rpx; box-shadow: var(--shadow-sm), var(--hairline); }
+.adoption-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; margin-bottom: 14rpx; }
+.adoption-kicker { display: block; font-size: 18rpx; color: var(--teal); font-weight: 950; }
+.adoption-title { display: block; margin-top: 4rpx; font-size: 29rpx; color: var(--text); font-weight: 950; }
+.adoption-clear { font-size: 22rpx; color: var(--text-muted); font-weight: 800; }
+.adoption-timeline { display: flex; flex-direction: column; gap: 9rpx; }
+.adoption-event { display: flex; align-items: flex-start; gap: 12rpx; padding: 13rpx 14rpx; border-radius: 18rpx; background: #fff; border: 1rpx solid var(--border-light); }
+.adoption-event.partial { background: var(--amber-bg); }
+.adoption-event.skipped { background: var(--bg-elevated); }
+.adoption-dot { width: 14rpx; height: 14rpx; margin-top: 7rpx; border-radius: 50%; background: var(--teal); flex-shrink: 0; box-shadow: 0 0 0 6rpx rgba(35,169,120,.10); }
+.adoption-copy { flex: 1; min-width: 0; }
+.adoption-copy text:first-child { display: block; font-size: 23rpx; color: var(--text); font-weight: 900; }
+.adoption-copy text:last-child { display: block; margin-top: 4rpx; font-size: 20rpx; color: var(--text-muted); line-height: 1.35; }
+.adoption-shopping { margin-top: 13rpx; height: 64rpx; border-radius: var(--radius-full); background: #173B2E; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20rpx; box-sizing: border-box; }
+.adoption-shopping text:first-child { font-size: 23rpx; font-weight: 850; }
+.adoption-shopping text:last-child { font-size: 22rpx; color: rgba(255,255,255,.78); font-weight: 900; }
 .btn-small-icon { width: 40rpx; height: 40rpx; margin-right: 10rpx; filter: brightness(0) invert(1); }
 .action-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12rpx; margin-bottom: 20rpx; }
 .action-btn { background: #fff; border-radius: var(--radius); padding: 16rpx 10rpx; display: flex; flex-direction: column; align-items: center; gap: 8rpx; color: var(--text-secondary); font-size: 22rpx; box-shadow: var(--shadow-sm); }

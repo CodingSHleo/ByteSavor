@@ -62,6 +62,7 @@
           </view>
           <view v-if="recipeExplainChips(item).length" class="explain-row">
             <text v-for="chip in recipeExplainChips(item)" :key="chip">{{ chip }}</text>
+            <text class="explain-more" @tap.stop="showRecipeExplain(item)">详情</text>
           </view>
         </view>
         <view class="feed-actions">
@@ -88,6 +89,32 @@
     <button v-if="visibleRecipes.length < filteredRecipes.length" class="load-more" @tap="visibleLimit += 40">
       显示更多 {{ filteredRecipes.length - visibleRecipes.length }} 道
     </button>
+
+    <view v-if="explainRecipe" class="explain-mask" @tap="explainRecipe = null">
+      <view class="explain-sheet" @tap.stop>
+        <view class="explain-sheet-head">
+          <view>
+            <text class="explain-sheet-kicker">AGENT EXPLAIN</text>
+            <text class="explain-sheet-title">{{ explainRecipe.title }}</text>
+          </view>
+          <text class="explain-close" @tap="explainRecipe = null">×</text>
+        </view>
+        <view class="explain-block">
+          <text class="explain-block-title">库存命中</text>
+          <text class="explain-block-copy">{{ explainText(explainMatched(explainRecipe), '当前没有明确库存命中') }}</text>
+        </view>
+        <view class="explain-block">
+          <text class="explain-block-title">缺少食材</text>
+          <text class="explain-block-copy">{{ explainText(explainMissing(explainRecipe), '主要食材已覆盖') }}</text>
+          <text v-if="explainPurchase(explainRecipe).length" class="explain-block-hint">建议补买：{{ explainPurchase(explainRecipe).join('、') }}</text>
+        </view>
+        <view class="explain-block">
+          <text class="explain-block-title">偏好证据</text>
+          <text class="explain-block-copy">{{ explainText(explainPrefs(explainRecipe), '暂无明确偏好命中') }}</text>
+          <text v-if="explainEvidence(explainRecipe).length" class="explain-block-hint">{{ explainEvidence(explainRecipe).join('、') }}</text>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -107,6 +134,7 @@ const userPreferences = ref([])
 const isLoading = ref(true)
 const errorNotice = ref('')
 const visibleLimit = ref(60)
+const explainRecipe = ref(null)
 
 const categories = [
   { key: 'all', label: $t('allCategories'), icon: 'icon_tag' },
@@ -205,12 +233,41 @@ function recipeExplainChips(item) {
   const missing = listFromMeta(meta.missing_ingredients || item?.missing_ingredients).slice(0, 2)
   const purchase = listFromMeta(meta.purchase_suggestions || item?.purchase_suggestions).slice(0, 2)
   const prefs = listFromMeta(meta.preference_matches || item?.preference_matches || item?.matched_preferences).slice(0, 2)
+  const evidence = listFromMeta(meta.preference_evidence || item?.preference_evidence).slice(0, 1)
   if (matched.length) chips.push(`已用 ${matched.join('、')}`)
   if (missing.length) chips.push(`缺 ${missing.join('、')}`)
   if (purchase.length) chips.push(`补买 ${purchase.join('、')}`)
   if (prefs.length) chips.push(`偏好 ${prefs.join('、')}`)
+  if (evidence.length) chips.push(`记忆 ${evidence[0]}`)
   if (item?.llm_reranked) chips.push('AI重排')
   return chips.slice(0, 5)
+}
+function showRecipeExplain(item) {
+  explainRecipe.value = item
+}
+function explainMatched(item) {
+  const meta = item?._meta || {}
+  return listFromMeta(meta.matched_ingredients || item?.matched_ingredients)
+}
+function explainMissing(item) {
+  const meta = item?._meta || {}
+  return listFromMeta(meta.missing_ingredients || item?.missing_ingredients)
+}
+function explainPurchase(item) {
+  const meta = item?._meta || {}
+  return listFromMeta(meta.purchase_suggestions || item?.purchase_suggestions)
+}
+function explainPrefs(item) {
+  const meta = item?._meta || {}
+  return listFromMeta(meta.preference_matches || item?.preference_matches || item?.matched_preferences)
+}
+function explainEvidence(item) {
+  const meta = item?._meta || {}
+  return listFromMeta(meta.preference_evidence || item?.preference_evidence)
+}
+function explainText(list, fallback) {
+  const values = listFromMeta(list)
+  return values.length ? values.join('、') : fallback
 }
 async function favoriteRecipe(item) {
   try {
@@ -243,10 +300,14 @@ async function planRecipeFromExplore(item) {
     success: async (res) => {
       const slot = slotKeys[res.tapIndex] || 'lunch'
       try {
-        await ApiService.planMeal(slot, recipe, (recipe.ingredients || []), [])
-        uni.showToast({ title: `已加入${slotLabels[res.tapIndex]}计划`, icon: 'success' })
+        const result = await ApiService.adoptMeal(slot, recipe)
+        const shoppingCount = (result.shopping_list || []).length
+        uni.showToast({
+          title: shoppingCount ? `已采纳，需补${shoppingCount}项` : `已采纳到${slotLabels[res.tapIndex]}`,
+          icon: 'success'
+        })
       } catch (e) {
-        uni.showToast({ title: e.message || '加入失败', icon: 'none' })
+        uni.showToast({ title: e.message || '采纳失败', icon: 'none' })
       }
     }
   })
@@ -333,6 +394,17 @@ async function planRecipeFromExplore(item) {
 .micro-row text { background: var(--blue-bg); color: var(--blue); border-radius: var(--radius-full); padding: 5rpx 11rpx; font-size: 19rpx; font-weight: 850; box-shadow: inset 0 0 0 1rpx rgba(75,167,200,.08); }
 .explain-row { display: flex; flex-wrap: wrap; gap: 7rpx; }
 .explain-row text { max-width: 220rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; background: var(--green-bg); color: var(--teal); border-radius: var(--radius-full); padding: 5rpx 10rpx; font-size: 19rpx; font-weight: 850; box-sizing: border-box; }
+.explain-row .explain-more { background: #173B2E; color: #fff; max-width: none; }
+.explain-mask { position: fixed; inset: 0; z-index: 50; background: rgba(10, 20, 16, .32); display: flex; align-items: flex-end; }
+.explain-sheet { width: 100%; background: #fff; border-radius: 30rpx 30rpx 0 0; padding: 24rpx 26rpx 36rpx; box-sizing: border-box; box-shadow: 0 -18rpx 46rpx rgba(18, 35, 29, .16); }
+.explain-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; margin-bottom: 18rpx; }
+.explain-sheet-kicker { display: block; font-size: 18rpx; color: var(--teal); font-weight: 950; }
+.explain-sheet-title { display: block; margin-top: 5rpx; color: var(--text); font-size: 34rpx; font-weight: 950; line-height: 1.25; }
+.explain-close { width: 52rpx; height: 52rpx; border-radius: 50%; background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 38rpx; line-height: 1; flex-shrink: 0; }
+.explain-block { background: var(--bg-elevated); border-radius: 20rpx; padding: 17rpx 18rpx; margin-top: 12rpx; }
+.explain-block-title { display: block; color: var(--text); font-size: 24rpx; font-weight: 950; }
+.explain-block-copy { display: block; margin-top: 7rpx; color: var(--text-secondary); font-size: 23rpx; line-height: 1.42; }
+.explain-block-hint { display: block; margin-top: 8rpx; color: var(--teal); font-size: 21rpx; font-weight: 850; line-height: 1.35; }
 .feed-actions { display: flex; flex-direction: column; gap: 8rpx; flex-shrink: 0; }
 .feed-actions button { width: 82rpx; height: 46rpx; margin: 0; padding: 0; border-radius: var(--radius-full); border: none; background: var(--green-bg); color: var(--teal); font-size: 20rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; }
 .feed-actions .icon-action { gap: 4rpx; transition: transform .18s ease, background-color .18s ease; }

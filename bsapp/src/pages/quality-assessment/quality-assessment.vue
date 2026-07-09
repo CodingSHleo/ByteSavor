@@ -51,6 +51,10 @@
             <text class="info-label">挑选建议</text>
             <text>{{ item.tip }}</text>
           </view>
+          <view v-if="item.unobserved_note" class="info-block muted">
+            <text class="info-label">未采集信息</text>
+            <text>{{ item.unobserved_note }}</text>
+          </view>
         </view>
       </view>
     </view>

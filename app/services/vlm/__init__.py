@@ -1,19 +1,45 @@
 import hashlib
+import json
 import logging
 import time
+from pathlib import Path
 
 from app.core.cache import get as cache_get, set as cache_set, make_key
 from app.core.config import settings
 from app.services.food_synonyms import normalize_ingredients
 from app.services.nutrition_calculator import calculate_total
-from app.services.vlm.openai import OpenAICompatProvider
+from app.services.vlm.openai import OpenAICompatProvider, VLMProviderError
 from app.services.vlm.prompts import FOOD_ANALYSIS, FOOD_ANALYSIS_PROMPT_VERSION
 
 logger = logging.getLogger("vlm")
 
 _provider = OpenAICompatProvider(model=settings.vlm_model)
 
-IMAGE_CACHE_TTL = 1800  # 30 分钟
+IMAGE_CACHE_TTL = 24 * 60 * 60  # 演示期缓存 24 小时，预热 demo 图后现场秒开
+FILE_CACHE_DIR = Path(".cache/vlm")
+
+
+async def _cache_get(cache_key: str) -> dict | None:
+    cached = await cache_get(cache_key)
+    if cached:
+        return cached
+    path = FILE_CACHE_DIR / f"{cache_key.replace(':', '_')}.json"
+    try:
+        if path.exists():
+            return json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        logger.debug("vlm_file_cache_get_failed key=%s error=%s", cache_key, exc)
+    return None
+
+
+async def _cache_set(cache_key: str, data: dict, ttl: int) -> None:
+    await cache_set(cache_key, data, ttl=ttl)
+    try:
+        FILE_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        path = FILE_CACHE_DIR / f"{cache_key.replace(':', '_')}.json"
+        path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    except Exception as exc:
+        logger.debug("vlm_file_cache_set_failed key=%s error=%s", cache_key, exc)
 
 
 def _image_hash(image_url: str) -> str:
@@ -37,7 +63,7 @@ async def analyze_food(image_url: str, prompt: str = FOOD_ANALYSIS) -> dict | No
     started = time.perf_counter()
     fingerprint = _image_hash(image_url)
     cache_key = make_key("vlm", settings.vlm_model, FOOD_ANALYSIS_PROMPT_VERSION, fingerprint)
-    cached = await cache_get(cache_key)
+    cached = await _cache_get(cache_key)
     if cached:
         latency_ms = int((time.perf_counter() - started) * 1000)
         logger.info(
@@ -54,7 +80,10 @@ async def analyze_food(image_url: str, prompt: str = FOOD_ANALYSIS) -> dict | No
         logger.info("vlm_analyze_done cache_hit=true latency_ms=%d", latency_ms)
         return result
 
-    raw = await _provider.analyze_food(image_url, prompt)
+    try:
+        raw = await _provider.analyze_food(image_url, prompt)
+    except VLMProviderError:
+        raise
     if raw is None:
         return None
     ingredients = raw.get("ingredients", [])
@@ -89,7 +118,7 @@ async def analyze_food(image_url: str, prompt: str = FOOD_ANALYSIS) -> dict | No
     }
 
     # 写入缓存
-    await cache_set(cache_key, analysis_result, ttl=IMAGE_CACHE_TTL)
+    await _cache_set(cache_key, analysis_result, ttl=IMAGE_CACHE_TTL)
 
     latency_ms = int((time.perf_counter() - started) * 1000)
     logger.info("vlm_analyze_done cache_hit=false latency_ms=%d", latency_ms)

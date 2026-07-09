@@ -66,7 +66,8 @@ async def get_post(
 
 @router.delete("/v1/community/posts/{post_id}", tags=["Community"])
 async def delete_post(post_id: int, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    deleted, code = await community.delete_post(db, user["sub"], post_id)
+    is_admin = user.get("role") == "admin"
+    deleted, code = await community.delete_post(db, user["sub"], post_id, is_admin=is_admin)
     if code == "NOT_FOUND":
         return ErrorResponse(error={"code": "POST_NOT_FOUND", "message": "帖子不存在"})
     if code == "FORBIDDEN":

@@ -18,10 +18,10 @@ def _check_secret():
         raise RuntimeError("JWT_SECRET 未设置或仍为占位值，请在 .env 中配置随机密钥")
 
 
-def create_token(user_id: str, openid: str = "") -> str:
+def create_token(user_id: str, openid: str = "", role: str = "user") -> str:
     _check_secret()
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
-    payload = {"sub": user_id, "openid": openid, "exp": expire}
+    payload = {"sub": user_id, "openid": openid, "role": role, "exp": expire}
     return jwt.encode(payload, settings.jwt_secret, algorithm=settings.jwt_algorithm)
 
 

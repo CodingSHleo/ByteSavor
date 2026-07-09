@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter
 from app.schemas import SenseRequest, SuccessResponse, ErrorResponse
 from app.services import vlm
+from app.services.vlm.openai import VLMProviderError
 
 router = APIRouter()
 logger = logging.getLogger("sense")
@@ -16,7 +17,14 @@ async def analyze_ingredients(req: SenseRequest):
     if len(req.image_url) > 8 * 1024 * 1024:  # 8MB上限
         return ErrorResponse(error={"code": "IMAGE_TOO_LARGE", "message": "图片过大，请压缩后重试"})
 
-    result = await vlm.analyze_food(req.image_url)
+    try:
+        result = await vlm.analyze_food(req.image_url)
+    except VLMProviderError as exc:
+        logger.warning("vlm provider error code=%s message=%s", exc.code, exc.message)
+        return ErrorResponse(error={
+            "code": exc.code,
+            "message": exc.message,
+        })
     if result is None:
         logger.warning("vlm returned None; returning explicit unavailable error")
         return ErrorResponse(error={

@@ -7,6 +7,13 @@ from app.services.vlm.base import BaseVLMProvider
 logger = logging.getLogger("vlm")
 
 
+class VLMProviderError(Exception):
+    def __init__(self, code: str, message: str):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+
+
 class OpenAICompatProvider(BaseVLMProvider):
     def __init__(self, model: str = "qwen-vl"):
         self.model = model
@@ -39,19 +46,24 @@ class OpenAICompatProvider(BaseVLMProvider):
                                 {"type": "text", "text": prompt},
                             ],
                         }],
-                        "max_tokens": 1200,
+                        "max_tokens": 700,
                     },
                 )
                 if resp.status_code != 200:
                     logger.warning("vlm_http status=%d body=%s", resp.status_code, resp.text[:300])
-                    return None
+                    raise VLMProviderError("VLM_HTTP_ERROR", f"视觉模型接口返回异常：{resp.status_code}")
                 result = _parse(resp.json())
                 n = len(result.get("ingredients", []))
                 logger.info("vlm_ok ingredients=%d", n)
                 return result
+        except httpx.ReadTimeout as e:
+            logger.warning("vlm_timeout timeout_sec=%s", settings.vlm_timeout_sec)
+            raise VLMProviderError("VLM_TIMEOUT", "视觉模型响应超时，请稍后重试或换一张更清晰的图片") from e
+        except VLMProviderError:
+            raise
         except Exception as e:
             logger.warning("vlm_exception %s: %s", type(e).__name__, str(e)[:200])
-            return None
+            raise VLMProviderError("VLM_UNAVAILABLE", "视觉模型暂时不可用，请稍后重试") from e
 
 
 def _parse(data: dict) -> dict:

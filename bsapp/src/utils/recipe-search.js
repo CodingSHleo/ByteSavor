@@ -18,7 +18,17 @@ const PREFERENCE_ALIASES = {
   '低碳水': 'low_carb',
   '素食': 'vegetarian',
   '蔬菜': 'vegetarian',
-  '海鲜': 'seafood'
+  '海鲜': 'seafood',
+  '快炒': 'stir_fry',
+  '小炒': 'stir_fry',
+  '炒': 'stir_fry',
+  '10分钟': 'quick_meal',
+  '15分钟': 'quick_meal',
+  '快手': 'quick_meal',
+  'quick': 'quick_meal',
+  'low_oil': 'low_oil',
+  'stir_fry': 'stir_fry',
+  'quick_meal': 'quick_meal'
 }
 
 function normalizeText(value) {
@@ -85,7 +95,12 @@ function preferenceScore(recipe, preferences = []) {
   const prefs = normalizePreferences(preferences)
   if (!prefs.length) return 0
   const text = recipeSearchText(recipe)
-  return prefs.filter(pref => text.includes(pref)).length
+  return prefs.filter(pref => {
+    if (text.includes(pref)) return true
+    if (pref === 'quick_meal') return text.includes('quick') || Number(recipe.cookTime || recipe.cook_time || 999) <= 15
+    if (pref === 'low_oil') return text.includes('light') || text.includes('low_fat') || text.includes('少油') || text.includes('低油')
+    return false
+  }).length
 }
 
 export function searchRecipes(recipes, query, options = {}) {

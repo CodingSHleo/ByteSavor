@@ -29,6 +29,9 @@ async def build_memory_context(
             "avoid_tags": [],
             "liked_ingredients": [],
             "avoid_ingredients": [],
+            "liked_methods": [],
+            "constraints": [],
+            "evidence": [],
         },
         "fact_memory": {
             "inventory": [],
@@ -61,6 +64,9 @@ async def build_memory_context(
             "avoid_tags": signals.get("avoid_tags", [])[:8],
             "liked_ingredients": signals.get("liked_ingredients", [])[:8],
             "avoid_ingredients": signals.get("avoid_ingredients", [])[:8],
+            "liked_methods": signals.get("liked_methods", [])[:8],
+            "constraints": signals.get("constraints", [])[:8],
+            "evidence": signals.get("evidence", [])[:4],
         }
     except Exception:
         pass
@@ -141,6 +147,18 @@ def build_memory_used(memory_context: dict) -> list[dict]:
             "type": "preference",
             "key": "liked_ingredients",
             "summary": f"喜好食材: {', '.join(pref['liked_ingredients'][:4])}",
+        })
+    if pref.get("liked_methods"):
+        used.append({
+            "type": "preference",
+            "key": "liked_methods",
+            "summary": f"偏好做法: {', '.join(pref['liked_methods'][:4])}",
+        })
+    if pref.get("constraints"):
+        used.append({
+            "type": "preference",
+            "key": "constraints",
+            "summary": f"隐性约束: {', '.join(pref['constraints'][:4])}",
         })
 
     fact = memory_context.get("fact_memory", {})

@@ -1,6 +1,24 @@
 from app.models.recipe import Recipe
 
 
+def clean_text(value: object) -> str:
+    return str(value or "").replace("耗油", "蚝油")
+
+
+def clean_ingredients(ingredients: list[dict] | None) -> list[dict]:
+    cleaned = []
+    for item in ingredients or []:
+        if not isinstance(item, dict):
+            continue
+        cleaned.append({
+            **item,
+            "name": clean_text(item.get("name", "")),
+            "amount": clean_text(item.get("amount", "")),
+            "unit": clean_text(item.get("unit", "")),
+        })
+    return cleaned
+
+
 def category(tags: list[str]) -> str:
     t = {str(x).lower() for x in tags or []}
     if "quick" in t:
@@ -75,12 +93,12 @@ def recipe_brief(recipe: Recipe) -> dict:
     return {
         "recipe_id": recipe.id,
         "recipeId": recipe.id,
-        "title": recipe.title,
+        "title": clean_text(recipe.title),
         "cook_time": recipe.cook_time,
         "cookTime": recipe.cook_time,
         "difficulty": recipe.difficulty,
         "calories": recipe.calories,
-        "ingredients": recipe.ingredients or [],
+        "ingredients": clean_ingredients(recipe.ingredients),
         "category": category(recipe.tags),
         "tags": recipe.tags or [],
         "macros": {"protein": recipe.protein, "carbs": recipe.carbs, "fat": recipe.fat},

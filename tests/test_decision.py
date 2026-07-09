@@ -238,3 +238,82 @@ async def test_rank_uses_user_preferences_when_ingredient_coverage_is_equal():
     assert ranked[0]["recipe_id"] == "r_light_beef"
     assert "preference_matches" in ranked[0]["_meta"]
     assert "light" in ranked[0]["_meta"]["preference_matches"]
+
+
+async def test_rank_uses_method_and_constraint_preferences_when_coverage_is_equal():
+    recipes = [
+        SimpleNamespace(
+            id="r_stew_beef",
+            title="慢炖牛肉",
+            cook_time=60,
+            difficulty="medium",
+            calories=420,
+            protein=34,
+            carbs=16,
+            fat=22,
+            tags=["high_protein", "stew"],
+            ingredients=[{"name": "牛肉"}, {"name": "胡萝卜"}],
+        ),
+        SimpleNamespace(
+            id="r_stir_beef",
+            title="10分钟快炒牛肉",
+            cook_time=10,
+            difficulty="easy",
+            calories=310,
+            protein=30,
+            carbs=10,
+            fat=12,
+            tags=["quick", "high_protein", "stir_fry", "low_oil"],
+            ingredients=[{"name": "牛肉"}, {"name": "韭黄"}],
+        ),
+    ]
+
+    ranked = _rank(
+        recipes,
+        ["牛肉"],
+        "",
+        "balanced",
+        ["stir_fry", "quick_meal", "low_oil"],
+        preference_evidence=["喜欢10分钟快炒，少油清淡"],
+    )
+
+    assert ranked[0]["recipe_id"] == "r_stir_beef"
+    assert "stir_fry" in ranked[0]["_meta"]["preference_matches"]
+    assert "quick_meal" in ranked[0]["_meta"]["preference_matches"]
+    assert ranked[0]["_meta"]["preference_evidence"] == ["喜欢10分钟快炒，少油清淡"]
+
+
+async def test_rank_prefers_tomato_beef_full_match_over_previous_pepper_beef():
+    recipes = [
+        SimpleNamespace(
+            id="r_oyster_pepper_beef",
+            title="蚝油青椒牛肉",
+            cook_time=20,
+            difficulty="easy",
+            calories=330,
+            protein=30,
+            carbs=12,
+            fat=14,
+            tags=["quick", "high_protein", "low_carb"],
+            ingredients=[{"name": "牛肉"}, {"name": "青椒"}, {"name": "蚝油"}],
+        ),
+        SimpleNamespace(
+            id="r_tomato_beef",
+            title="番茄牛肉",
+            cook_time=25,
+            difficulty="easy",
+            calories=300,
+            protein=29,
+            carbs=16,
+            fat=10,
+            tags=["quick", "high_protein", "low_fat"],
+            ingredients=[{"name": "番茄"}, {"name": "牛肉"}],
+        ),
+    ]
+
+    ranked = _rank(recipes, ["番茄", "牛肉"], "", "fat_loss", [])
+
+    assert ranked[0]["recipe_id"] == "r_tomato_beef"
+    assert ranked[0]["_meta"]["matched_ingredients"] == ["牛肉", "西红柿"]
+    assert ranked[0]["_meta"]["missing_ingredients"] == []
+    assert ranked[1]["_meta"]["missing_ingredients"] == ["西红柿"]

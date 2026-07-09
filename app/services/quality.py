@@ -20,6 +20,33 @@ QUALITY_STANDARDS = {
 }
 
 
+VISUAL_STANDARDS = {
+    "西瓜": {
+        "优": "瓜皮色泽自然、纹路清晰、表面未见裂口、软斑或霉点",
+        "中": "纹路略模糊、表皮局部暗沉，但未见明显破损",
+        "差": "表面有裂口、软斑、霉点或渗液",
+    },
+    "榴莲": {
+        "优": "果壳色泽自然、尖刺完整、外壳未见发黑或异常渗液",
+        "中": "果壳偏青或局部色泽不均，需要继续观察成熟度",
+        "差": "果壳发黑、裂口过大、果肉外露或有异常渗液",
+    },
+}
+
+
+UNOBSERVED_CHECKS = {
+    "西瓜": "本次仅基于图片可见特征判断；非视觉信息未采集，不作为当前结论依据。",
+    "榴莲": "本次仅基于图片可见特征判断；非视觉信息未采集，不作为当前结论依据。",
+}
+
+
+def _visual_standard(name: str, grade: str, fallback: str) -> str:
+    standards = VISUAL_STANDARDS.get(name)
+    if standards:
+        return standards.get(grade) or fallback
+    return fallback
+
+
 async def assess(image_data: str) -> dict:
     """评估图片中食材的品质"""
     result = await analyze_food(image_data)
@@ -42,14 +69,16 @@ async def assess(image_data: str) -> dict:
             grade, grade_text = "差", "不建议购买"
 
         standard = QUALITY_STANDARDS.get(name, {})
+        visual_standard = _visual_standard(name, grade, standard.get(grade, tip))
         items.append({
             "name": name,
             "freshness": freshness,
             "grade": grade,
             "grade_text": grade_text,
             "features": features,
-            "standard": standard.get(grade, tip),
-            "tip": tip,
+            "standard": visual_standard,
+            "tip": tip if name not in UNOBSERVED_CHECKS else "",
+            "unobserved_note": UNOBSERVED_CHECKS.get(name, ""),
         })
 
     return {

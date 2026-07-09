@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from sqlalchemy import delete, select, func
+from sqlalchemy.orm import defer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import CommunityComment, CommunityLike, CommunityPost, User
@@ -45,7 +46,8 @@ async def list_posts(
     offset: int = 0,
     user_id: str = "",
 ) -> dict:
-    q = select(CommunityPost).order_by(CommunityPost.created_at.desc(), CommunityPost.id.desc())
+    # 列表不加载 images 字段（base64 过大导致 MySQL sort buffer 溢出）
+    q = select(CommunityPost).options(defer(CommunityPost.images)).order_by(CommunityPost.created_at.desc(), CommunityPost.id.desc())
     if category and category != "all":
         q = q.where(CommunityPost.category == category)
 
@@ -85,6 +87,7 @@ async def list_posts(
                 liked_by_me=(p.id in liked_ids),
                 favorited_by_me=favorited_map.get(str(p.id), False),
                 author=author_map.get(p.user_id, {}),
+                include_images=False,  # 列表不传 base64 图片，防止 MySQL sort buffer 溢出
             )
             for p in posts
         ],
@@ -112,12 +115,12 @@ async def get_post(db: AsyncSession, post_id: int, user_id: str = "") -> dict | 
     return post_dict(row, liked_by_me=liked, favorited_by_me=favorited, author=author)
 
 
-async def delete_post(db: AsyncSession, user_id: str, post_id: int) -> tuple[bool, str]:
+async def delete_post(db: AsyncSession, user_id: str, post_id: int, is_admin: bool = False) -> tuple[bool, str]:
     post_result = await db.execute(select(CommunityPost).where(CommunityPost.id == post_id))
     post = post_result.scalar_one_or_none()
     if post is None:
         return False, "NOT_FOUND"
-    if post.user_id != user_id:
+    if post.user_id != user_id and not is_admin:
         return False, "FORBIDDEN"
     await db.execute(delete(CommunityComment).where(CommunityComment.post_id == post_id))
     await db.execute(delete(CommunityLike).where(CommunityLike.post_id == post_id))
@@ -201,7 +204,7 @@ async def _author_map(db: AsyncSession, user_ids: list[str]) -> dict[str, dict]:
     }
 
 
-def post_dict(row: CommunityPost, liked_by_me: bool = False, favorited_by_me: bool = False, author: dict | None = None) -> dict:
+def post_dict(row: CommunityPost, liked_by_me: bool = False, favorited_by_me: bool = False, author: dict | None = None, include_images: bool = True) -> dict:
     author = author or {}
     return {
         "id": row.id,
@@ -213,7 +216,7 @@ def post_dict(row: CommunityPost, liked_by_me: bool = False, favorited_by_me: bo
         "title": row.title,
         "content": row.content,
         "category": row.category,
-        "images": row.images or [],
+        "images": (row.images or []) if include_images else [],  # 列表不传图片，详情才传
         "recipe_payload": row.recipe_payload or {},
         "like_count": row.like_count or 0,
         "comment_count": row.comment_count or 0,

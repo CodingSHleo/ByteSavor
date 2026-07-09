@@ -56,8 +56,8 @@
       <view v-if="!comments.length" class="comment empty-comment">暂无评论</view>
       <view v-for="c in comments" :key="c.id" class="comment">{{ c.content }}</view>
       <view class="comment-box">
-        <input v-model="comment" placeholder="写下你的想法" placeholder-class="ph" />
-        <button :disabled="commenting" @tap="sendComment">{{ commenting ? '...' : '发送' }}</button>
+        <input class="comment-input" v-model="comment" placeholder="写下你的想法" placeholder-class="ph" @confirm="sendComment" />
+        <button class="send-btn" :disabled="commenting" @tap="sendComment">{{ commenting ? '...' : '发送' }}</button>
       </view>
     </view>
   </view>
@@ -220,9 +220,10 @@ button::after { border:none; }
 .section { display:block; font-size:28rpx; font-weight:800; color:#15171a; margin-bottom:14rpx; }
 .comment { padding:14rpx 0; border-bottom:1rpx solid #EDF2EF; color:#4B5A52; font-size:24rpx; }
 .empty-comment { color:#8A9690; }
-.comment-box { display:flex; gap:10rpx; margin-top:16rpx; }
-input { flex:1; height:62rpx; background:#F3F5F7; border-radius:999rpx; padding:0 18rpx; font-size:24rpx; }
-.comment-box button { width:94rpx; }
-.comment-box button[disabled] { opacity:.65; }
+.comment-box { display:flex; gap:10rpx; margin-top:16rpx; align-items:center; }
+.comment-input { flex:1; height:72rpx; background:#F3F5F7; border-radius:18rpx; padding:0 18rpx; font-size:26rpx; }
+.send-btn { width:110rpx; height:72rpx; background:#23A978; color:#fff; border:none; border-radius:18rpx; font-size:25rpx; font-weight:700; display:flex; align-items:center; justify-content:center; }
+.send-btn[disabled] { opacity:.5; }
+.send-btn::after { border:none; }
 .ph { color:#A5B0AA; }
 </style>

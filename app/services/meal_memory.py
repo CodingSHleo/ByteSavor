@@ -5,8 +5,9 @@ from datetime import date, datetime, timedelta
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import MealRecord, NutritionLog
+from app.models import IngredientInventory, MealRecord, NutritionLog, ShoppingListItem
 from app.services import inventory as inventory_svc
+from app.services.food_synonyms import normalize_ingredient_name
 from app.services.user import calculate_nutrition_targets, get_profile
 
 
@@ -76,6 +77,227 @@ async def plan_meal(
     return meal
 
 
+def _ingredient_dict(raw: dict) -> dict | None:
+    name = _clean_name(raw.get("name") or raw.get("title") or "")
+    amount, unit = _parse_amount(raw.get("amount") or raw.get("display") or raw.get("weight_estimate"))
+    if raw.get("unit"):
+        unit = str(raw.get("unit") or "").strip()
+    if not name:
+        return None
+    item = {"name": name}
+    if amount is not None:
+        item["amount"] = amount
+    if unit:
+        item["unit"] = unit
+    return item
+
+
+def _recipe_ingredients(recipe: dict) -> list[dict]:
+    items = recipe.get("ingredients") or recipe.get("ingredient_list") or []
+    normalized = []
+    for item in items:
+        if isinstance(item, dict):
+            parsed = _ingredient_dict(item)
+        else:
+            amount, unit = _parse_amount(item)
+            name = str(item or "").replace(str(amount or ""), "").replace(unit, "").strip(" -:：")
+            parsed = {"name": _clean_name(name), "amount": amount, "unit": unit} if name else None
+        if parsed:
+            normalized.append(parsed)
+    return normalized
+
+
+async def _apply_inventory_for_plan(db: AsyncSession, user_id: str, requested: list[dict]) -> dict:
+    deductions: list[dict] = []
+    shopping_list: list[dict] = []
+
+    for item in requested:
+        name = _clean_name(item.get("name"))
+        amount, unit = _parse_amount(item.get("amount") or item.get("display"))
+        if item.get("unit"):
+            unit = str(item.get("unit") or "").strip()
+        if not name:
+            continue
+        if amount is None:
+            shopping_list.append({"name": name, "amount": None, "unit": unit or "", "display": item.get("display") or ""})
+            continue
+
+        row = await _find_inventory_match(db, user_id, name, unit or "")
+        if row and row.amount is not None:
+            before = int(row.amount or 0)
+            deduct_amount = min(before, amount)
+            if deduct_amount > 0:
+                row.amount = max(0, before - deduct_amount)
+                deductions.append({
+                    "name": name,
+                    "matched_inventory_name": row.name,
+                    "amount": deduct_amount,
+                    "unit": unit or "",
+                    "before": before,
+                    "after": row.amount,
+                    "display": f"{deduct_amount}{unit or ''}",
+                })
+            shortage = amount - deduct_amount
+            if shortage > 0:
+                shopping_list.append({
+                    "name": name,
+                    "amount": shortage,
+                    "unit": unit or "",
+                    "display": f"{shortage}{unit or ''}",
+                })
+        else:
+            shopping_list.append({
+                "name": name,
+                "amount": amount,
+                "unit": unit or "",
+                "display": f"{amount}{unit or ''}",
+            })
+
+    return {
+        "deductions": deductions,
+        "shopping_list": shopping_list,
+    }
+
+
+async def _find_inventory_match(db: AsyncSession, user_id: str, name: str, unit: str) -> IngredientInventory | None:
+    result = await db.execute(
+        select(IngredientInventory).where(
+            IngredientInventory.user_id == user_id,
+            IngredientInventory.unit == (unit or ""),
+        )
+    )
+    target = normalize_ingredient_name(name)
+    rows = list(result.scalars().all())
+    for row in rows:
+        if row.name == name:
+            return row
+    for row in rows:
+        row_norm = normalize_ingredient_name(row.name)
+        if row_norm == target or row_norm in target or target in row_norm:
+            return row
+    return None
+
+
+def _adopt_events(meal_slot: str, deductions: list[dict], shopping_list: list[dict]) -> list[dict]:
+    return [
+        {
+            "type": "agent_event",
+            "stage": "plan",
+            "status": "success",
+            "title": "已采纳菜谱",
+            "detail": f"已加入{meal_slot or 'lunch'}用餐计划",
+            "summary": {"meal_slot": meal_slot or "lunch"},
+        },
+        {
+            "type": "agent_event",
+            "stage": "inventory",
+            "status": "success" if deductions else "partial",
+            "title": "已同步库存",
+            "detail": f"扣减 {len(deductions)} 项库存",
+            "summary": {"deducted_count": len(deductions)},
+        },
+        {
+            "type": "agent_event",
+            "stage": "shopping_list",
+            "status": "success" if shopping_list else "skipped",
+            "title": "已生成补购清单",
+            "detail": f"缺少 {len(shopping_list)} 项食材" if shopping_list else "库存已覆盖主要食材",
+            "summary": {"shopping_item_count": len(shopping_list)},
+        },
+    ]
+
+
+async def adopt_recipe(
+    db: AsyncSession,
+    user_id: str,
+    meal_slot: str,
+    recipe: dict,
+) -> dict:
+    """Agent 采纳菜谱动作：创建计划、立即同步库存、生成缺货清单。"""
+    requested = _recipe_ingredients(recipe)
+    inventory_result = await _apply_inventory_for_plan(db, user_id, requested)
+    deductions = inventory_result["deductions"]
+    shopping_list = inventory_result["shopping_list"]
+    recipe_snapshot = {
+        **recipe,
+        "_agent_action": "adopt_recipe",
+        "_agent_inventory_applied": True,
+        "_agent_inventory_preview": {"deductions": deductions, "shopping_list": shopping_list},
+    }
+    meal = MealRecord(
+        user_id=user_id,
+        meal_slot=meal_slot or "lunch",
+        status="planned",
+        recipe_id=recipe.get("recipe_id") or recipe.get("recipeId") or "",
+        recipe_snapshot=recipe_snapshot,
+        ingredients_used=requested,
+        shopping_list=shopping_list,
+        nutrition=_nutrition_from_recipe(recipe),
+    )
+    db.add(meal)
+    await db.commit()
+    await db.refresh(meal)
+    await _persist_shopping_items(db, user_id, meal, shopping_list)
+    return {
+        "meal": _meal_dict(meal),
+        "inventory_preview": {"deductions": deductions, "shopping_list": shopping_list},
+        "shopping_list": shopping_list,
+        "agent_events": _adopt_events(meal_slot or "lunch", deductions, shopping_list),
+    }
+
+
+async def ensure_shopping_list_table(db: AsyncSession) -> None:
+    conn = await db.connection()
+    await conn.exec_driver_sql(
+        """
+        CREATE TABLE IF NOT EXISTS shopping_list_items (
+            id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            user_id VARCHAR(32) NOT NULL,
+            meal_id INT NULL,
+            recipe_id VARCHAR(64) DEFAULT '',
+            name VARCHAR(80) NOT NULL,
+            amount INT NULL,
+            unit VARCHAR(20) DEFAULT '',
+            status VARCHAR(20) DEFAULT 'open',
+            source VARCHAR(30) DEFAULT 'agent_adopt',
+            meta JSON NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            INDEX ix_shopping_list_items_user_id (user_id),
+            INDEX ix_shopping_list_items_meal_id (meal_id),
+            INDEX ix_shopping_list_items_recipe_id (recipe_id),
+            INDEX ix_shopping_list_items_name (name),
+            INDEX ix_shopping_list_items_status (status)
+        )
+        """
+    )
+
+
+async def _persist_shopping_items(db: AsyncSession, user_id: str, meal: MealRecord, shopping_list: list[dict]) -> None:
+    if not shopping_list:
+        return
+    await ensure_shopping_list_table(db)
+    for item in shopping_list:
+        name = _clean_name(item.get("name"))
+        amount, unit = _parse_amount(item.get("amount") or item.get("display"))
+        if item.get("unit"):
+            unit = str(item.get("unit") or "").strip()
+        if not name:
+            continue
+        db.add(ShoppingListItem(
+            user_id=user_id,
+            meal_id=meal.id,
+            recipe_id=meal.recipe_id or "",
+            name=name,
+            amount=amount,
+            unit=unit or "",
+            status="open",
+            source="agent_adopt",
+            meta=item,
+        ))
+    await db.commit()
+
+
 async def today_meals(db: AsyncSession, user_id: str) -> list[dict]:
     start = datetime.combine(date.today(), datetime.min.time())
     result = await db.execute(
@@ -86,6 +308,129 @@ async def today_meals(db: AsyncSession, user_id: str) -> list[dict]:
     return [_meal_dict(row) for row in result.scalars().all()]
 
 
+async def today_shopping_list(db: AsyncSession, user_id: str) -> dict:
+    await ensure_shopping_list_table(db)
+    result = await db.execute(
+        select(ShoppingListItem).where(
+            ShoppingListItem.user_id == user_id,
+            ShoppingListItem.status == "open",
+        ).order_by(ShoppingListItem.created_at.desc())
+    )
+    rows = result.scalars().all()
+    if rows:
+        merged: dict[tuple[str, str], dict] = {}
+        for row in rows:
+            key = (normalize_ingredient_name(row.name), row.unit or "")
+            item = merged.setdefault(key, {
+                "name": row.name,
+                "amount": 0,
+                "unit": row.unit or "",
+                "display": "",
+                "sources": [],
+                "ids": [],
+            })
+            if row.amount is None:
+                item["amount"] = None
+            elif item["amount"] is not None:
+                item["amount"] += int(row.amount or 0)
+            item["ids"].append(row.id)
+            item["sources"].append({"meal_id": row.meal_id, "recipe_id": row.recipe_id})
+        items = []
+        for item in merged.values():
+            amount = item.get("amount")
+            unit = item.get("unit") or ""
+            item["display"] = f"{amount}{unit}" if amount is not None else ""
+            items.append(item)
+        return {"items": items, "count": len(items)}
+
+    persisted_result = await db.execute(
+        select(ShoppingListItem.id).where(ShoppingListItem.user_id == user_id).limit(1)
+    )
+    if persisted_result.scalar_one_or_none() is not None:
+        return {"items": [], "count": 0}
+
+    meals = await today_meals(db, user_id)
+    merged: dict[tuple[str, str], dict] = {}
+    for meal in meals:
+        if meal.get("status") == "cancelled":
+            continue
+        for item in meal.get("shopping_list") or []:
+            name = _clean_name(item.get("name"))
+            amount, unit = _parse_amount(item.get("amount") or item.get("display"))
+            if item.get("unit"):
+                unit = str(item.get("unit") or "").strip()
+            if not name:
+                continue
+            key = (normalize_ingredient_name(name), unit or "")
+            current = merged.setdefault(key, {"name": name, "amount": 0, "unit": unit or "", "display": "", "sources": []})
+            if amount is None:
+                current["amount"] = None
+            elif current["amount"] is not None:
+                current["amount"] += amount
+            current["sources"].append({"meal_id": meal.get("id"), "recipe_title": (meal.get("recipe") or {}).get("title", "")})
+    items = []
+    for item in merged.values():
+        amount = item.get("amount")
+        unit = item.get("unit") or ""
+        item["display"] = f"{amount}{unit}" if amount is not None else ""
+        items.append(item)
+    return {"items": items, "count": len(items)}
+
+
+def _shopping_item_dict(row: ShoppingListItem) -> dict:
+    return {
+        "id": row.id,
+        "name": row.name,
+        "amount": row.amount,
+        "unit": row.unit or "",
+        "display": f"{row.amount}{row.unit or ''}" if row.amount is not None else "",
+        "status": row.status,
+        "meal_id": row.meal_id,
+        "recipe_id": row.recipe_id or "",
+        "source": row.source or "",
+        "meta": row.meta or {},
+    }
+
+
+async def update_shopping_item_status(
+    db: AsyncSession,
+    user_id: str,
+    item_id: int,
+    status: str,
+) -> ShoppingListItem | None:
+    await ensure_shopping_list_table(db)
+    if status not in {"open", "purchased", "archived", "deleted"}:
+        return None
+    result = await db.execute(
+        select(ShoppingListItem).where(
+            ShoppingListItem.id == item_id,
+            ShoppingListItem.user_id == user_id,
+        )
+    )
+    item = result.scalar_one_or_none()
+    if item is None:
+        return None
+    item.status = status
+    await db.commit()
+    await db.refresh(item)
+    return item
+
+
+async def archive_shopping_list(db: AsyncSession, user_id: str) -> dict:
+    await ensure_shopping_list_table(db)
+    result = await db.execute(
+        select(ShoppingListItem).where(
+            ShoppingListItem.user_id == user_id,
+            ShoppingListItem.status == "open",
+        )
+    )
+    rows = result.scalars().all()
+    for row in rows:
+        row.status = "archived"
+    await db.commit()
+    return {"archived_count": len(rows)}
+
+
 async def complete_meal(db: AsyncSession, user_id: str, meal_id: int) -> MealRecord | None:
     result = await db.execute(select(MealRecord).where(MealRecord.id == meal_id, MealRecord.user_id == user_id))
     meal = result.scalar_one_or_none()
@@ -94,7 +439,8 @@ async def complete_meal(db: AsyncSession, user_id: str, meal_id: int) -> MealRec
     if meal.status != "completed":
         meal.status = "completed"
         meal.completed_at = datetime.now()
-        await _deduct_inventory(db, user_id, meal.ingredients_used or [])
+        if not (meal.recipe_snapshot or {}).get("_agent_inventory_applied"):
+            await _deduct_inventory(db, user_id, meal.ingredients_used or [])
         totals = await nutrition_summary(db, user_id, "day")
         db.add(NutritionLog(
             user_id=user_id,

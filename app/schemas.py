@@ -69,6 +69,7 @@ class FeedbackRequest(BaseModel):
     recipe_id: str
     rating: int = Field(..., ge=1, le=5)
     comment: str = ""
+    recipe_snapshot: dict = Field(default_factory=dict)
 
 # ---------- Auth ----------
 class RegisterRequest(BaseModel):

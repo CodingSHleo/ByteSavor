@@ -217,13 +217,13 @@ function handleNativeFile(e) {
 function compressImage(dataUrl, callback) {
   const img = new Image()
   img.onload = () => {
-    const maxW = 720
+    const maxW = 512
     let w = img.width, h = img.height
     if (w > maxW) { h = h * maxW / w; w = maxW }
     const canvas = document.createElement('canvas')
     canvas.width = w; canvas.height = h
     canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-    callback(canvas.toDataURL('image/jpeg', 0.68))
+    callback(canvas.toDataURL('image/jpeg', 0.58))
   }
   img.src = dataUrl
 }
@@ -248,6 +248,9 @@ async function analyzeImage() {
       })
       imageData = `data:image/jpeg;base64,${base64}`
       recognitionStatus.value = '图片已准备，准备调用视觉模型...'
+    }
+    if (imageData.length > 5 * 1024 * 1024) {
+      recognitionStatus.value = '图片较大，已进入服务端大小校验，建议下次使用压缩图以提升速度...'
     }
     recognitionStatus.value = 'VLM 多模态模型推理中...'
     const analysis = await ApiService.analyzeIngredientDetail(imageData)
@@ -275,7 +278,11 @@ async function analyzeImage() {
       showVisionVerify(ingredients[0])
     }
   } catch (e) {
-    errorMessage.value = $t('aiRecognitionFailed') + ': ' + (e.message || e)
+    const rawMessage = e.message || e
+    const timeoutHint = String(rawMessage).includes('timeout') || String(rawMessage).includes('超时')
+      ? '视觉模型响应超时，请换一张更清晰/更小的图片重试。'
+      : rawMessage
+    errorMessage.value = $t('aiRecognitionFailed') + ': ' + timeoutHint
     recognitionStatus.value = ''
     isLoading.value = false
   }

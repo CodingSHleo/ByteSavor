@@ -171,6 +171,29 @@
         </view>
       </view>
 
+      <view v-if="latestAgentAdoption" class="adoption-card">
+        <view class="adoption-head">
+          <view>
+            <text class="adoption-kicker">AGENT ACTION</text>
+            <text class="adoption-title">{{ latestAgentAdoption.title }}</text>
+          </view>
+          <text class="adoption-clear" @tap="latestAgentAdoption = null">收起</text>
+        </view>
+        <view class="adoption-timeline">
+          <view v-for="(event, idx) in latestAgentAdoption.events" :key="idx" class="adoption-event" :class="event.status">
+            <view class="adoption-dot"></view>
+            <view class="adoption-copy">
+              <text>{{ event.title || agentAdoptionEventTitle(event) }}</text>
+              <text>{{ event.detail || agentAdoptionEventDetail(event) }}</text>
+            </view>
+          </view>
+        </view>
+        <view v-if="latestAgentAdoption.shoppingList.length" class="adoption-shopping" @tap="openTodayShoppingList">
+          <text>补购清单 {{ latestAgentAdoption.shoppingList.length }} 项</text>
+          <text>查看</text>
+        </view>
+      </view>
+
       <view class="section-head">
         <text>推荐下一餐</text>
         <text class="section-link" @tap="refreshRecommendations">刷新</text>
@@ -189,6 +212,7 @@
             </view>
             <view v-if="recipeExplainChips(recipe).length" class="explain-row">
               <text v-for="chip in recipeExplainChips(recipe)" :key="chip" class="explain-chip">{{ chip }}</text>
+              <text class="explain-more" @tap.stop="showRecipeExplain(recipe)">详情</text>
             </view>
           </view>
           <view class="match-badge">
@@ -204,6 +228,32 @@
       </scroll-view>
       <view v-else class="empty-card">
         <text>暂无推荐，识别食材后生成更准确的菜谱</text>
+      </view>
+
+      <view v-if="explainRecipe" class="explain-mask" @tap="explainRecipe = null">
+        <view class="explain-sheet" @tap.stop>
+          <view class="explain-sheet-head">
+            <view>
+              <text class="explain-sheet-kicker">AGENT EXPLAIN</text>
+              <text class="explain-sheet-title">{{ explainRecipe.title }}</text>
+            </view>
+            <text class="explain-close" @tap="explainRecipe = null">×</text>
+          </view>
+          <view class="explain-block">
+            <text class="explain-block-title">已匹配现有食材</text>
+            <text class="explain-block-copy">{{ explainText(recipeMatchedIngredients(explainRecipe), '暂未命中库存食材') }}</text>
+          </view>
+          <view class="explain-block">
+            <text class="explain-block-title">缺少与补购建议</text>
+            <text class="explain-block-copy">{{ explainText(recipeMissingIngredients(explainRecipe), '主要食材已覆盖') }}</text>
+            <text v-if="purchaseSuggestionLabels(explainRecipe).length" class="explain-block-hint">建议补买：{{ purchaseSuggestionLabels(explainRecipe).join('、') }}</text>
+          </view>
+          <view class="explain-block">
+            <text class="explain-block-title">偏好与记忆证据</text>
+            <text class="explain-block-copy">{{ explainText(preferenceMatchLabels(explainRecipe), '暂无明确偏好命中') }}</text>
+            <text v-if="preferenceEvidenceLabels(explainRecipe).length" class="explain-block-hint">{{ preferenceEvidenceLabels(explainRecipe).join('、') }}</text>
+          </view>
+        </view>
       </view>
 
       <view class="section-head ai-section-head">
@@ -274,18 +324,56 @@
                   <text v-for="item in intentIngredients(msg.result)" :key="item" class="ai-intent-chip">{{ item }}</text>
                 </view>
                 <view v-if="msg.result.recipes && msg.result.recipes.length" class="agent-recipes">
-                  <view v-for="recipe in msg.result.recipes.slice(0, 2)" :key="recipe.recipe_id || recipe.recipeId" class="agent-recipe">
+                  <view v-for="recipe in msg.result.recipes.slice(0, 2)" :key="recipe.recipe_id || recipe.recipeId" class="agent-recipe" :class="{ adopted: isAgentRecipeAdopted(msg.result, recipe) }">
                     <view class="agent-recipe-main" @tap="goRecipeDetail(recipe)">
                       <text class="agent-recipe-title">{{ recipe.title }}</text>
                       <text class="agent-recipe-meta">{{ matchPercent(recipe) }}% 匹配 · {{ recipe.cookTime || recipe.cook_time || '--' }}min · {{ recipe.calories || '--' }}kcal</text>
                       <view v-if="recipeExplainChips(recipe).length" class="agent-recipe-explain">
                         <text v-for="chip in recipeExplainChips(recipe)" :key="chip">{{ chip }}</text>
                       </view>
+                      <view v-if="recipeIngredientsPreview(recipe).length" class="agent-ingredient-strip">
+                        <text v-for="item in recipeIngredientsPreview(recipe)" :key="item.name">{{ item.name }}{{ item.amount ? ' ' + item.amount : '' }}</text>
+                      </view>
                     </view>
-                    <button class="agent-mini-btn" @tap.stop="saveAgentRecipe(recipe, msg.result)">记录</button>
+                    <button v-if="!isAgentRecipeAdopted(msg.result, recipe)" class="agent-mini-btn primary" @tap.stop="adoptAgentRecipe(recipe, msg)">加入</button>
+                    <button v-else class="agent-mini-btn done" @tap.stop="showAgentAdoptedMeal(msg.result)">已加</button>
                   </view>
                 </view>
-                <view v-if="msg.result.shopping_list && msg.result.shopping_list.length" class="agent-shopping">
+                <view v-if="msg.result.adopted_meal" class="agent-meal-flow">
+                  <view class="agent-meal-head">
+                    <view>
+                      <text class="agent-meal-kicker">已加入 {{ mealSlotLabel(msg.result.adopted_meal.meal_slot) }}</text>
+                      <text class="agent-meal-title">{{ agentAdoptedMealTitle(msg.result) }}</text>
+                    </view>
+                    <text class="agent-meal-status" :class="msg.result.adopted_meal.status">{{ mealStatusText(msg.result.adopted_meal) }}</text>
+                  </view>
+                  <view v-if="agentAdoptionEvents(msg.result).length" class="agent-flow-events">
+                    <view v-for="(event, idx) in agentAdoptionEvents(msg.result)" :key="idx" class="agent-flow-event" :class="event.status">
+                      <view class="flow-dot"></view>
+                      <view class="flow-copy">
+                        <text>{{ event.title || agentAdoptionEventTitle(event) }}</text>
+                        <text>{{ event.detail || agentAdoptionEventDetail(event) }}</text>
+                      </view>
+                    </view>
+                  </view>
+                  <view class="agent-meal-lists">
+                    <view v-if="agentAdoptedIngredients(msg.result).length" class="agent-mini-list">
+                      <text class="mini-list-title">菜品食材</text>
+                      <text v-for="item in agentAdoptedIngredients(msg.result)" :key="item.name">{{ item.name }}{{ item.amount ? ' ' + item.amount : '' }}</text>
+                    </view>
+                    <view v-if="agentShoppingItems(msg.result).length" class="agent-mini-list shopping" @tap.stop="openTodayShoppingList">
+                      <text class="mini-list-title">补购清单</text>
+                      <text v-for="item in agentShoppingItems(msg.result).slice(0, 4)" :key="item.name || item.ingredient_name || item.title">{{ item.name || item.ingredient_name || item.title }}{{ item.amount ? ' ' + item.amount : '' }}</text>
+                      <text v-if="agentShoppingItems(msg.result).length > 4" class="mini-list-more">还有 {{ agentShoppingItems(msg.result).length - 4 }} 项，点此查看</text>
+                    </view>
+                  </view>
+                  <view class="agent-meal-actions">
+                    <button class="agent-flow-btn ghost" @tap.stop="openTodayShoppingList">查看清单</button>
+                    <button v-if="msg.result.adopted_meal.status === 'planned'" class="agent-flow-btn complete" @tap.stop="completeAgentMeal(msg)">完成这一餐</button>
+                    <button v-else class="agent-flow-btn complete done" @tap.stop="openFeedbackSheet(msg.result.adopted_meal.recipe || msg.result.adopted_recipe || {})">记录偏好</button>
+                  </view>
+                </view>
+                <view v-if="msg.result.shopping_list && msg.result.shopping_list.length && !msg.result.adopted_meal" class="agent-shopping">
                   <text>已合并 {{ msg.result.shopping_list.length }} 项清单</text>
                   <button @tap.stop="exportAgentList(msg.result)">导出</button>
                 </view>
@@ -302,6 +390,29 @@
 
       <view class="bottom-safe"></view>
     </scroll-view>
+
+    <view v-if="feedbackSheet.visible" class="feedback-mask" @tap="closeFeedbackSheet">
+      <view class="feedback-sheet" @tap.stop>
+        <view class="feedback-handle"></view>
+        <view class="feedback-head">
+          <text>这餐记忆一下</text>
+          <text>{{ feedbackSheet.recipe?.title || '今日用餐' }}</text>
+        </view>
+        <view class="feedback-ratings">
+          <view v-for="item in feedbackRatings" :key="item.rating" class="feedback-rating" :class="{ active: feedbackSheet.rating === item.rating }" @tap="feedbackSheet.rating = item.rating">
+            <text>{{ item.label }}</text>
+          </view>
+        </view>
+        <view class="feedback-chips">
+          <text v-for="chip in feedbackChips" :key="chip" :class="{ active: feedbackSheet.tags.includes(chip) }" @tap="toggleFeedbackChip(chip)">{{ chip }}</text>
+        </view>
+        <textarea class="feedback-input" v-model="feedbackSheet.comment" placeholder="比如：喜欢快炒少油、韭黄口感好；或者太油、分量偏大" maxlength="500" />
+        <view class="feedback-actions">
+          <button class="feedback-skip" @tap="closeFeedbackSheet">跳过</button>
+          <button class="feedback-submit" @tap="submitMealFeedback">提交并学习</button>
+        </view>
+      </view>
+    </view>
   </view>
 </template>
 
@@ -329,6 +440,9 @@ const refreshing = ref(false)
 const agentMessage = ref('')
 const agentResult = ref(null)
 const agentMessages = ref([])
+const latestAgentAdoption = ref(null)
+const explainRecipe = ref(null)
+const feedbackSheet = ref({ visible: false, recipe: null, rating: 5, tags: [], comment: '' })
 const agentLoading = ref(false)          // Agent 请求进行中
 const agentProgress = ref(0)            // 假进度 0-85
 const replayingEvents = ref(false)      // 正在逐条回放 events
@@ -343,6 +457,13 @@ const byteFlow = [
   { key: 'T', label: '任务执行' },
   { key: 'E', label: '反馈优化' }
 ]
+const feedbackRatings = [
+  { rating: 5, label: '很喜欢' },
+  { rating: 4, label: '还可以' },
+  { rating: 3, label: '一般' },
+  { rating: 2, label: '不喜欢' }
+]
+const feedbackChips = ['快炒', '少油', '清淡', '高蛋白', '分量刚好', '太油', '太咸', '下次还想吃']
 
 const proteinPct = computed(() => nutritionOverview.value.proteinPct || Math.min(100, Math.round(nutritionScore.value * 1.15)))
 const carbPct = computed(() => nutritionOverview.value.carbsPct || Math.min(100, Math.round(nutritionScore.value * 0.9)))
@@ -356,9 +477,10 @@ const mealSlots = [
   { key: 'late_night', label: '宵夜' }
 ]
 const activeMealTab = ref('lunch')
-const mainMealSlots = [{ key: 'breakfast', label: '早餐' }, { key: 'lunch', label: '午餐' }, { key: 'dinner', label: '晚餐' }]
+const planMealSlots = mealSlots
+const mainMealSlots = planMealSlots
 const activeMealSlots = computed(() => {
-  return mainMealSlots.filter(s => s.key === activeMealTab.value)
+  return planMealSlots.filter(s => s.key === activeMealTab.value)
 })
 const selectedMealSlot = ref('lunch')
 const visibleMealSlots = computed(() => {
@@ -441,14 +563,14 @@ function listFromMeta(value) {
 }
 function recipeMatchedIngredients(r) {
   const meta = r?._meta || {}
-  const direct = listFromMeta(meta.matched_ingredients || r?.matched_ingredients)
+  const direct = listFromMeta(meta.matched_user_ingredients || meta.matched_ingredients || r?.matched_ingredients)
   if (direct.length) return direct
   const owned = new Set(ingredients.value.map(item => String(item?.name || item || '').trim()).filter(Boolean))
   return recipeIngredientNamesForExplain(r).filter(name => owned.has(name))
 }
 function recipeMissingIngredients(r) {
   const meta = r?._meta || {}
-  const direct = listFromMeta(meta.missing_ingredients || r?.missing_ingredients)
+  const direct = listFromMeta(meta.missing_user_ingredients || meta.missing_ingredients || r?.missing_ingredients)
   if (direct.length) return direct
   return missingIngredients(r, ingredients.value)
 }
@@ -463,18 +585,31 @@ function preferenceMatchLabels(r) {
   const meta = r?._meta || {}
   return listFromMeta(meta.preference_matches || r?.preference_matches || r?.matched_preferences).slice(0, 2)
 }
+function preferenceEvidenceLabels(r) {
+  const meta = r?._meta || {}
+  return listFromMeta(meta.preference_evidence || r?.preference_evidence).slice(0, 1)
+}
 function recipeExplainChips(r) {
   const chips = []
   const matched = recipeMatchedIngredients(r).slice(0, 2)
   const missing = recipeMissingIngredients(r).slice(0, 2)
   const purchase = purchaseSuggestionLabels(r)
   const prefs = preferenceMatchLabels(r)
+  const evidence = preferenceEvidenceLabels(r)
   if (matched.length) chips.push(`已用 ${matched.join('、')}`)
   if (missing.length) chips.push(`缺 ${missing.join('、')}`)
   if (purchase.length) chips.push(`补买 ${purchase.join('、')}`)
   if (prefs.length) chips.push(`偏好 ${prefs.join('、')}`)
+  if (evidence.length) chips.push(`记忆 ${evidence[0]}`)
   if (r?.llm_reranked) chips.push('AI重排')
   return chips.slice(0, 5)
+}
+function showRecipeExplain(recipe) {
+  explainRecipe.value = recipe
+}
+function explainText(list, fallback) {
+  const values = listFromMeta(list)
+  return values.length ? values.join('、') : fallback
 }
 function byteFlowActive(idx) {
   const thresholds = [25, 50, 75, 100]
@@ -544,10 +679,6 @@ async function generateRecommendations(options = {}) {
       refresh: !!options.refresh,
       excludeRecipeIds
     })).map(normalizeRecipe)
-    if (recipes.value.length) {
-      const overview = buildNutritionOverview(recipes.value)
-      nutritionScore.value = overview.score
-    }
   } catch (e) {
     apiNotice.value = '推荐服务暂不可用，未使用本地 mock 菜谱。'
     recipes.value = []
@@ -586,6 +717,9 @@ function mealStatusText(meal) {
 }
 function nextEmptyMealSlot() {
   return mealSlots.find(slot => !slotMeal(slot.key))?.key || selectedMealSlot.value || 'lunch'
+}
+function setMealTabForSlot(slot) {
+  if (planMealSlots.some(item => item.key === slot)) activeMealTab.value = slot
 }
 function setActiveMealSlot(slot) {
   selectedMealSlot.value = slot
@@ -638,10 +772,10 @@ function askPlanMeal(recipe) {
 }
 function confirmPlanRecipe(recipe, slot) {
   uni.showModal({
-    title: `加入${mealSlotLabel(slot)}计划`,
-    content: `是否把「${recipe.title}」加入今天的用餐计划？加入计划不会计入营养，完成后才会写入长期记录。`,
+    title: `采纳到${mealSlotLabel(slot)}`,
+    content: `Agent 会把「${recipe.title}」加入今日计划，同步扣减现有库存，并为缺少的食材生成补购清单。完成用餐后再写入营养和偏好记忆。`,
     cancelText: '取消',
-    confirmText: '加入',
+    confirmText: '采纳',
     success: async (res) => {
       if (res.confirm) await planRecipe(recipe, slot)
     }
@@ -649,13 +783,31 @@ function confirmPlanRecipe(recipe, slot) {
 }
 async function planRecipe(recipe, slot = nextEmptyMealSlot()) {
   try {
-    const meal = await ApiService.planMeal(slot, recipe, recipeIngredientsForUse(recipe), [])
+    const result = await ApiService.adoptMeal(slot, recipe)
+    const meal = result.meal
     selectedMealSlot.value = meal.meal_slot || slot
+    setMealTabForSlot(meal.meal_slot || slot)
+    const shoppingList = result.shopping_list || []
     await loadTodayMeals()
-    historyStore.addEntry({ type: 'meal_plan', title: meal.recipe?.title || recipe.title, detail: '已加入今日计划', recipeId: recipe.recipe_id || recipe.recipeId || '', recipes: [recipe] })
-    uni.showToast({ title: `已加入${mealSlotLabel(slot)}`, icon: 'success' })
+    await loadIngredients()
+    latestAgentAdoption.value = {
+      title: meal.recipe?.title || recipe.title,
+      events: result.agent_events || [],
+      shoppingList
+    }
+    historyStore.addEntry({
+      type: 'meal_plan',
+      title: meal.recipe?.title || recipe.title,
+      detail: shoppingList.length ? `已采纳，需补 ${shoppingList.length} 项食材` : '已采纳，库存已同步',
+      recipeId: recipe.recipe_id || recipe.recipeId || '',
+      recipes: [recipe],
+      shoppingList
+    })
+    uni.showToast({ title: shoppingList.length ? `已采纳，需补${shoppingList.length}项` : `已采纳到${mealSlotLabel(slot)}`, icon: 'success' })
+    return result
   } catch (e) {
-    uni.showToast({ title: e.message || '加入计划失败', icon: 'none' })
+    uni.showToast({ title: e.message || '采纳失败', icon: 'none' })
+    return null
   }
 }
 async function completePlannedMeal(meal) {
@@ -676,45 +828,155 @@ async function completePlannedMeal(meal) {
         await loadNutrition()
         await generateRecommendations()
         uni.showToast({ title: '已写入今日营养', icon: 'success' })
-        setTimeout(() => askMealFeedback(meal.recipe || meal.recipe_snapshot || {}), 450)
+        setTimeout(() => openFeedbackSheet(meal.recipe || meal.recipe_snapshot || {}), 450)
       } catch (e) {
         uni.showToast({ title: e.message || '完成失败', icon: 'none' })
       }
     }
   })
 }
-function askMealFeedback(recipe) {
-  uni.showActionSheet({
-    itemList: ['很喜欢 5分', '还可以 4分', '一般 3分', '不喜欢 2分'],
-    success: (res) => {
-      const ratings = [5, 4, 3, 2]
-      const rating = ratings[res.tapIndex] || 3
-      askMealFeedbackReason(recipe, rating)
-    },
-    fail: () => {}
-  })
+function openFeedbackSheet(recipe) {
+  feedbackSheet.value = { visible: true, recipe, rating: 5, tags: [], comment: '' }
 }
-function askMealFeedbackReason(recipe, rating) {
-  uni.showModal({
-    title: '这餐记忆一下',
-    editable: true,
-    placeholderText: '比如：喜欢清淡少油、牛肉口感好；或者太油腻、分量太大',
-    cancelText: '跳过',
-    confirmText: '提交',
+function closeFeedbackSheet() {
+  feedbackSheet.value.visible = false
+}
+function toggleFeedbackChip(chip) {
+  const tags = feedbackSheet.value.tags
+  const idx = tags.indexOf(chip)
+  if (idx >= 0) tags.splice(idx, 1)
+  else tags.push(chip)
+}
+async function submitMealFeedback() {
+  const recipe = feedbackSheet.value.recipe || {}
+  const tags = feedbackSheet.value.tags.join('，')
+  const free = (feedbackSheet.value.comment || '').trim()
+  const comment = [tags, free].filter(Boolean).join('；') || `本次用餐评分 ${feedbackSheet.value.rating} 分`
+  try {
+    await ApiService.submitFeedback(recipe.recipe_id || recipe.recipeId || '', feedbackSheet.value.rating, comment, recipe)
+    closeFeedbackSheet()
+    uni.showToast({ title: '偏好已学习', icon: 'success' })
+  } catch (e) {
+    uni.showToast({ title: '用餐已记录，偏好学习失败', icon: 'none' })
+  }
+}
+function agentAdoptionEventTitle(event) {
+  return event.stage === 'inventory' ? '已同步库存' : event.stage === 'shopping_list' ? '已生成补购清单' : '已采纳菜谱'
+}
+function agentAdoptionEventDetail(event) {
+  if (event.summary?.deducted_count !== undefined) return `扣减 ${event.summary.deducted_count} 项库存`
+  if (event.summary?.shopping_item_count !== undefined) return `缺少 ${event.summary.shopping_item_count} 项食材`
+  return event.detail || ''
+}
+function recipeStableId(recipe = {}) {
+  return recipe.recipe_id || recipe.recipeId || recipe.id || recipe.title || ''
+}
+function recipeIngredientsPreview(recipe = {}) {
+  return recipeIngredientsForUse(recipe).slice(0, 4)
+}
+function isAgentRecipeAdopted(result = {}, recipe = {}) {
+  const adoptedId = result._adopted_recipe_id || recipeStableId(result.adopted_recipe || {})
+  return !!adoptedId && adoptedId === recipeStableId(recipe)
+}
+function refreshAgentMessages() {
+  agentMessages.value = [...agentMessages.value]
+}
+async function adoptAgentRecipe(recipe, msg) {
+  if (!msg?.result) return
+  const options = planMealSlots
+  uni.showActionSheet({
+    itemList: options.map(item => item.label),
     success: async (res) => {
-      if (!res.confirm) return
+      const option = options[res.tapIndex]
+      if (!option) return
       try {
-        const comment = (res.content || '').trim() || `本次用餐评分 ${rating} 分`
-        await ApiService.submitFeedback(recipe.recipe_id || recipe.recipeId || '', rating, comment)
-        uni.showToast({ title: '偏好已学习', icon: 'success' })
-      } catch (e) {
-        uni.showToast({ title: '用餐已记录，偏好学习失败', icon: 'none' })
+        const result = await planRecipe(recipe, option.key)
+        if (!result) return
+        const meal = result.meal || {}
+        msg.result.adopted_meal = meal
+        msg.result.adopted_recipe = meal.recipe || recipe
+        msg.result._adopted_recipe_id = recipeStableId(recipe)
+        msg.result.adoption_events = result.agent_events || []
+        msg.result.shopping_list = result.shopping_list || msg.result.shopping_list || []
+        msg.result.events = [
+          ...(msg.result.events || []),
+          { type: 'tool_result', tool: 'task', status: 'success', message: `已加入${mealSlotLabel(meal.meal_slot || option.key)}` }
+        ]
+        refreshAgentMessages()
+      } catch (_) {
+        // planRecipe already shows the failure toast.
       }
     }
   })
 }
+function showAgentAdoptedMeal(result = {}) {
+  const meal = result.adopted_meal || {}
+  if (meal.meal_slot) {
+    selectedMealSlot.value = meal.meal_slot
+    setMealTabForSlot(meal.meal_slot)
+  }
+  uni.showToast({ title: `${mealSlotLabel(meal.meal_slot)}已加入`, icon: 'success' })
+}
+function agentAdoptionEvents(result = {}) {
+  return result.adoption_events || []
+}
+function agentAdoptedMealTitle(result = {}) {
+  const meal = result.adopted_meal || {}
+  const recipe = meal.recipe || result.adopted_recipe || {}
+  return recipe.title || meal.recipe_snapshot?.title || '这一餐'
+}
+function agentAdoptedIngredients(result = {}) {
+  const meal = result.adopted_meal || {}
+  const recipe = meal.recipe || result.adopted_recipe || {}
+  return recipeIngredientsForUse(recipe).slice(0, 6)
+}
+function agentShoppingItems(result = {}) {
+  return result.shopping_list || result.adopted_meal?.shopping_list || []
+}
+async function completeAgentMeal(msg) {
+  const meal = msg?.result?.adopted_meal
+  if (!meal?.id) {
+    uni.showToast({ title: '请先加入这一餐', icon: 'none' })
+    return
+  }
+  uni.showModal({
+    title: '完成这一餐',
+    content: `确认已经吃完「${agentAdoptedMealTitle(msg.result)}」？完成后会写入营养，并进入偏好反馈。`,
+    cancelText: '还没吃',
+    confirmText: '已完成',
+    success: async (res) => {
+      if (!res.confirm) return
+      try {
+        const completed = await ApiService.completeMeal(meal.id)
+        msg.result.adopted_meal = completed || { ...meal, status: 'completed' }
+        await loadIngredients()
+        await loadTodayMeals()
+        await loadNutrition()
+        refreshAgentMessages()
+        uni.showToast({ title: '已写入今日营养', icon: 'success' })
+        setTimeout(() => openFeedbackSheet(completed?.recipe || msg.result.adopted_recipe || {}), 450)
+      } catch (e) {
+        uni.showToast({ title: e.message || '完成失败', icon: 'none' })
+      }
+    }
+  })
+}
+async function openTodayShoppingList() {
+  try {
+    const data = await ApiService.getTodayShoppingList()
+    uni.navigateTo({ url: `/pages/list-export/list-export?items=${encodeURIComponent(JSON.stringify(data.items || []))}&title=${encodeURIComponent('今日补购清单')}` })
+  } catch (e) {
+    uni.showToast({ title: e.message || '清单打开失败', icon: 'none' })
+  }
+}
 async function sendAgentMessage() {
   const m = agentMessage.value.trim(); if (!m) return
+  const typedIngredients = extractIngredientNames(m)
+  if (typedIngredients.length) {
+    agentConversationId.value = `conv_${Date.now()}_${Math.random().toString(16).slice(2)}`
+    uni.setStorageSync('agent_conversation_id', agentConversationId.value)
+    agentMessages.value = []
+  }
   const userMsg = { id: 'u_' + Date.now(), role: 'user', text: m }
   agentMessages.value.push(userMsg)
   agentLoading.value = true
@@ -739,9 +1001,7 @@ async function sendAgentMessage() {
     agentResult.value = r
     if (r.recipes && r.recipes.length) {
       recipes.value = r.recipes.map(normalizeRecipe)
-      nutritionScore.value = buildNutritionOverview(recipes.value).score
     }
-    const typedIngredients = extractIngredientNames(m)
     if (typedIngredients.length) {
       ingredients.value = typedIngredients.map(name => ({ name }))
       uni.setStorageSync('last_ingredients', JSON.stringify(ingredients.value))
@@ -942,7 +1202,7 @@ function goHub(key) {
     explore: () => uni.switchTab({ url: '/pages/explore/explore' }),
     list: () => goListExport(),
     history: () => goHistory(),
-    knowledge: () => uni.switchTab({ url: '/pages/food-knowledge/food-knowledge' }),
+    knowledge: () => uni.navigateTo({ url: '/pages/food-knowledge/food-knowledge' }),
     settings: () => uni.navigateTo({ url: '/pages/settings/settings' }),
     profile: () => uni.switchTab({ url: '/pages/profile/profile' })
   }
@@ -1182,8 +1442,8 @@ onShow(() => {
 .empty-row { min-height: 88rpx; display: flex; align-items: center; gap: 14rpx; color: var(--text-muted); font-size: 25rpx; line-height: 1.45; }
 .empty-icon { width: 48rpx; height: 48rpx; }
 
-.meal-tabs { display: flex; gap: 8rpx; margin-bottom: 12rpx; }
-.meal-tab { flex: 1; text-align: center; padding: 15rpx 0; background: var(--bg-elevated); border-radius: var(--radius); font-size: 24rpx; font-weight: 700; color: var(--text-secondary); position: relative; }
+.meal-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7rpx; margin-bottom: 12rpx; }
+.meal-tab { min-width: 0; text-align: center; padding: 13rpx 0; background: var(--bg-elevated); border-radius: var(--radius); font-size: 22rpx; font-weight: 800; color: var(--text-secondary); position: relative; }
 .meal-tab.active { background: var(--teal-bg); color: var(--teal); }
 .tab-dot { display: inline-block; width: 10rpx; height: 10rpx; border-radius: 50%; margin-left: 6rpx; vertical-align: middle; }
 .tab-dot.planned { background: var(--amber); }
@@ -1198,8 +1458,28 @@ onShow(() => {
 .plan-main { flex: 1; min-width: 0; }
 .plan-title { display: block; color: var(--text); font-size: 26rpx; font-weight: 900; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .plan-meta { display: block; margin-top: 5rpx; color: var(--text-muted); font-size: 21rpx; }
-.plan-done { width: 76rpx; height: 52rpx; margin: 0; padding: 0; border-radius: var(--radius-full); background: #23A978 !important; color: #fff !important; font-size: 21rpx; font-weight: 900; border: none; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-.plan-done::after { border: none; }
+.plan-buttons { display: flex; align-items: center; gap: 8rpx; flex-shrink: 0; }
+.plan-buttons button { min-width: 72rpx; height: 50rpx; margin: 0; padding: 0 14rpx; border-radius: var(--radius-full); border: none; font-size: 20rpx; font-weight: 900; line-height: 1; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.plan-buttons button::after { border: none; }
+.plan-done { background: #173B2E !important; color: #fff !important; box-shadow: 0 10rpx 18rpx rgba(23,59,46,.14); }
+.plan-switch { background: rgba(255,255,255,.82) !important; color: var(--teal) !important; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.18); }
+.plan-add { min-width: 88rpx !important; background: var(--teal-bg) !important; color: var(--teal) !important; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.14); }
+.adoption-card { margin-top: 14rpx; background: linear-gradient(150deg, #FFFFFF, #F5FBF8); border-radius: var(--radius-md); padding: 20rpx; box-shadow: var(--shadow-sm), var(--hairline); }
+.adoption-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16rpx; margin-bottom: 14rpx; }
+.adoption-kicker { display: block; font-size: 18rpx; color: var(--teal); font-weight: 950; }
+.adoption-title { display: block; margin-top: 4rpx; font-size: 29rpx; color: var(--text); font-weight: 950; }
+.adoption-clear { font-size: 22rpx; color: var(--text-muted); font-weight: 800; }
+.adoption-timeline { display: flex; flex-direction: column; gap: 9rpx; }
+.adoption-event { display: flex; align-items: flex-start; gap: 12rpx; padding: 13rpx 14rpx; border-radius: 18rpx; background: #fff; border: 1rpx solid var(--border-light); }
+.adoption-event.partial { background: var(--amber-bg); }
+.adoption-event.skipped { background: var(--bg-elevated); }
+.adoption-dot { width: 14rpx; height: 14rpx; margin-top: 7rpx; border-radius: 50%; background: var(--teal); flex-shrink: 0; box-shadow: 0 0 0 6rpx rgba(35,169,120,.10); }
+.adoption-copy { flex: 1; min-width: 0; }
+.adoption-copy text:first-child { display: block; font-size: 23rpx; color: var(--text); font-weight: 900; }
+.adoption-copy text:last-child { display: block; margin-top: 4rpx; font-size: 20rpx; color: var(--text-muted); line-height: 1.35; }
+.adoption-shopping { margin-top: 13rpx; height: 64rpx; border-radius: var(--radius-full); background: #173B2E; color: #fff; display: flex; align-items: center; justify-content: space-between; padding: 0 20rpx; box-sizing: border-box; }
+.adoption-shopping text:first-child { font-size: 23rpx; font-weight: 850; }
+.adoption-shopping text:last-child { font-size: 22rpx; color: rgba(255,255,255,.78); font-weight: 900; }
 
 .meal-scroll { width: 100%; white-space: nowrap; }
 .meal-scroll .meal-card { display: inline-flex; vertical-align: top; width: 610rpx; margin-right: 16rpx; white-space: normal; box-sizing: border-box; }
@@ -1214,6 +1494,17 @@ onShow(() => {
 .reason-chip { font-size: 20rpx; color: var(--text-secondary); background: var(--bg); border-radius: var(--radius-full); padding: 4rpx 10rpx; }
 .explain-row { display: flex; gap: 7rpx; flex-wrap: wrap; margin-top: 8rpx; max-width: 100%; }
 .explain-chip { max-width: 220rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 19rpx; color: var(--teal); background: var(--green-bg); border-radius: var(--radius-full); padding: 4rpx 9rpx; box-sizing: border-box; }
+.explain-more { font-size: 19rpx; color: #fff; background: #173B2E; border-radius: var(--radius-full); padding: 4rpx 11rpx; font-weight: 900; }
+.explain-mask { position: fixed; inset: 0; z-index: 50; background: rgba(10, 20, 16, .32); display: flex; align-items: flex-end; }
+.explain-sheet { width: 100%; background: #fff; border-radius: 30rpx 30rpx 0 0; padding: 24rpx 26rpx 36rpx; box-sizing: border-box; box-shadow: 0 -18rpx 46rpx rgba(18, 35, 29, .16); }
+.explain-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20rpx; margin-bottom: 18rpx; }
+.explain-sheet-kicker { display: block; font-size: 18rpx; color: var(--teal); font-weight: 950; }
+.explain-sheet-title { display: block; margin-top: 5rpx; color: var(--text); font-size: 34rpx; font-weight: 950; line-height: 1.25; }
+.explain-close { width: 52rpx; height: 52rpx; border-radius: 50%; background: var(--bg-elevated); display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 38rpx; line-height: 1; flex-shrink: 0; }
+.explain-block { background: var(--bg-elevated); border-radius: 20rpx; padding: 17rpx 18rpx; margin-top: 12rpx; }
+.explain-block-title { display: block; color: var(--text); font-size: 24rpx; font-weight: 950; }
+.explain-block-copy { display: block; margin-top: 7rpx; color: var(--text-secondary); font-size: 23rpx; line-height: 1.42; }
+.explain-block-hint { display: block; margin-top: 8rpx; color: var(--teal); font-size: 21rpx; font-weight: 850; line-height: 1.35; }
 .match-badge { min-width: 74rpx; height: 66rpx; border-radius: 21rpx; background: var(--green-bg); color: var(--teal); font-weight: 950; display: flex; flex-direction: column; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.12); }
 .match-badge text:first-child { font-size: 25rpx; line-height: 1; }
 .match-badge text:last-child { margin-top: 5rpx; font-size: 15rpx; color: var(--text-muted); }
@@ -1256,12 +1547,44 @@ onShow(() => {
 .stage-status { display: block; margin-top: 4rpx; font-size: 18rpx; color: var(--text-muted); text-align: center; }
 .agent-recipes { display: flex; flex-direction: column; gap: 8rpx; }
 .agent-recipe { background: #fff; border-radius: 19rpx; padding: 14rpx; display: flex; align-items: center; gap: 12rpx; border: 1rpx solid var(--border-light); box-shadow: var(--shadow-xs); }
+.agent-recipe.adopted { border-color: rgba(35,169,120,.24); background: linear-gradient(135deg, #FFFFFF, #F3FBF7); }
 .agent-recipe-main { flex: 1; min-width: 0; }
 .agent-recipe-title { display: block; font-size: 25rpx; font-weight: 900; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agent-recipe-meta { display: block; margin-top: 6rpx; font-size: 20rpx; color: var(--text-muted); }
 .agent-recipe-explain { display: flex; flex-wrap: wrap; gap: 6rpx; margin-top: 8rpx; }
 .agent-recipe-explain text { max-width: 220rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 18rpx; color: var(--teal); background: var(--green-bg); border-radius: var(--radius-full); padding: 4rpx 8rpx; box-sizing: border-box; }
-.agent-mini-btn { width: 78rpx; height: 52rpx; margin: 0; padding: 0; border-radius: var(--radius-full); background: var(--berry); color: #fff; font-size: 21rpx; font-weight: 900; border: none; display: flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0; }
+.agent-ingredient-strip { display: flex; flex-wrap: wrap; gap: 6rpx; margin-top: 8rpx; }
+.agent-ingredient-strip text { max-width: 168rpx; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 18rpx; color: var(--text-muted); background: var(--bg-elevated); border-radius: var(--radius-full); padding: 4rpx 8rpx; box-sizing: border-box; }
+.agent-mini-btn { width: 86rpx; height: 54rpx; margin: 0; padding: 0; border-radius: var(--radius-full); background: var(--berry); color: #fff; font-size: 21rpx; font-weight: 900; border: none; display: flex; align-items: center; justify-content: center; line-height: 1; flex-shrink: 0; }
+.agent-mini-btn.primary { background: var(--teal); box-shadow: 0 10rpx 18rpx rgba(35,169,120,.16); }
+.agent-mini-btn.done { background: var(--green-bg); color: var(--teal); box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.16); }
+.agent-mini-btn::after { border: none; }
+.agent-meal-flow { background: linear-gradient(145deg, #FFFFFF, #F7FCF9); border: 1rpx solid rgba(35,169,120,.18); border-radius: 22rpx; padding: 16rpx; box-shadow: var(--shadow-xs); display: flex; flex-direction: column; gap: 13rpx; }
+.agent-meal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14rpx; }
+.agent-meal-kicker { display: block; color: var(--teal); font-size: 19rpx; font-weight: 950; }
+.agent-meal-title { display: block; margin-top: 5rpx; color: var(--text); font-size: 27rpx; line-height: 1.25; font-weight: 950; }
+.agent-meal-status { flex-shrink: 0; min-width: 78rpx; text-align: center; border-radius: var(--radius-full); padding: 8rpx 12rpx; color: var(--text-muted); background: var(--bg-elevated); font-size: 19rpx; font-weight: 900; }
+.agent-meal-status.planned { color: var(--amber); background: var(--amber-bg); }
+.agent-meal-status.completed { color: var(--teal); background: var(--green-bg); }
+.agent-flow-events { display: flex; flex-direction: column; gap: 8rpx; }
+.agent-flow-event { display: flex; gap: 9rpx; padding: 10rpx 12rpx; border-radius: 15rpx; background: rgba(255,255,255,.86); border: 1rpx solid var(--border-light); }
+.agent-flow-event.success { background: var(--green-bg); border-color: rgba(35,169,120,.18); }
+.flow-dot { width: 12rpx; height: 12rpx; border-radius: 50%; background: var(--teal); margin-top: 7rpx; flex-shrink: 0; }
+.flow-copy { display: flex; flex-direction: column; gap: 3rpx; min-width: 0; }
+.flow-copy text:first-child { color: var(--text); font-size: 21rpx; font-weight: 900; }
+.flow-copy text:last-child { color: var(--text-muted); font-size: 19rpx; line-height: 1.4; }
+.agent-meal-lists { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10rpx; }
+.agent-mini-list { min-width: 0; border-radius: 17rpx; padding: 12rpx; background: #fff; border: 1rpx solid var(--border-light); display: flex; flex-direction: column; gap: 6rpx; box-sizing: border-box; }
+.agent-mini-list.shopping { background: var(--amber-bg); border-color: rgba(255,178,102,.24); }
+.agent-mini-list text { color: var(--text-secondary); font-size: 20rpx; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.agent-mini-list .mini-list-title { color: var(--text); font-size: 21rpx; font-weight: 950; }
+.agent-mini-list .mini-list-more { color: var(--amber); font-weight: 900; }
+.agent-meal-actions { display: flex; gap: 10rpx; }
+.agent-flow-btn { flex: 1; height: 58rpx; margin: 0; padding: 0 12rpx; border-radius: var(--radius-full); border: none; font-size: 22rpx; font-weight: 950; line-height: 1; display: flex; align-items: center; justify-content: center; }
+.agent-flow-btn.ghost { background: #fff; color: var(--text-secondary); box-shadow: inset 0 0 0 1rpx var(--border-light); }
+.agent-flow-btn.complete { background: #173B2E; color: #fff; box-shadow: 0 12rpx 22rpx rgba(23,59,46,.16); }
+.agent-flow-btn.complete.done { background: var(--teal); }
+.agent-flow-btn::after { border: none; }
 .agent-shopping { background: #fff; border-radius: 19rpx; padding: 12rpx 14rpx; display: flex; align-items: center; justify-content: space-between; gap: 12rpx; border: 1rpx solid var(--border-light); box-shadow: var(--shadow-xs); }
 .agent-shopping text { color: var(--text-secondary); font-size: 22rpx; }
 .agent-shopping button { width: 82rpx; height: 52rpx; margin: 0; padding: 0; border-radius: var(--radius-full); background: var(--teal); color: #fff; font-size: 21rpx; font-weight: 900; border: none; line-height: 1; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -1380,5 +1703,24 @@ onShow(() => {
   font-size: 21rpx;
   font-weight: 700;
 }
+.feedback-mask { position: fixed; inset: 0; z-index: 99; background: rgba(9, 18, 15, .34); display: flex; align-items: flex-end; animation: fade-in .18s ease both; }
+.feedback-sheet { width: 100%; padding: 14rpx 28rpx calc(28rpx + env(safe-area-inset-bottom)); border-radius: 34rpx 34rpx 0 0; background: #fff; box-shadow: 0 -22rpx 60rpx rgba(0,0,0,.16); box-sizing: border-box; animation: sheet-up .22s var(--ease) both; }
+.feedback-handle { width: 76rpx; height: 8rpx; border-radius: 999rpx; background: var(--border); margin: 0 auto 18rpx; }
+.feedback-head { margin-bottom: 18rpx; }
+.feedback-head text:first-child { display: block; font-size: 34rpx; color: var(--text); font-weight: 950; }
+.feedback-head text:last-child { display: block; margin-top: 6rpx; font-size: 23rpx; color: var(--text-muted); }
+.feedback-ratings { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10rpx; margin-bottom: 16rpx; }
+.feedback-rating { height: 66rpx; border-radius: var(--radius-full); background: var(--bg-elevated); color: var(--text-secondary); display: flex; align-items: center; justify-content: center; font-size: 22rpx; font-weight: 900; }
+.feedback-rating.active { background: var(--teal-bg); color: var(--teal); box-shadow: inset 0 0 0 1rpx rgba(35,169,120,.16); }
+.feedback-chips { display: flex; flex-wrap: wrap; gap: 10rpx; margin-bottom: 16rpx; }
+.feedback-chips text { padding: 10rpx 16rpx; border-radius: var(--radius-full); background: var(--bg-elevated); color: var(--text-secondary); font-size: 22rpx; font-weight: 850; }
+.feedback-chips text.active { background: #173B2E; color: #fff; }
+.feedback-input { width: 100%; min-height: 150rpx; background: var(--bg); border-radius: var(--radius); padding: 18rpx; box-sizing: border-box; font-size: 25rpx; color: var(--text); margin-bottom: 16rpx; }
+.feedback-actions { display: flex; gap: 12rpx; }
+.feedback-actions button { flex: 1; height: 76rpx; margin: 0; border-radius: var(--radius-full); border: none; font-size: 25rpx; font-weight: 900; display: flex; align-items: center; justify-content: center; }
+.feedback-skip { background: var(--bg-elevated); color: var(--text-secondary); }
+.feedback-submit { background: var(--teal); color: #fff; box-shadow: 0 12rpx 24rpx rgba(35,169,120,.16); }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes sheet-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
 .bottom-safe { height: 132rpx; }
 </style>
